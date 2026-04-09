@@ -462,20 +462,17 @@ async function handleSaveAccount(auth, body, res) {
   if (!body.isNew) checkToken(body);
   const acc = body.account;
 
-  // 1. Get current headers (sanitized to lowercase/no-space by your getSheetData)
+  // 1. Get current headers (already sanitized to lowercase by getSheetData)
   const { headers, data } = await getSheetData(auth, 'AccountList');
 
-  // 2. AUTO MAPPING: Loop through headers and pull matching key from 'acc'
-  // This ensures data always goes into the correct column regardless of order.
+  // 2. DYNAMIC MAPPING: Create row by finding the matching key in 'acc' for every header
   const row = headers.map(h => {
     const key = h.toLowerCase().trim();
-    // If the standardized key exists in 'acc', use it. Otherwise, empty string.
     return acc[key] !== undefined ? acc[key] : '';
   });
 
-  // 3. Find row index by ID
+  // 3. Save Logic
   const rowIdx = data.findIndex(r => String(r.id) === String(acc.id));
-
   if (rowIdx >= 0) {
     const rowNum = rowIdx + 2;
     const lastCol = colLetter(headers.length - 1);
@@ -483,8 +480,6 @@ async function handleSaveAccount(auth, body, res) {
   } else {
     await sheetsAppend(auth, 'AccountList!A1', [row]);
   }
-
-  console.log(`✅ Account ${acc.id} saved via Auto-Mapping`);
   return res.json({ result: 'ok' });
 }
 
