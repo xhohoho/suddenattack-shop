@@ -302,16 +302,17 @@
       });
       const d = await r.json();
       if (!d.values || !d.values.length) return;
-      const loaded = d.values.map((r,i) => ({
-        id: parseInt(r[0])||i+1,
-        name: r[1]||'',
-        desc: r[2]||'',
+      // API returns objects keyed by lowercased headers (e.g. id, name, desc, 7d, 15d, 30d)
+      const loaded = d.values.map((row, i) => ({
+        id: parseInt(row.id) || i + 1,
+        name: row.name || '',
+        desc: row.desc || row.description || '',
         p: {
-          7:  parseFloat((r[3]||'0').toString().replace(/,/g,''))||0,
-          15: parseFloat((r[4]||'0').toString().replace(/,/g,''))||0,
-          30: parseFloat((r[5]||'0').toString().replace(/,/g,''))||0
+          7:  parseFloat((row['7d']  || row['p7']  || '0').toString().replace(/,/g, '')) || 0,
+          15: parseFloat((row['15d'] || row['p15'] || '0').toString().replace(/,/g, '')) || 0,
+          30: parseFloat((row['30d'] || row['p30'] || '0').toString().replace(/,/g, '')) || 0,
         }
-      })).filter(it=>it.name);
+      })).filter(it => it.name);
       if (loaded.length) {
         ITEMS.length=0; loaded.forEach(it=>ITEMS.push(it));
         qtys={}; ITEMS.forEach(it=>DAYS.forEach(d=>{qtys[`${it.id}_${d}`]=0;}));
