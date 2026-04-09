@@ -765,7 +765,7 @@
     status.textContent='Uploading proof...'; status.style.color='var(--text2)';
     try {
       const acc = accounts.find(x => x.id === currentAccId);
-      const orderId = genId('ACC');
+      const orderId = genId('ACC', true);
       const timestamp = new Date().toISOString();
       const details = [acc?.rank, acc?.ign?'IGN:'+acc.ign:'', acc?.accId?'ID:'+acc.accId:''].filter(Boolean).join(' · ');
       await uploadProofFile(file, orderId, 'accountPurchase', {
@@ -851,7 +851,7 @@
     btn.disabled=true; btn.textContent='Submitting...';
     status.textContent='Preparing listing...'; status.style.color='var(--text2)';
 
-    const accId = genId('ACC');
+    const accId = genId('ACC', true);
     const uploadedUrls = ['','','',''];
 
     try {
@@ -991,7 +991,7 @@
   // ── Admin: account form ────────────────────
   function showAddForm(id = null) {
     editingId = id;
-    newAccId = id ? null : genId('ACC');
+    newAccId = id ? null : genId('ACC', true);
     document.getElementById('acc-form-label').textContent = id ? 'Edit account' : 'New account';
     document.getElementById('cancel-form-btn').style.display = '';
     resetSlots();
