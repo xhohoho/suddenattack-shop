@@ -463,6 +463,13 @@ async function handleSaveAccount(auth, body, res) {
   if (!body.isNew) checkToken(body);
   const acc = body.account;
 
+  const cleanId = acc.id.includes('-') && acc.id.split('-').length > 2 
+    ? acc.id.split('-').slice(0, 2).join('-') 
+    : acc.id;
+
+  // Force the account object to use the clean ID for the Sheet
+  acc.id = cleanId;
+
   // 1. Get current headers (sanitized to lowercase/no-space by your getSheetData)
   const { headers, data } = await getSheetData(auth, 'AccountList');
 
