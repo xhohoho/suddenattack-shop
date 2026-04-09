@@ -21,9 +21,8 @@ function checkToken(body) {
 const SHEET_ID = process.env.SHEET_ID;
 
 // ── Sheet Helper ───────────────────────────
-async function getSheetData(sheetName) {
+async function getSheetData(auth, sheetName) {
   try {
-    const auth = await getAuth().getClient();
     const sheets = google.sheets({ version: 'v4', auth });
     
     const response = await sheets.spreadsheets.values.get({
@@ -46,7 +45,7 @@ async function getSheetData(sheetName) {
     return { headers, data };
   } catch (err) {
     console.error(`❌ getSheetData fail (${sheetName}):`, err.message);
-    throw err; // This ensures the 500 error shows the real cause in Vercel logs
+    throw err;
   }
 }
 
@@ -159,18 +158,18 @@ async function handleAdminAuth(body, res) {
 }
 
 // ── Read Handlers (public) ─────────────────
-async function handleGetOrders(res) {
-  const { data } = await getSheetData('Orders');
+async function handleGetOrders(auth, res) {
+  const { data } = await getSheetData(auth, 'Orders');
   return res.json({ values: data });
 }
 
-async function handleGetShopItems(res) {
-  const { data } = await getSheetData('CurrentShop');
+async function handleGetShopItems(auth, res) {
+  const { data } = await getSheetData(auth, 'CurrentShop');
   return res.json({ values: data });
 }
 
-async function handleGetAccounts(res) {
-  const { data } = await getSheetData('AccountList');
+async function handleGetAccounts(auth, res) {
+  const { data } = await getSheetData(auth, 'AccountList');
   return res.json({ values: data });
 }
 
@@ -179,7 +178,7 @@ async function handleUpdateOrderStatus(auth, body, res) {
   checkToken(body);
   console.log(`📝 updateOrderStatus: ${body.order_id} → ${body.status}`);
 
-  const { headers, data } = await getSheetData('Orders');
+  const { headers, data } = await getSheetData(auth, 'Orders');
   const rowIdx = data.findIndex(r => r.order_id === body.order_id);
   if (rowIdx === -1) throw new Error('Order not found');
 
@@ -211,7 +210,7 @@ async function handleNewOrder(auth, body, res) {
     body.note || '', body.status || 'New', proofFormula
   ];
 
-  const { data } = await getSheetData('Orders');
+  const { data } = await getSheetData(auth, 'Orders');
   const rowIdx = data.findIndex(r => r.order_id === body.order_id);
   if (rowIdx >= 0) {
     const rowNum = rowIdx + 2;
@@ -233,7 +232,7 @@ async function handleUploadProofItem(auth, body, res) {
     ? `=HYPERLINK("https://drive.google.com/file/d/${fileId}/view","📄 View PDF")`
     : `=IMAGE("${driveUrl(fileId, body.mimeType)}")`;
 
-  const { headers, data } = await getSheetData('Orders');
+  const { headers, data } = await getSheetData(auth, 'Orders');
   const rowIdx = data.findIndex(r => r.order_id === body.order_id);
   if (rowIdx === -1) throw new Error('Order not found');
   const rowNum    = rowIdx + 2;
@@ -358,7 +357,7 @@ async function handleSaveAccount(auth, body, res) {
   const acc = body.account;
   console.log(`💾 saveAccount: ${acc.id} ${acc.rank}`);
 
-  const { data } = await getSheetData('AccountList');
+  const { data } = await getSheetData(auth, 'AccountList');
   const rowIdx = data.findIndex(r => r.id === acc.id);
   // handleSaveAccount — add seller fields to the row
   const row = [
@@ -383,7 +382,7 @@ async function handleDeleteAccount(auth, body, res) {
   checkToken(body);
   console.log(`🗑 deleteAccount: ${body.acc_id}`);
 
-  const { data } = await getSheetData('AccountList');
+  const { data } = await getSheetData(auth, 'AccountList');
   const rowIdx = data.findIndex(r => r.id === body.acc_id);
   if (rowIdx === -1) throw new Error('Account not found');
   const rowNum = rowIdx + 2;
@@ -428,7 +427,7 @@ async function handleUpdateAccountStatus(auth, body, res) {
   checkToken(body);
   console.log(`📝 updateAccountStatus: ${body.account.id} → ${body.account.status}`);
 
-  const { headers, data } = await getSheetData('AccountList');
+  const { headers, data } = await getSheetData(auth, 'AccountList');
   const rowIdx = data.findIndex(r => r.id === body.account.id);
   if (rowIdx === -1) throw new Error('Account not found');
   const rowNum    = rowIdx + 2;
@@ -452,9 +451,9 @@ async function handleUploadSlideImg(auth, body, res) {
 }
 
 // Inside index.js
-async function handleGetSettings(res) {
+async function handleGetSettings(auth, res) {
   try {
-    const { data } = await getSheetData('Settings');
+    const { data } = await getSheetData(auth, 'Settings');
     const slideshowRow = data.find(r => r.key === 'slideshow');
     
     // Ensure we return the exact keys from your sheet
@@ -481,14 +480,16 @@ export default async function handler(req, res) {
   console.log(`\n▶ action: ${action} — ${new Date().toISOString()}`);
 
   try {
+	 
+	const auth = await getAuth().getClient();
 	  
 	if (action === 'initData') {
 	  const auth = await getAuth().getClient();
 	  
 	  // Fetch everything in parallel for speed
 	  const [orders, items, settings] = await Promise.all([
-		getSheetData('Orders'),
-		getSheetData('CurrentShop'),
+		getSheetData(auth, 'Orders'),
+		getSheetData(auth, 'CurrentShop'),
 		sheetsRead(auth, 'Settings!B2:C2')
 	  ]);
 
@@ -500,10 +501,10 @@ export default async function handler(req, res) {
 	}
     // ── Public actions (no Google auth needed) ──
     if (action === 'adminAuth')    return await handleAdminAuth(body, res);
-    if (action === 'getOrders')    return await handleGetOrders(res);
-    if (action === 'getShopItems') return await handleGetShopItems(res);
-    if (action === 'getAccounts')  return await handleGetAccounts(res);
-	if (action === 'getSettings')  return await handleGetSettings(res);
+    if (action === 'getOrders')    return await handleGetOrders(auth, res);
+    if (action === 'getShopItems') return await handleGetShopItems(auth, res);
+    if (action === 'getAccounts')  return await handleGetAccounts(auth, res);
+	if (action === 'getSettings')  return await handleGetSettings(auth, res);
 
     // ── Protected actions (Google auth required) ──
     const auth = await getAuth().getClient();
