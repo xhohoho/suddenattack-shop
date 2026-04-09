@@ -389,44 +389,60 @@
   // ── Fetch accounts ─────────────────────────
   let _lastAccountData = '';
 	async function fetchAccounts() {
+	  if (!accounts.length) showGridSkeleton();
 	  try {
-		const r = await fetch(WEBHOOK_URL, {
-		  method: 'POST',
-		  headers: { 'Content-Type': 'application/json' },
-		  body: JSON.stringify({ action: 'getAccounts' })
+		// 1. Call your Vercel API
+		const r = await fetch(WEBHOOK_URL, { 
+		  method: 'POST', 
+		  headers: { 'Content-Type': 'application/json' }, 
+		  body: JSON.stringify({ action: 'getAccounts' }) 
 		});
+		
 		const d = await r.json();
 		
-		// d.values is now an array of objects: [{id: '1', rank: 'Gold'}, ...]
-		if (!d.values) return;
+		// 2. index.js returns { values: [ {rank: "...", price: "100", ...}, ... ] }
+		if (!d.values || !Array.isArray(d.values)) {
+		  console.warn("No account data received from API");
+		  return;
+		}
 
-		// Use the object keys directly
-		accounts = d.values.map(acc => ({
-		  id: acc.id,
-		  rank: acc.rank,
-		  price: acc.price,
-		  ign: acc.ign,
-		  accId: acc.accid, // Note: getSheetData lowercase/strips spaces
-		  kda: acc.kda,
-		  winRate: acc.winrate,
-		  exp: acc.exp,
-		  ach: acc.ach,
-		  notes: acc.notes,
-		  status: acc.status,
-		  createdAt: acc.createdat,
-		  img1: acc.img1,
-		  img2: acc.img2,
-		  img3: acc.img3,
-		  img4: acc.img4,
-		  sellerName: acc.sellername,
-		  sellerPhone: acc.sellerphone,
-		  sellerIgn: acc.sellerign
-		}));
+		// 3. Map the properties. 
+		// Note: getSheetData converts headers to lowercase and removes spaces.
+		// e.g., "Account ID" becomes "accid"
+		const newData = d.values.map(acc => ({
+		  id: acc.id || '',
+		  rank: acc.rank || '',
+		  price: parseFloat(String(acc.price || 0).replace(/[^\d.-]/g, '')) || 0,
+		  ign: acc.ign || '',
+		  accId: acc.accid || acc.accountid || '', // support common variations
+		  kda: acc.kda || '',
+		  winRate: acc.winrate || '',
+		  exp: acc.exp || '',
+		  ach: acc.ach || acc.achievement || '',
+		  notes: acc.notes || '',
+		  status: (acc.status || 'pending').toLowerCase().trim(),
+		  createdAt: parseInt(acc.createdat) || Date.now(),
+		  img1: acc.img1 || '',
+		  img2: acc.img2 || '',
+		  img3: acc.img3 || '',
+		  img4: acc.img4 || '',
+		  sellerName: acc.sellername || '',
+		  sellerPhone: acc.sellerphone || acc.sellercontact || '',
+		  sellerIgn: acc.sellerign || ''
+		})).filter(a => a.id && a.rank);
 
-		renderManageList(); // Refresh admin view
-		renderAccountCards(); // Refresh public view
+		const hash = JSON.stringify(newData);
+		if (hash === _lastAccountData) return;
+		
+		_lastAccountData = hash;
+		accounts = newData;
+
+		renderGrid();
+		if (adminUnlocked) renderManageList();
 	  } catch (e) {
 		console.error("Fetch error:", e);
+		// Remove skeleton if fetch fails
+		document.getElementById('acc-grid').innerHTML = '<div class="empty-feed">Failed to load accounts</div>';
 	  }
 	}
 
