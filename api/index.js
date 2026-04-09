@@ -467,6 +467,7 @@ export default async function handler(req, res) {
     if (action === 'getOrders')    return await handleGetOrders(res);
     if (action === 'getShopItems') return await handleGetShopItems(res);
     if (action === 'getAccounts')  return await handleGetAccounts(res);
+	if (action === 'getSettings')  return await handleGetSettings(res);
 
     // ── Protected actions (Google auth required) ──
     const auth = await getAuth().getClient();
