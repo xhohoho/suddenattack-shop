@@ -989,32 +989,39 @@
   }
 
   // ── Admin: account form ────────────────────
-  function showAddForm(id=null) {
-    editingId=id; newAccId=id?null:genId('ACC');
+  function showAddForm(id = null) {
+    editingId = id;
+    newAccId = id ? null : genId('ACC');
     document.getElementById('acc-form-label').textContent = id ? 'Edit account' : 'New account';
-    document.getElementById('cancel-form-btn').style.display='';
+    document.getElementById('cancel-form-btn').style.display = '';
     resetSlots();
+
     if (id) {
-      const a=accounts.find(x=>x.id===id);
+      const a = accounts.find(x => x.id === id);
       if (a) {
-        document.getElementById('f-rank').value=a.rank||'';
-        document.getElementById('f-price').value=a.price||'';
-        document.getElementById('f-ign').value=a.ign||'';
-        document.getElementById('f-id').value=a.accId||'';
-        document.getElementById('f-kda').value=a.kda||'';
-        document.getElementById('f-wr').value=a.winRate||'';
-        document.getElementById('f-exp').value=a.exp||'';
-        document.getElementById('f-ach').value=a.ach||'';
-        document.getElementById('f-notes').value=a.notes||'';
-        document.getElementById('f-status').value=a.status||'available';
-        document.getElementById('f-sellername').value = a.sellername || '';
-        document.getElementById('f-sellercontact').value = a.sellercontact || '';
-        document.getElementById('f-sellerign').value = a.sellerign || '';
+        // Standard Fields
+        document.getElementById('f-rank').value = a.rank || '';
+        document.getElementById('f-price').value = a.price || '';
+        document.getElementById('f-ign').value = a.ign || '';
+        document.getElementById('f-id').value = a.accId || '';
+        document.getElementById('f-kda').value = a.kda || '';
+        document.getElementById('f-wr').value = a.winRate || '';
+        document.getElementById('f-exp').value = a.exp || '';
+        document.getElementById('f-ach').value = a.ach || '';
+        document.getElementById('f-notes').value = a.notes || '';
+        document.getElementById('f-status').value = a.status || 'available';
+
+        // FIX: Seller Info Fetching
+        // Ensuring we check all possible property names used in mapping
+        document.getElementById('f-sellername').value = a.sellerName || a.sellername || '';
+        document.getElementById('f-sellercontact').value = a.sellerPhone || a.sellercontact || a.sellerphone || '';
+        document.getElementById('f-sellerign').value = a.sellerIgn || a.sellerign || '';
+
         populateSlots(a);
       }
     }
-    document.getElementById('acc-form').style.display='block';
-    document.getElementById('acc-form').scrollIntoView({behavior:'smooth',block:'start'});
+    document.getElementById('acc-form').style.display = 'block';
+    document.getElementById('acc-form').scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
   function hideAddForm() { document.getElementById('acc-form').style.display='none'; document.getElementById('cancel-form-btn').style.display='none'; editingId=null; newAccId=null; resetSlots(); }
 
@@ -1131,23 +1138,26 @@
       if(pending.length){if(st)st.textContent=`Uploading ${pending.length} media file(s)...`; await Promise.all(pending.map(i=>uploadSlot(i)));}
       if(st)st.textContent='Saving account data...';
       const acc = {
-          id: editingId || newAccId,
-          rank: document.getElementById('f-rank').value.trim(),
-          price: parseFloat(document.getElementById('f-price').value),
-          ign: document.getElementById('f-ign').value.trim(),
-          accid: document.getElementById('f-id').value.trim(),             // Standardized
-          sellername: document.getElementById('f-sellername').value.trim(),    // Standardized
-          sellercontact: document.getElementById('f-sellercontact').value.trim(),// Standardized
-          sellerign: document.getElementById('f-sellerign').value.trim(),      // Standardized
-          kda: document.getElementById('f-kda').value.trim(),
-          winrate: document.getElementById('f-wr').value.trim(),          // Standardized
-          exp: document.getElementById('f-exp').value.trim(),
-          achievement: document.getElementById('f-ach').value.trim(),      // Standardized
-          notes: document.getElementById('f-notes').value.trim(),
-          status: document.getElementById('f-status').value,
-          createdat: Date.now(),                                           // Standardized
-          img1: slotUrls[0], img2: slotUrls[1], img3: slotUrls[2], img4: slotUrls[3]
-        };
+        id: editingId || newAccId,
+        rank: document.getElementById('f-rank').value.trim(),
+        price: parseFloat(document.getElementById('f-price').value),
+        ign: document.getElementById('f-ign').value.trim(),
+        accid: document.getElementById('f-id').value.trim(),
+        
+        // Explicitly capture seller info
+        sellername: document.getElementById('f-sellername').value.trim(),
+        sellercontact: document.getElementById('f-sellercontact').value.trim(),
+        sellerign: document.getElementById('f-sellerign').value.trim(),
+        
+        kda: document.getElementById('f-kda').value.trim(),
+        winrate: document.getElementById('f-wr').value.trim(),
+        exp: document.getElementById('f-exp').value.trim(),
+        achievement: document.getElementById('f-ach').value.trim(),
+        notes: document.getElementById('f-notes').value.trim(),
+        status: document.getElementById('f-status').value,
+        createdat: Date.now(),
+        img1: slotUrls[0], img2: slotUrls[1], img3: slotUrls[2], img4: slotUrls[3]
+      };
       const finalResp=await adminFetch({action:'saveAccount',account:acc,isNew:!editingId});
       const result=await finalResp.json(); if(result.error)throw new Error(result.error);
       if(st){st.textContent='Saved successfully!';st.style.color='var(--green)';}
