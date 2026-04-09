@@ -443,12 +443,16 @@ async function handleUploadSlideImg(auth, body, res) {
 async function handleGetSettings(res) {
   try {
     const auth = await getAuth().getClient();
-    // Use sheetsRead (raw) because Settings!B2:C2 has no headers
+    // Read raw cells B2 and C2 from the Settings tab
     const rows = await sheetsRead(auth, 'Settings!B2:C2');
-    const settings = (rows && rows.length > 0) ? rows[0] : ['', ''];
-    return res.json({ slides: settings });
+    
+    // rows[0] will be an array: ["https://url1.com", "https://url2.com"]
+    const urls = (rows && rows.length > 0) ? rows[0] : ['', ''];
+    
+    return res.json({ slides: urls });
   } catch (err) {
-    return res.status(500).json({ error: err.message });
+    console.error("❌ handleGetSettings failed:", err.message);
+    return res.status(500).json({ error: "Failed to load slides" });
   }
 }
 
