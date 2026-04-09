@@ -494,12 +494,12 @@ async function handleDeleteAccount(auth, body, res) {
   checkToken(body);
   console.log(`🗑 deleteAccount: ${body.acc_id}`);
 
+  // 1. SHEET DELETION (Stays using 'auth' - Service Account)
   const { data } = await getSheetData(auth, 'AccountList');
-  const rowIdx = data.findIndex(r => r.id === body.acc_id);
+  const rowIdx = data.findIndex(r => String(r.id) === String(body.acc_id));
   if (rowIdx === -1) throw new Error('Account not found');
   const rowNum = rowIdx + 2;
 
-  // get sheetId dynamically — no hardcoded gid
   const sheets = google.sheets({ version: 'v4', auth });
   const meta = await sheets.spreadsheets.get({ spreadsheetId: SHEET_ID });
   const sheet = meta.data.sheets.find(s => s.properties.title === 'AccountList');
@@ -521,18 +521,24 @@ async function handleDeleteAccount(auth, body, res) {
     }
   });
 
-  // delete Drive folder for this account
-  const drive = google.drive({ version: 'v3', auth });
+  // 2. DRIVE DELETION (FIX: Must switch to OAuth)
+  // Use getDriveAuth() here instead of the 'auth' variable
+  const oauthAuth = getDriveAuth(); 
+  const drive = google.drive({ version: 'v3', auth: oauthAuth });
+
   const search = await drive.files.list({
     q: `name='${body.acc_id}' and '${process.env.DRIVE_FOLDER_ACCOUNTS}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,
     fields: 'files(id)',
     supportsAllDrives: true,
     includeItemsFromAllDrives: true,
   });
+
   if (search.data.files.length > 0) {
+    // This will now work because it uses your Personal Account's permissions
     await drive.files.delete({ fileId: search.data.files[0].id, supportsAllDrives: true });
-    console.log(`🗑 Drive folder deleted`);
+    console.log(`🗑 Drive folder deleted via OAuth`);
   }
+
   console.log(`✅ account ${body.acc_id} deleted`);
   return res.json({ result: 'ok' });
 }
