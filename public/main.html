@@ -539,8 +539,6 @@
 <script>
   // ── Config ─────────────────────────────────
   const WEBHOOK_URL = '/api';
-  const SHEET_ID    = '1fqD7fygXn0j7wWLbLJCZ8OXwv_eeGF7oYKqmcRQ_L2I';
-  const API_KEY     = 'AIzaSyCoZPUXQ5C6fTuR2mlhOt_Utvr2_Kh05Sc';
 
   // ── Shared item state (used by main.html admin + item.html) ──
   const ITEMS = [];
@@ -749,35 +747,53 @@
 
   function isPayable(s) { return !s || s==='New'; }
 
-  function sheetFingerprint(values) {
-    if (!values || !values.length) return '';
-    const last = values[values.length - 1];
-    return `${values.length}|${values[0]?.[0]||''}|${last[0]||''}|${last[8]||''}`;
-  }
+	function sheetFingerprint(values) {
+	  if (!values || !values.length) return '';
+	  
+	  // 'values' is now an array of objects from index.js
+	  const first = values[0];
+	  const last = values[values.length - 1];
+
+	  // We check the first ID, last ID, and last status to see if anything changed
+	  return `${values.length}|${first.order_id || ''}|${last.order_id || ''}|${last.status || ''}`;
+	}
 
   let _lastFeedData = '';
   async function fetchSheet() {
-    try {
-      const r = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/Orders!A2:J200?key=${API_KEY}`);
-      const d = await r.json();
-      const values = d.values||[];
-      const fp = sheetFingerprint(values);
-      if (_lastFeedData !== fp) {
-        _lastFeedData = fp;
-        const rows = [...values].reverse().map(r => ({
-          order_id:r[0], timestamp:r[1], name:r[2], phone:r[3],
-          email:r[4], items:r[5], total:r[6], note:r[7],
-          status:r[8]||'New', proof:r[9]||''
-        }));
-        renderFeed(rows);
-        allOrders = rows.map(r => ({
-          order_id:r.order_id, timestamp:r.timestamp, name:r.name,
-          items:r.items, total:r.total, status:r.status
-        }));
-      }
-      document.getElementById('sync-lbl').textContent = 'Synced ' + new Date().toLocaleTimeString();
-    } catch(e) { document.getElementById('sync-lbl').textContent = 'Sync failed'; }
-  }
+	  try {
+		// 1. Call your Vercel backend instead of Google
+		const r = await fetch(WEBHOOK_URL, {
+		  method: 'POST',
+		  headers: { 'Content-Type': 'application/json' },
+		  body: JSON.stringify({ action: 'getOrders' }) 
+		});
+
+		const d = await r.json();
+		
+		// 2. Note: your backend (index.js) handleGetOrders already 
+		// returns a 'values' array that is ALREADY formatted into objects!
+		const rows = d.values || []; 
+		
+		// We reverse it to show the latest orders first
+		const reversedRows = [...rows].reverse();
+
+		// 3. Fingerprint check (optional but good for performance)
+		const fp = JSON.stringify(reversedRows[0] || ''); 
+		if (_lastFeedData !== fp) {
+		  _lastFeedData = fp;
+		  
+		  renderFeed(reversedRows);
+		  
+		  // Update the global allOrders variable used by the admin tab
+		  allOrders = reversedRows;
+		}
+
+		document.getElementById('sync-lbl').textContent = 'Synced ' + new Date().toLocaleTimeString();
+	  } catch(e) { 
+		console.error(e);
+		document.getElementById('sync-lbl').textContent = 'Sync failed'; 
+	  }
+	}
 
   // ── Shop extract (admin) ───────────────────
   let shopExtractFiles = [null, null];
@@ -1044,26 +1060,39 @@
     }, 4000);
   }
 
-  async function fetchSlideUrls() {
-    try {
-      const r = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/Settings!B2:C2?key=${API_KEY}`);
-      const d = await r.json();
-      const row = (d.values||[])[0]||[];
-      const slides = document.querySelectorAll('#slideshow img');
+	async function fetchSlideUrls() {
+	  try {
+		const r = await fetch(WEBHOOK_URL, {
+		  method: 'POST',
+		  headers: { 'Content-Type': 'application/json' },
+		  body: JSON.stringify({ action: 'getSettings' })
+		});
+		
+		const d = await r.json();
+		const row = d.slides || []; // This comes from handleGetSettings
+		const slides = document.querySelectorAll('#slideshow img');
 
-      [row[0], row[1]].forEach((url, i) => {
-        if (!url) return;
-        slideUrls[i] = url;
-        slides[i].src = url;
+		[row[0], row[1]].forEach((url, i) => {
+		  if (!url) return;
+		  slideUrls[i] = url;
+		  slides[i].src = url;
 
-        // Only update admin thumbnails if panel is open
-        if (adminUnlocked) {
-          const thumb = document.getElementById('ss-img-'+i);
-          const lbl = document.getElementById('ss-lbl-'+i);
-          if (thumb) { thumb.src=url; thumb.style.display='block'; }
-          if (lbl) lbl.style.display='none';
-        }
-      });
+		  if (adminUnlocked) {
+			const thumb = document.getElementById('ss-img-' + i);
+			const lbl = document.getElementById('ss-lbl-' + i);
+			if (thumb) { thumb.src = url; thumb.style.display = 'block'; }
+			if (lbl) lbl.style.display = 'none';
+		  }
+		});
+
+		document.getElementById('slideshow-area')?.classList.remove('loading');
+		slideshowIdx = 0;
+		startSlideshow();
+		initImgFadeIn();
+	  } catch (e) {
+		console.error("Failed to fetch slideshow settings:", e);
+	  }
+	}
 
       document.getElementById('slideshow-area')?.classList.remove('loading');
       slideshowIdx = 0;
