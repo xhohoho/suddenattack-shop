@@ -439,12 +439,20 @@ async function handleUploadSlideImg(auth, body, res) {
   return res.json({ result: 'ok' });
 }
 
+// In index.js
 async function handleGetSettings(res) {
-  // We use SheetsRead (which uses auth) to get the slide URLs
-  const auth = await getAuth().getClient();
-  const rows = await sheetsRead(auth, 'Settings!B2:C2');
-  const settings = rows[0] || ['', ''];
-  return res.json({ slides: settings });
+  try {
+    const auth = await getAuth().getClient();
+    // Use sheetsRead because Settings doesn't have standard headers
+    const rows = await sheetsRead(auth, 'Settings!B2:C2'); 
+    
+    // rows[0] will be [url1, url2]
+    const settings = rows[0] || ['', ''];
+    return res.json({ slides: settings });
+  } catch (err) {
+    console.error("handleGetSettings failed:", err);
+    return res.status(500).json({ error: err.message });
+  }
 }
 
 // ══════════════════════════════════════════
