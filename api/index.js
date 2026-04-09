@@ -115,11 +115,11 @@ function driveUrl(fileId, mimeType = '') {
   if (isGif) {
     // GIFs → must use export=view to preserve animation
     // thumbnail URL kills the animation
-    return `https://drive.google.com/uc?export=view&id=${fileId}`;
+    return `https://lh3.googleusercontent.com/d/${fileId}`;
   }
 
   // all other images → thumbnail (fast, resizable, mobile friendly)
-  return `https://drive.google.com/thumbnail?id=${fileId}&sz=w1200`;
+  return `https://lh3.googleusercontent.com/d/${fileId}`;
 }
 
 // ── Sheet Read/Write Helpers ───────────────
