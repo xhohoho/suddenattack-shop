@@ -1062,7 +1062,6 @@
 
 	async function fetchSlideUrls() {
 	  try {
-		// 1. Call your Vercel API instead of Google
 		const r = await fetch(WEBHOOK_URL, {
 		  method: 'POST',
 		  headers: { 'Content-Type': 'application/json' },
@@ -1071,18 +1070,17 @@
 		
 		const d = await r.json();
 		
-		// 2. Access the 'slides' array we created in index.js
+		// index.js returns { slides: ["url1", "url2"] }
 		const row = d.slides || []; 
 		const slides = document.querySelectorAll('#slideshow img');
 
-		// 3. Loop through the URLs and update the images
-		[row[0], row[1]].forEach((url, i) => {
+		// Loop through cells B2 and C2
+		row.forEach((url, i) => {
 		  if (!url || !slides[i]) return;
-		  
 		  slideUrls[i] = url;
 		  slides[i].src = url;
 
-		  // Update admin thumbnails if the panel is unlocked
+		  // Update admin thumbnails if panel is open
 		  if (adminUnlocked) {
 			const thumb = document.getElementById('ss-img-' + i);
 			const lbl = document.getElementById('ss-lbl-' + i);
@@ -1091,16 +1089,14 @@
 		  }
 		});
 
-		// 4. Restart the slideshow logic
 		const area = document.getElementById('slideshow-area');
 		if (area) area.classList.remove('loading');
 		
 		slideshowIdx = 0;
 		startSlideshow();
 		initImgFadeIn();
-		
 	  } catch (e) {
-		console.error("❌ fetchSlideUrls failed:", e);
+		console.error("Slide fetch failed:", e);
 	  }
 	}
 
