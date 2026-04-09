@@ -538,7 +538,7 @@
 ════════════════════════════════════════════ -->
 <script>
   // ── Config ─────────────────────────────────
-  const WEBHOOK_URL = '/api';
+  const API_URL = '/api/index';
 
   // ── Shared item state (used by main.html admin + item.html) ──
   const ITEMS = [];
@@ -627,7 +627,7 @@
   let adminToken = null;
 
   function adminFetch(payload) {
-    return fetch(WEBHOOK_URL, {
+    return fetch(API_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ...payload, _token: adminToken })
@@ -654,7 +654,7 @@
     const st = document.getElementById('gate-status');
     st.textContent = 'Verifying...'; st.style.color = 'var(--text2)';
     try {
-      const resp = await fetch(WEBHOOK_URL, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({action:'adminAuth',password:pw}) });
+      const resp = await fetch(API_URL, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({action:'adminAuth',password:pw}) });
       const result = await resp.json();
       if (result.token) {
         adminToken = result.token;
@@ -747,53 +747,29 @@
 
   function isPayable(s) { return !s || s==='New'; }
 
-	function sheetFingerprint(values) {
-	  if (!values || !values.length) return '';
-	  
-	  // 'values' is now an array of objects from index.js
-	  const first = values[0];
-	  const last = values[values.length - 1];
-
-	  // We check the first ID, last ID, and last status to see if anything changed
-	  return `${values.length}|${first.order_id || ''}|${last.order_id || ''}|${last.status || ''}`;
-	}
-
   let _lastFeedData = '';
   async function fetchSheet() {
-	  try {
-		// 1. Call your Vercel backend instead of Google
-		const r = await fetch(WEBHOOK_URL, {
-		  method: 'POST',
-		  headers: { 'Content-Type': 'application/json' },
-		  body: JSON.stringify({ action: 'getOrders' }) 
-		});
-
-		const d = await r.json();
-		
-		// 2. Note: your backend (index.js) handleGetOrders already 
-		// returns a 'values' array that is ALREADY formatted into objects!
-		const rows = d.values || []; 
-		
-		// We reverse it to show the latest orders first
-		const reversedRows = [...rows].reverse();
-
-		// 3. Fingerprint check (optional but good for performance)
-		const fp = JSON.stringify(reversedRows[0] || ''); 
-		if (_lastFeedData !== fp) {
-		  _lastFeedData = fp;
-		  
-		  renderFeed(reversedRows);
-		  
-		  // Update the global allOrders variable used by the admin tab
-		  allOrders = reversedRows;
-		}
-
-		document.getElementById('sync-lbl').textContent = 'Synced ' + new Date().toLocaleTimeString();
-	  } catch(e) { 
-		console.error(e);
-		document.getElementById('sync-lbl').textContent = 'Sync failed'; 
-	  }
-	}
+    try {
+      const r = await fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'getOrders' })
+      });
+      const d = await r.json();
+      // API returns { values: [ {order_id, timestamp, name, ...}, ... ] }
+      const rows = (d.values || []).reverse();
+      const fp = rows.length + '|' + (rows[0]?.order_id || '') + '|' + (rows[rows.length-1]?.order_id || '') + '|' + (rows[0]?.status || '');
+      if (_lastFeedData !== fp) {
+        _lastFeedData = fp;
+        renderFeed(rows);
+        allOrders = rows.map(r => ({
+          order_id: r.order_id, timestamp: r.timestamp, name: r.name,
+          items: r.items, total: r.total, status: r.status
+        }));
+      }
+      document.getElementById('sync-lbl').textContent = 'Synced ' + new Date().toLocaleTimeString();
+    } catch(e) { document.getElementById('sync-lbl').textContent = 'Sync failed'; }
+  }
 
   // ── Shop extract (admin) ───────────────────
   let shopExtractFiles = [null, null];
@@ -1060,37 +1036,37 @@
     }, 4000);
   }
 
-	async function fetchSlideUrls() {
-	  try {
-		const r = await fetch(WEBHOOK_URL, {
-		  method: 'POST',
-		  headers: { 'Content-Type': 'application/json' },
-		  body: JSON.stringify({ action: 'getSettings' })
-		});
-		const d = await r.json();
-		
-		// We expect d.slides to be ["url1", "url2"]
-		const urls = d.slides || []; 
-		const slides = document.querySelectorAll('#slideshow img');
+  async function fetchSlideUrls() {
+    try {
+      const r = await fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'getSettings' })
+      });
+      const d = await r.json();
+      const row = d.slides || [];
+      const slides = document.querySelectorAll('#slideshow img');
 
-		urls.forEach((url, i) => {
-		  if (!url || !slides[i]) return;
-		  slideUrls[i] = url;
-		  slides[i].src = url;
+      row.forEach((url, i) => {
+        if (!url) return;
+        slideUrls[i] = url;
+        if (slides[i]) slides[i].src = url;
 
-		  if (adminUnlocked) {
-			const thumb = document.getElementById('ss-img-' + i);
-			const lbl = document.getElementById('ss-lbl-' + i);
-			if (thumb) { thumb.src = url; thumb.style.display = 'block'; }
-			if (lbl) lbl.style.display = 'none';
-		  }
-		});
+        // Only update admin thumbnails if panel is open
+        if (adminUnlocked) {
+          const thumb = document.getElementById('ss-img-'+i);
+          const lbl = document.getElementById('ss-lbl-'+i);
+          if (thumb) { thumb.src=url; thumb.style.display='block'; }
+          if (lbl) lbl.style.display='none';
+        }
+      });
 
-		startSlideshow();
-	  } catch (e) {
-		console.error("Slide fetch error:", e);
-	  }
-	}
+      document.getElementById('slideshow-area')?.classList.remove('loading');
+      slideshowIdx = 0;
+      startSlideshow();
+      initImgFadeIn();
+    } catch(e) {}
+  }
 
   async function uploadSlide(input, idx) {
     const file = input.files[0]; if (!file) return;
@@ -1240,7 +1216,7 @@
 
           if (!base64) throw new Error("File conversion failed - base64 is empty");
 
-          const resp = await fetch(WEBHOOK_URL, {
+          const resp = await fetch(API_URL, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ 
