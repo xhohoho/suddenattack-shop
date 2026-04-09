@@ -26,10 +26,9 @@ async function getSheetData(sheetName) {
     const auth = await getAuth().getClient();
     const sheets = google.sheets({ version: 'v4', auth });
     
-    // Use the official library instead of fetch
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: SHEET_ID,
-      range: `${sheetName}!A1:Z1000`, // Fetches headers + data
+      range: `${sheetName}!A1:Z1000`, 
     });
 
     const rows = response.data.values;
@@ -37,6 +36,7 @@ async function getSheetData(sheetName) {
 
     // Process headers: "Item Name" -> "itemname"
     const headers = rows[0].map(h => h.toLowerCase().trim().replace(/\s+/g, ''));
+    
     const data = rows.slice(1)
       .filter(row => row.some(cell => cell !== ''))
       .map(row =>
@@ -45,8 +45,8 @@ async function getSheetData(sheetName) {
 
     return { headers, data };
   } catch (err) {
-    console.error(`Error fetching sheet ${sheetName}:`, err.message);
-    throw err; // This will trigger the 500 catch block with a real error message
+    console.error(`❌ getSheetData fail (${sheetName}):`, err.message);
+    throw err; // This ensures the 500 error shows the real cause in Vercel logs
   }
 }
 
@@ -475,6 +475,13 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
   // Add this inside handler (req, res) logic
+
+  const body     = req.body;
+  const { action } = body;
+  console.log(`\n▶ action: ${action} — ${new Date().toISOString()}`);
+
+  try {
+	  
 	if (action === 'initData') {
 	  const auth = await getAuth().getClient();
 	  
@@ -491,12 +498,6 @@ export default async function handler(req, res) {
 		slides: settings[0] || ['', '']
 	  });
 	}
-
-  const body     = req.body;
-  const { action } = body;
-  console.log(`\n▶ action: ${action} — ${new Date().toISOString()}`);
-
-  try {
     // ── Public actions (no Google auth needed) ──
     if (action === 'adminAuth')    return await handleAdminAuth(body, res);
     if (action === 'getOrders')    return await handleGetOrders(res);
