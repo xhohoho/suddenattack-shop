@@ -1206,12 +1206,12 @@
                   r.readAsDataURL(file);
               });
               mimeType = 'application/pdf';
-              fileName = `proof_${idToUse}.pdf`;
+              fileName = `${idToUse}.pdf`;
           } else {
               // Image: Use your existing compressImage util
               base64 = await compressImage(file, 1200, 0.7);
               mimeType = 'image/jpeg';
-              fileName = `proof_${idToUse}.jpg`;
+              fileName = `${idToUse}.jpg`;
           }
 
           if (!base64) throw new Error("File conversion failed - base64 is empty");
