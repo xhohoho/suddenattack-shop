@@ -358,28 +358,6 @@
     delete _videoBlobCache[fileId];
     delete _blobRefCount[url];
   }
-  function _blobRetain(url) {
-    if (!url || !url.startsWith('blob:')) return;
-    _blobRefCount[url] = (_blobRefCount[url] || 0) + 1;
-  }
-  function _blobRelease(url) {
-    if (!url || !url.startsWith('blob:')) return;
-    _blobRefCount[url] = Math.max(0, (_blobRefCount[url] || 1) - 1);
-  }
-  async function getVideoBlobUrl(fileId) {
-    if (_videoBlobCache[fileId]) return _videoBlobCache[fileId];
-    const resp = await fetch(`https://n8n.safie.cc/webhook/video?id=${fileId}`);
-    const blob = await resp.blob();
-    const url = URL.createObjectURL(blob);
-    _videoBlobCache[fileId] = url;
-    _blobRefCount[url] = 0;
-    _blobCacheOrder.push(fileId);
-    if (_blobCacheOrder.length > _BLOB_CACHE_MAX) {
-      const oldest = _blobCacheOrder.shift();
-      _tryRevoke(oldest);
-    }
-    return url;
-  }
   function isVideoUrl(url) {
     if (!url) return false;
     if (/\.gif(\?|$)/i.test(url)) return false;
@@ -603,27 +581,18 @@
       if (isVid && !fileId) return `<div class="carousel-slide">${statsTag}${counter}<div style="color:var(--red);text-align:center;padding:20px;font-size:12px">Invalid video URL</div></div>`;
       let media;
       if (isVid && fileId) {
-        media = `<div class="video-container" style="position:relative;height:340px;background:#000" data-file-id="${fileId}">
-          <div class="video-loader" id="loader-${fileId}" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:#fff;text-align:center;z-index:10"><div class="spinner"></div><p style="font-size:12px;margin-top:8px">Loading...</p></div>
-          <video id="vid-${fileId}" width="100%" height="300" preload="metadata" style="display:block;cursor:pointer" onclick="toggleVid('${fileId}')" oncanplay="onVidCanPlay('${fileId}')" onwaiting="onVidWait('${fileId}')" onplaying="onVidPlay('${fileId}')" ontimeupdate="onVidTimeUpdate('${fileId}')" onloadedmetadata="onVidMeta('${fileId}')" onended="onVidEnded('${fileId}')"></video>
-          <div id="play-icon-${fileId}" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);pointer-events:none;font-size:48px;opacity:0;transition:opacity .2s;z-index:5">▶</div>
-          <div id="ctrl-${fileId}" style="position:absolute;bottom:0;left:0;right:0;padding:6px 10px 8px;background:linear-gradient(transparent,rgba(0,0,0,.85));display:flex;flex-direction:column;gap:5px;z-index:8">
-            <div style="position:relative;height:18px;display:flex;align-items:center;cursor:pointer" id="bar-${fileId}" onmousedown="scrubStart(event,'${fileId}')" ontouchstart="scrubTouchStart(event,'${fileId}')">
-              <div style="position:absolute;left:0;right:0;height:4px;background:rgba(255,255,255,.2);border-radius:2px">
-                <div id="buf-${fileId}" style="position:absolute;left:0;height:100%;background:rgba(255,255,255,.3);border-radius:2px;width:0%"></div>
-                <div id="prog-${fileId}" style="position:absolute;left:0;height:100%;background:#e8b84b;border-radius:2px;width:0%"></div>
-                <div id="thumb-${fileId}" style="position:absolute;top:50%;transform:translate(-50%,-50%);width:12px;height:12px;background:#e8b84b;border-radius:50%;left:0%;box-shadow:0 0 4px rgba(0,0,0,.6)"></div>
-              </div>
-            </div>
-            <div style="display:flex;align-items:center;gap:8px">
-              <button onclick="toggleVid('${fileId}')" id="pbtn-${fileId}" style="background:none;border:none;color:#fff;font-size:16px;cursor:pointer;padding:0;width:20px;text-align:center;flex-shrink:0">▶</button>
-              <span id="time-${fileId}" style="font-family:'Rajdhani',sans-serif;font-size:11px;color:rgba(255,255,255,.7);white-space:nowrap;letter-spacing:.03em">0:00 / 0:00</span>
-              <div style="flex:1"></div>
-              <button onclick="toggleMute('${fileId}')" id="mbtn-${fileId}" style="background:none;border:none;color:#fff;font-size:14px;cursor:pointer;padding:0;width:20px;text-align:center;flex-shrink:0">🔊</button>
-              <button onclick="toggleFs('${fileId}')" style="background:none;border:none;color:#fff;font-size:13px;cursor:pointer;padding:0;width:20px;text-align:center;flex-shrink:0">⛶</button>
-            </div>
-          </div>
-        </div>`;
+		media = `
+		  <div style="position:relative;width:100%;height:340px;background:#000">
+			<iframe 
+			  src="https://drive.google.com/file/d/${fileId}/preview"
+			  width="100%" 
+			  height="340"
+			  frameborder="0"
+			  allowfullscreen
+			  allow="autoplay"
+			  style="display:block">
+			</iframe>
+		  </div>`;
       } else {
         media = `<img src="${item.url}" alt="Account media ${i + 1}" onclick="openLightbox('${item.url}','img')" style="cursor:zoom-in;width:100%;height:340px;object-fit:contain;display:block;background:var(--bg3)" />`;
       }
@@ -668,16 +637,6 @@
   function scrubStart(e,id){ e.preventDefault(); _scrubbing=true; _scrubId=id; scrubAt(e,id); const onMove=ev=>{if(_scrubbing)scrubAt(ev,_scrubId);}; const onUp=()=>{_scrubbing=false;_scrubId=null;document.removeEventListener('mousemove',onMove);document.removeEventListener('mouseup',onUp);}; document.addEventListener('mousemove',onMove); document.addEventListener('mouseup',onUp); }
   function scrubTouchStart(e,id){ e.stopPropagation(); const onMove=ev=>{if(ev.touches[0])scrubAt(ev.touches[0],id);}; const onEnd=()=>{document.removeEventListener('touchmove',onMove);document.removeEventListener('touchend',onEnd);}; document.addEventListener('touchmove',onMove,{passive:true}); document.addEventListener('touchend',onEnd); if(e.touches[0])scrubAt(e.touches[0],id); }
 
-  async function injectCarouselBlobUrls() {
-    const containers = document.querySelectorAll('#det-carousel .video-container[data-file-id]');
-    for (const container of containers) {
-      const fileId = container.dataset.fileId; if (!fileId) continue;
-      const video = container.querySelector('video'); if (!video) continue;
-      if (video.src && video.src.startsWith('blob:')) continue;
-      try { const blobUrl = await getVideoBlobUrl(fileId); video.src=blobUrl; video.load(); _blobRetain(blobUrl); } catch(e) {}
-    }
-  }
-
   function carouselGoTo(idx) {
     _carouselIdx = Math.max(0, Math.min(idx, _carouselItems.length-1));
     const track = document.getElementById('det-track'); if(track)track.style.transform=`translateX(-${_carouselIdx*100}%)`;
@@ -695,7 +654,6 @@
     const a = accounts.find(x => x.id === id); if (!a) return;
     if (id === _lastDetailId && _lastDetailHTML) {
       document.getElementById('detail-overlay').classList.add('open');
-      injectCarouselBlobUrls();
       return;
     }
     const rankColor = getRankColor(a.rank);
@@ -745,7 +703,6 @@
     document.querySelectorAll('#det-carousel video').forEach(v => _blobRelease(v.src));
     document.getElementById('detail-content').innerHTML = _lastDetailHTML;
     document.getElementById('detail-overlay').classList.add('open');
-    injectCarouselBlobUrls();
   }
 
   function closeDetail() {
