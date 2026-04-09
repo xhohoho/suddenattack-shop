@@ -1067,13 +1067,14 @@
 		  headers: { 'Content-Type': 'application/json' },
 		  body: JSON.stringify({ action: 'getSettings' })
 		});
-		
 		const d = await r.json();
-		const row = d.slides || []; // This comes from handleGetSettings
+		
+		// We expect d.slides to be ['url1', 'url2']
+		const row = d.slides || [];
 		const slides = document.querySelectorAll('#slideshow img');
 
-		[row[0], row[1]].forEach((url, i) => {
-		  if (!url) return;
+		row.forEach((url, i) => {
+		  if (!url || !slides[i]) return;
 		  slideUrls[i] = url;
 		  slides[i].src = url;
 
@@ -1085,12 +1086,9 @@
 		  }
 		});
 
-		document.getElementById('slideshow-area')?.classList.remove('loading');
-		slideshowIdx = 0;
 		startSlideshow();
-		initImgFadeIn();
 	  } catch (e) {
-		console.error("Failed to fetch slideshow settings:", e);
+		console.error("Slide fetch error:", e);
 	  }
 	}
 
