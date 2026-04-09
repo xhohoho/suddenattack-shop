@@ -887,15 +887,22 @@
 
       status.textContent='Saving listing...';
       const acc = {
-        id: accId, rank, price,
-        ign: g('sell-ign'), accId: g('sell-accid'),
-        kda: g('sell-kda'), winRate: g('sell-wr'),
-        exp: g('sell-exp'), ach: '',
+        id: accId,
+        rank: rank,
+        price: price,
+        ign: g('sell-ign'),
+        accid: g('sell-accid'),         // Standardized
+        sellername: sellerName,         // Standardized
+        sellercontact: sellerPhone,     // Standardized
+        sellerign: sellerIgn,           // Standardized
+        kda: g('sell-kda'),
+        winrate: g('sell-wr'),          // Standardized
+        exp: g('sell-exp'),
+        achievement: '',                // Standardized
         notes: g('sell-notes'),
-        status: 'pending',   // needs admin verification
-        createdAt: Date.now(),
-        img1: uploadedUrls[0], img2: uploadedUrls[1], img3: uploadedUrls[2], img4: uploadedUrls[3],
-        sellerName, sellerPhone, sellerIgn
+        status: 'pending',
+        createdat: Date.now(),          // Standardized
+        img1: uploadedUrls[0], img2: uploadedUrls[1], img3: uploadedUrls[2], img4: uploadedUrls[3]
       };
       const resp = await fetch(API_URL, {
         method:'POST', headers:{'Content-Type':'application/json'},
@@ -1120,18 +1127,23 @@
       const pending=[1,2,3].filter(i=>tempFiles[i]);
       if(pending.length){if(st)st.textContent=`Uploading ${pending.length} media file(s)...`; await Promise.all(pending.map(i=>uploadSlot(i)));}
       if(st)st.textContent='Saving account data...';
-      const acc={
-        id:accId, rank, price,
-        ign:document.getElementById('f-ign').value.trim(),
-        accId:document.getElementById('f-id').value.trim(),
-        kda:document.getElementById('f-kda').value.trim(),
-        winRate:document.getElementById('f-wr').value.trim(),
-        exp:document.getElementById('f-exp').value.trim(),
-        ach:document.getElementById('f-ach').value.trim(),
-        notes:document.getElementById('f-notes').value.trim(),
-        status:document.getElementById('f-status').value,
-        createdAt:editingId?(accounts.find(x=>x.id===editingId)?.createdAt||Date.now()):Date.now(),
-        img1:slotUrls[0],img2:slotUrls[1],img3:slotUrls[2],img4:slotUrls[3]
+      const acc = {
+        id: accId,
+        rank: rank,
+        price: price,
+        ign: document.getElementById('f-ign').value.trim(),
+        accid: document.getElementById('f-id').value.trim(),      // Standardized
+        sellername: '',                                           // Standardized
+        sellercontact: '',                                        // Standardized
+        sellerign: '',                                            // Standardized
+        kda: document.getElementById('f-kda').value.trim(),
+        winrate: document.getElementById('f-wr').value.trim(),    // Standardized
+        exp: document.getElementById('f-exp').value.trim(),
+        achievement: document.getElementById('f-ach').value.trim(),// Standardized
+        notes: document.getElementById('f-notes').value.trim(),
+        status: document.getElementById('f-status').value,
+        createdat: editingId ? (accounts.find(x => x.id === editingId)?.createdAt || Date.now()) : Date.now(),
+        img1: slotUrls[0], img2: slotUrls[1], img3: slotUrls[2], img4: slotUrls[3]
       };
       const finalResp=await adminFetch({action:'saveAccount',account:acc,isNew:!editingId});
       const result=await finalResp.json(); if(result.error)throw new Error(result.error);
