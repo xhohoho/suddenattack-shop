@@ -9,19 +9,14 @@ function getAuth() {
   try {
     creds = JSON.parse(raw);
   } catch (e) {
-    // Common Vercel issue: private_key newlines stored as literal \n (two chars)
-    // instead of JSON escape sequence — fix by re-escaping them inside string values
     try {
-      // Replace actual newlines inside the JSON string with \n escape sequences
       const fixed = raw.replace(/\r?\n/g, '\\n');
       creds = JSON.parse(fixed);
     } catch (e2) {
-      throw new Error(`Invalid GOOGLE_SERVICE_ACCOUNT_JSON: ${e.message}. Make sure the env var contains the full JSON object from your service account key file.`);
+      throw new Error(`Invalid GOOGLE_SERVICE_ACCOUNT_JSON: ${e.message}`);
     }
   }
 
-  // Additional safety: ensure private_key newlines are proper escape sequences
-  // (some paste methods turn \\n into actual newlines inside the already-parsed object)
   if (creds.private_key && creds.private_key.includes('\\n')) {
     creds.private_key = creds.private_key.replace(/\\n/g, '\n');
   }
@@ -36,15 +31,13 @@ function getAuth() {
 }
 
 // ── OAuth2 Auth (Personal Account — used for Drive uploads) ────────────────────
-// Files uploaded via OAuth are owned by YOUR Google account → uses your quota.
-// Service accounts have no quota, so Drive uploads must go through OAuth instead.
 function getDriveAuth() {
   const clientId = process.env.GOOGLE_OAUTH_CLIENT_ID;
   const clientSecret = process.env.GOOGLE_OAUTH_CLIENT_SECRET;
   const refreshToken = process.env.GOOGLE_OAUTH_REFRESH_TOKEN;
 
   if (!clientId || !clientSecret || !refreshToken) {
-    throw new Error('Missing OAuth env vars: GOOGLE_OAUTH_CLIENT_ID, GOOGLE_OAUTH_CLIENT_SECRET, GOOGLE_OAUTH_REFRESH_TOKEN');
+    throw new Error('Missing OAuth env vars');
   }
 
   const oauth2 = new google.auth.OAuth2(clientId, clientSecret);
@@ -64,7 +57,6 @@ const SHEET_ID = process.env.SHEET_ID;
 async function getSheetData(auth, sheetName) {
   try {
     const sheets = google.sheets({ version: 'v4', auth });
-
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: SHEET_ID,
       range: `${sheetName}!A1:Z1000`,
@@ -73,14 +65,10 @@ async function getSheetData(auth, sheetName) {
     const rows = response.data.values;
     if (!rows || rows.length < 2) return { headers: [], data: [] };
 
-    // Process headers: "Item Name" -> "itemname"
     const headers = rows[0].map(h => h.toLowerCase().trim().replace(/\s+/g, ''));
-
     const data = rows.slice(1)
       .filter(row => row.some(cell => cell !== ''))
-      .map(row =>
-        Object.fromEntries(headers.map((key, i) => [key, row[i] || '']))
-      );
+      .map(row => Object.fromEntries(headers.map((key, i) => [key, row[i] || ''])));
 
     return { headers, data };
   } catch (err) {
@@ -89,8 +77,6 @@ async function getSheetData(auth, sheetName) {
   }
 }
 
-// ── Column Letter Helper ───────────────────
-// converts index to sheet column letter: 0=A, 1=B, 25=Z, 26=AA
 function colLetter(idx) {
   let letter = '';
   let n = idx;
@@ -101,34 +87,16 @@ function colLetter(idx) {
   return letter;
 }
 
-// ── Drive URL Builder ──────────────────────
-// one function for all Drive URLs — consistent across entire codebase
 function driveUrl(fileId, mimeType = '') {
   const isVideo = mimeType.includes('video');
   const isGif = mimeType.includes('gif');
-
-  if (isVideo) {
-    // videos → Google's iframe embed player (no CORS issues)
-    return `https://drive.google.com/file/d/${fileId}/preview`;
-  }
-
-  if (isGif) {
-    // GIFs → must use export=view to preserve animation
-    // thumbnail URL kills the animation
-    return `https://lh3.googleusercontent.com/d/${fileId}`;
-  }
-
-  // all other images → thumbnail (fast, resizable, mobile friendly)
+  if (isVideo) return `https://drive.google.com/file/d/${fileId}/preview`;
   return `https://lh3.googleusercontent.com/d/${fileId}`;
 }
 
-// ── Sheet Read/Write Helpers ───────────────
 async function sheetsRead(auth, range) {
   const sheets = google.sheets({ version: 'v4', auth });
-  const r = await sheets.spreadsheets.values.get({
-    spreadsheetId: SHEET_ID,
-    range,
-  });
+  const r = await sheets.spreadsheets.values.get({ spreadsheetId: SHEET_ID, range });
   return r.data.values || [];
 }
 
@@ -153,9 +121,6 @@ async function sheetsAppend(auth, range, values) {
   });
 }
 
-// ── Drive Upload Helper ────────────────────
-// Uses OAuth (personal account) so uploads count against your own Drive quota,
-// not the service account (which has none).
 async function uploadToDrive(base64, mimeType, fileName, folderId) {
   const auth = getDriveAuth();
   const drive = google.drive({ version: 'v3', auth });
@@ -168,7 +133,6 @@ async function uploadToDrive(base64, mimeType, fileName, folderId) {
     media: { mimeType, body: stream },
     fields: 'id',
   });
-  // Make the file publicly readable so thumbnail/embed URLs work
   await drive.permissions.create({
     fileId: r.data.id,
     requestBody: { role: 'reader', type: 'anyone' },
@@ -176,19 +140,13 @@ async function uploadToDrive(base64, mimeType, fileName, folderId) {
   return r.data.id;
 }
 
-// ── Gemini Helper ──────────────────────────
 async function callGemini(base64, prompt) {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`;
   const r = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      contents: [{
-        parts: [
-          { text: prompt },
-          { inline_data: { mime_type: 'image/jpeg', data: base64 } }
-        ]
-      }]
+      contents: [{ parts: [{ text: prompt }, { inline_data: { mime_type: 'image/jpeg', data: base64 } }] }]
     })
   });
   const d = await r.json();
@@ -200,36 +158,26 @@ async function callGemini(base64, prompt) {
 // ══════════════════════════════════════════
 
 async function handleAdminAuth(body, res) {
-  if (body.password !== process.env.ADMIN_PASSWORD) {
-    return res.status(200).json({ error: 'unauthorized' });
-  }
+  if (body.password !== process.env.ADMIN_PASSWORD) return res.status(200).json({ error: 'unauthorized' });
   return res.json({ token: process.env.ADMIN_TOKEN });
 }
 
-// ── Read Handlers (public) ─────────────────
 async function handleGetOrders(auth, res) {
   const { data } = await getSheetData(auth, 'Orders');
   return res.json({ values: data });
 }
 
 async function handleGetShopItems(auth, res) {
-  // Read raw rows so we're not dependent on the exact header names in the sheet
   const rows = await sheetsRead(auth, 'CurrentShop!A1:F1000');
   if (!rows || rows.length < 2) return res.json({ values: [] });
-
-  // Skip header row (row 0), map data rows by position
-  const data = rows.slice(1)
-    .filter(row => row.some(cell => cell !== ''))
-    .map((row, i) => ({
-      id: row[0] || String(i + 1),
-      name: row[1] || '',
-      desc: row[2] || '',
-      p7: row[3] || '',
-      p15: row[4] || '',
-      p30: row[5] || '',
-    }))
-    .filter(it => it.name);
-
+  const data = rows.slice(1).filter(row => row.some(cell => cell !== '')).map((row, i) => ({
+    id: row[0] || String(i + 1),
+    name: row[1] || '',
+    desc: row[2] || '',
+    p7: row[3] || '',
+    p15: row[4] || '',
+    p30: row[5] || '',
+  })).filter(it => it.name);
   return res.json({ values: data });
 }
 
@@ -238,204 +186,102 @@ async function handleGetAccounts(auth, res) {
   return res.json({ values: data });
 }
 
-// ── Order Handlers ─────────────────────────
 async function handleUpdateOrderStatus(auth, body, res) {
   checkToken(body);
-  console.log(`📝 updateOrderStatus: ${body.order_id} → ${body.status}`);
-
   const { headers, data } = await getSheetData(auth, 'Orders');
   const rowIdx = data.findIndex(r => r.order_id === body.order_id);
   if (rowIdx === -1) throw new Error('Order not found');
-
   const rowNum = rowIdx + 2;
   const statusCol = colLetter(headers.indexOf('status'));
   await sheetsWrite(auth, `Orders!${statusCol}${rowNum}`, [[body.status]]);
-  console.log(`✅ order ${body.order_id} updated to ${body.status}`);
   return res.json({ result: 'ok' });
 }
 
 async function handleNewOrder(auth, body, res) {
-  console.log(`🛒 newOrder: ${body.order_id} from ${body.name}`);
   let proofFormula = '';
   if (body.base64) {
-    const fileId = await uploadToDrive(
-      body.base64, body.mimeType,
-      body.fileName, process.env.DRIVE_FOLDER_RECEIPT
-    );
+    const fileId = await uploadToDrive(body.base64, body.mimeType, body.fileName, process.env.DRIVE_FOLDER_RECEIPT);
     proofFormula = body.mimeType === 'application/pdf'
       ? `=HYPERLINK("https://drive.google.com/file/d/${fileId}/view","📄 View PDF")`
       : `=IMAGE("${driveUrl(fileId, body.mimeType)}")`;
-    console.log(`📎 proof uploaded: ${fileId}`);
   }
-
   const kl = new Date(body.timestamp).toLocaleString('en-US', { timeZone: 'Asia/Kuala_Lumpur' });
-  const row = [
-    body.order_id, kl, body.name, body.phone || '',
-    body.email || '', body.items, body.total,
-    body.note || '', body.status || 'New', proofFormula
-  ];
-
+  const row = [body.order_id, kl, body.name, body.phone || '', body.email || '', body.items, body.total, body.note || '', body.status || 'New', proofFormula];
   const { data } = await getSheetData(auth, 'Orders');
   const rowIdx = data.findIndex(r => r.order_id === body.order_id);
   if (rowIdx >= 0) {
-    const rowNum = rowIdx + 2;
-    await sheetsWrite(auth, `Orders!A${rowNum}:Z${rowNum}`, [row]);
+    await sheetsWrite(auth, `Orders!A${rowIdx + 2}:Z${rowIdx + 2}`, [row]);
   } else {
     await sheetsAppend(auth, 'Orders!A1', [row]);
   }
-  console.log(`✅ order ${body.order_id} saved`);
   return res.json({ result: 'ok' });
 }
 
 async function handleUploadProofItem(auth, body, res) {
-  console.log(`📤 uploadProofItem: ${body.order_id}`);
-  const fileId = await uploadToDrive(
-    body.base64, body.mimeType,
-    body.fileName, process.env.DRIVE_FOLDER_RECEIPT
-  );
+  const fileId = await uploadToDrive(body.base64, body.mimeType, body.fileName, process.env.DRIVE_FOLDER_RECEIPT);
   const proofFormula = body.mimeType === 'application/pdf'
     ? `=HYPERLINK("https://drive.google.com/file/d/${fileId}/view","📄 View PDF")`
     : `=IMAGE("${driveUrl(fileId, body.mimeType)}")`;
-
   const { headers, data } = await getSheetData(auth, 'Orders');
   const rowIdx = data.findIndex(r => r.order_id === body.order_id);
   if (rowIdx === -1) throw new Error('Order not found');
-  const rowNum = rowIdx + 2;
   const statusCol = colLetter(headers.indexOf('status'));
   const proofCol = colLetter(headers.indexOf('proof'));
-  await sheetsWrite(auth, `Orders!${statusCol}${rowNum}:${proofCol}${rowNum}`, [['Paid', proofFormula]]);
-  console.log(`✅ proof uploaded for ${body.order_id}`);
+  await sheetsWrite(auth, `Orders!${statusCol}${rowIdx + 2}:${proofCol}${rowIdx + 2}`, [['Paid', proofFormula]]);
   return res.json({ result: 'ok' });
 }
 
 async function handleAccountPurchase(auth, body, res) {
-  console.log(`💰 accountPurchase: ${body.order_id}`);
-  const fileId = await uploadToDrive(
-    body.base64, body.mimeType,
-    body.fileName, process.env.DRIVE_FOLDER_PAYMENT
-  );
+  const fileId = await uploadToDrive(body.base64, body.mimeType, body.fileName, process.env.DRIVE_FOLDER_PAYMENT);
   const proofFormula = body.mimeType === 'application/pdf'
     ? `=HYPERLINK("https://drive.google.com/file/d/${fileId}/view","📄 View PDF")`
     : `=IMAGE("${driveUrl(fileId, body.mimeType)}")`;
   const kl = new Date(body.timestamp).toLocaleString('en-US', { timeZone: 'Asia/Kuala_Lumpur' });
-  const row = [
-    body.order_id, kl, body.name, body.phone || '',
-    body.email || '', body.items, body.total,
-    body.note || '', 'Paid', proofFormula
-  ];
+  const row = [body.order_id, kl, body.name, body.phone || '', body.email || '', body.items, body.total, body.note || '', 'Paid', proofFormula];
   await sheetsAppend(auth, 'Orders!A1', [row]);
-  console.log(`✅ account purchase logged: ${body.order_id}`);
   return res.json({ result: 'ok' });
 }
 
-// ── Shop Item Handlers ─────────────────────
 async function handleSaveItems(auth, body, res) {
   checkToken(body);
-  console.log(`💾 saveItems: ${body.items.length} items`);
   const sheets = google.sheets({ version: 'v4', auth });
-  await sheets.spreadsheets.values.clear({
-    spreadsheetId: SHEET_ID,
-    range: 'CurrentShop!A2:Z1000',
-  });
-  const rows = body.items.map(it => [
-    it.id, it.name, it.desc || '',
-    it.p[7] || '', it.p[15] || '', it.p[30] || ''
-  ]);
+  await sheets.spreadsheets.values.clear({ spreadsheetId: SHEET_ID, range: 'CurrentShop!A2:Z1000' });
+  const rows = body.items.map(it => [it.id, it.name, it.desc || '', it.p[7] || '', it.p[15] || '', it.p[30] || '']);
   await sheetsAppend(auth, 'CurrentShop!A2', rows);
-  console.log(`✅ saved ${rows.length} items`);
   return res.json({ result: 'ok' });
 }
 
 async function handleExtractItems(auth, body, res) {
   checkToken(body);
-  console.log('🖼 extractItems: uploading image to Drive...');
-  const fileId = await uploadToDrive(
-    body.base64, body.mimeType,
-    body.fileName, process.env.DRIVE_FOLDER_SA
-  );
+  const fileId = await uploadToDrive(body.base64, body.mimeType, body.fileName, process.env.DRIVE_FOLDER_SA);
   const url = driveUrl(fileId, body.mimeType);
-  console.log(`✅ uploaded: ${fileId}`);
-
-  console.log('🤖 calling Gemini for item extraction...');
-  const prompt = `Extract all game item names from this shop image. Return ONLY a JSON array of strings like: ['Item Name 1', 'Item Name 2']. No descriptions, no prices, no markdown, no explanation.`;
+  const prompt = `Extract all game item names from this shop image. Return ONLY a JSON array of strings.`;
   const text = await callGemini(body.base64, prompt);
-  const clean = text.replace(/```json|```/g, '').trim();
-  const names = JSON.parse(clean);
-  const items = names.map((name, i) => ({
-    id: i + 1, name, desc: '', p7: 0, p15: 0, p30: 0
-  }));
-  console.log(`✅ Gemini extracted ${items.length} items`);
+  const names = JSON.parse(text.replace(/```json|```/g, '').trim());
+  const items = names.map((name, i) => ({ id: i + 1, name, desc: '', p7: 0, p15: 0, p30: 0 }));
   return res.json({ items, url });
 }
 
-// ── Account Handlers ───────────────────────
 async function handleExtractAccountStats(body, res) {
   checkToken(body);
-  console.log('🤖 extractAccountStats: calling Gemini...');
-  const prompt = `Extract player stats from this Sudden Attack game profile screenshot. Return ONLY a valid JSON object with these exact keys: ign, accId, kda, winRate, exp. If a field is not visible return empty string. No markdown, no explanation, only JSON.`;
+  const prompt = `Extract player stats from this Sudden Attack game profile screenshot. Return ONLY JSON object with keys: ign, accId, kda, winRate, exp.`;
   const text = await callGemini(body.base64, prompt);
-  const clean = text.replace(/```json|```/g, '').trim();
-  let stats = {};
-  try { stats = JSON.parse(clean); } catch (e) { }
-  console.log(`✅ stats extracted: ${JSON.stringify(stats)}`);
+  const stats = JSON.parse(text.replace(/```json|```/g, '').trim());
   return res.json(stats);
 }
 
+// Standardization: Directly uses body.folder_id
 async function handleUploadAccountImage(auth, body, res) {
   checkToken(body);
-  console.log(`📤 uploadAccountImage: ${body.fileName}`);
-  // Use OAuth drive client so folder creation is owned by your personal account
-  const cleanFolderId = body.folder_id.split('-').slice(0, 2).join('-');
   const drive = google.drive({ version: 'v3', auth: getDriveAuth() });
-
-  // find or create account subfolder
-  let folderId;
-  const search = await drive.files.list({
-    q: `name='${cleanFolderId}' and '${process.env.DRIVE_FOLDER_ACCOUNTS}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,
-    fields: 'files(id)',
-    spaces: 'drive',
-    supportsAllDrives: true,
-    includeItemsFromAllDrives: true,
-  });
-  if (search.data.files.length > 0) {
-    folderId = search.data.files[0].id;
-    console.log(`📁 found existing folder: ${folderId}`);
-  } else {
-    const folder = await drive.files.create({
-      supportsAllDrives: true,
-      requestBody: {
-        name: cleanFolderId,
-        mimeType: 'application/vnd.google-apps.folder',
-        parents: [process.env.DRIVE_FOLDER_ACCOUNTS],
-      },
-      fields: 'id',
-    });
-    folderId = folder.data.id;
-    console.log(`📁 created new folder: ${folderId}`);
-  }
-
-  const fileId = await uploadToDrive(
-    body.base64, body.mimeType, body.fileName, folderId
-  );
-  const url = driveUrl(fileId, body.mimeType);
-  console.log(`✅ uploaded: ${fileId} → ${url}`);
-  return res.json({ url });
-}
-
-// Public version — no admin token required (for seller listings)
-async function handleUploadPublicAccountImage(auth, body, res) {
-  console.log(`📤 uploadPublicAccountImage: ${body.fileName}`);
-  // Use OAuth drive client so folder/file is owned by your personal account
-  const drive = google.drive({ version: 'v3', auth: getDriveAuth() });
-
   let folderId;
   const search = await drive.files.list({
     q: `name='${body.folder_id}' and '${process.env.DRIVE_FOLDER_ACCOUNTS}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,
     fields: 'files(id)',
-    spaces: 'drive',
     supportsAllDrives: true,
     includeItemsFromAllDrives: true,
   });
+
   if (search.data.files.length > 0) {
     folderId = search.data.files[0].id;
   } else {
@@ -451,189 +297,135 @@ async function handleUploadPublicAccountImage(auth, body, res) {
     folderId = folder.data.id;
   }
 
-  const fileId = await uploadToDrive(
-    body.base64, body.mimeType, body.fileName, folderId
-  );
-  const url = driveUrl(fileId, body.mimeType);
-  console.log(`✅ public upload: ${fileId} → ${url}`);
-  return res.json({ url });
+  const fileId = await uploadToDrive(body.base64, body.mimeType, body.fileName, folderId);
+  return res.json({ url: driveUrl(fileId, body.mimeType) });
 }
 
+async function handleUploadPublicAccountImage(auth, body, res) {
+  const drive = google.drive({ version: 'v3', auth: getDriveAuth() });
+  let folderId;
+  const search = await drive.files.list({
+    q: `name='${body.folder_id}' and '${process.env.DRIVE_FOLDER_ACCOUNTS}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,
+    fields: 'files(id)',
+    supportsAllDrives: true,
+    includeItemsFromAllDrives: true,
+  });
+
+  if (search.data.files.length > 0) {
+    folderId = search.data.files[0].id;
+  } else {
+    const folder = await drive.files.create({
+      supportsAllDrives: true,
+      requestBody: {
+        name: body.folder_id,
+        mimeType: 'application/vnd.google-apps.folder',
+        parents: [process.env.DRIVE_FOLDER_ACCOUNTS],
+      },
+      fields: 'id',
+    });
+    folderId = folder.data.id;
+  }
+
+  const fileId = await uploadToDrive(body.base64, body.mimeType, body.fileName, folderId);
+  return res.json({ url: driveUrl(fileId, body.mimeType) });
+}
+
+// Standardization: acc.id is already the clean ID from frontend
 async function handleSaveAccount(auth, body, res) {
   if (!body.isNew) checkToken(body);
   const acc = body.account;
-
-  const cleanId = acc.id.includes('-') && acc.id.split('-').length > 2 
-    ? acc.id.split('-').slice(0, 2).join('-') 
-    : acc.id;
-
-  // Force the account object to use the clean ID for the Sheet
-  acc.id = cleanId;
-
-  // 1. Get current headers (sanitized to lowercase/no-space by your getSheetData)
   const { headers, data } = await getSheetData(auth, 'AccountList');
-
-  // 2. AUTO MAPPING: Loop through headers and pull matching key from 'acc'
-  // This ensures data always goes into the correct column regardless of order.
-  const row = headers.map(h => {
-    const key = h.toLowerCase().trim();
-    // If the standardized key exists in 'acc', use it. Otherwise, empty string.
-    return acc[key] !== undefined ? acc[key] : '';
-  });
-
-  // 3. Find row index by ID
+  const row = headers.map(h => acc[h.toLowerCase().trim()] !== undefined ? acc[h.toLowerCase().trim()] : '');
   const rowIdx = data.findIndex(r => String(r.id) === String(acc.id));
 
   if (rowIdx >= 0) {
-    const rowNum = rowIdx + 2;
     const lastCol = colLetter(headers.length - 1);
-    await sheetsWrite(auth, `AccountList!A${rowNum}:${lastCol}${rowNum}`, [row]);
+    await sheetsWrite(auth, `AccountList!A${rowIdx + 2}:${lastCol}${rowIdx + 2}`, [row]);
   } else {
     await sheetsAppend(auth, 'AccountList!A1', [row]);
   }
-
-  console.log(`✅ Account ${acc.id} saved via Auto-Mapping`);
   return res.json({ result: 'ok' });
 }
 
+// Standardization: Uses body.acc_id directly for both Sheet and Drive deletion
 async function handleDeleteAccount(auth, body, res) {
   checkToken(body);
-  console.log(`🗑 deleteAccount request for: ${body.acc_id}`);
-
-  // 1. Strip the suffix for the Drive folder search
-  // If acc_id is "ACC-MNRFBK3H-PZQ", cleanId becomes "ACC-MNRFBK3H"
-  const cleanId = body.acc_id.includes('-') && body.acc_id.split('-').length > 2 
-    ? body.acc_id.split('-').slice(0, 2).join('-') 
-    : body.acc_id;
-
-  // 2. SHEET DELETION (using full acc_id to find the correct row)
+  const accId = body.acc_id;
   const { data } = await getSheetData(auth, 'AccountList');
-  const rowIdx = data.findIndex(r => String(r.id) === String(body.acc_id));
-  if (rowIdx === -1) throw new Error('Account not found in Sheet');
-  const rowNum = rowIdx + 2;
+  const rowIdx = data.findIndex(r => String(r.id) === String(accId));
+  if (rowIdx === -1) throw new Error('Account not found');
 
   const sheets = google.sheets({ version: 'v4', auth });
   const meta = await sheets.spreadsheets.get({ spreadsheetId: SHEET_ID });
   const sheet = meta.data.sheets.find(s => s.properties.title === 'AccountList');
-  const sheetGid = sheet.properties.sheetId;
 
   await sheets.spreadsheets.batchUpdate({
     spreadsheetId: SHEET_ID,
     requestBody: {
-      requests: [{
-        deleteDimension: {
-          range: {
-            sheetId: sheetGid,
-            dimension: 'ROWS',
-            startIndex: rowNum - 1,
-            endIndex: rowNum,
-          }
-        }
-      }]
+      requests: [{ deleteDimension: { range: { sheetId: sheet.properties.sheetId, dimension: 'ROWS', startIndex: rowIdx + 1, endIndex: rowIdx + 2 } } }]
     }
   });
 
-  // 3. DRIVE DELETION (using the cleanId: ACC-MNRFBK3H)
-  const oauthAuth = getDriveAuth(); 
-  const drive = google.drive({ version: 'v3', auth: oauthAuth });
-
+  const drive = google.drive({ version: 'v3', auth: getDriveAuth() });
   const search = await drive.files.list({
-    q: `name='${cleanId}' and '${process.env.DRIVE_FOLDER_ACCOUNTS}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,
+    q: `name='${accId}' and '${process.env.DRIVE_FOLDER_ACCOUNTS}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,
     fields: 'files(id)',
     supportsAllDrives: true,
     includeItemsFromAllDrives: true,
   });
 
   if (search.data.files && search.data.files.length > 0) {
-    await drive.files.delete({ 
-      fileId: search.data.files[0].id, 
-      supportsAllDrives: true 
-    });
-    console.log(`✅ Folder ${cleanId} deleted via OAuth`);
-  } else {
-    console.log(`ℹ️ Folder ${cleanId} not found, skipped Drive deletion.`);
+    await drive.files.delete({ fileId: search.data.files[0].id, supportsAllDrives: true });
   }
-
   return res.json({ result: 'ok' });
 }
 
 async function handleUpdateAccountStatus(auth, body, res) {
   checkToken(body);
-
-  // Extract ID and Status safely from body or body.account
   const accId = body.id || (body.account && body.account.id);
   const newStatus = body.status || (body.account && body.account.status);
-
   const { headers, data } = await getSheetData(auth, 'AccountList');
   const rowIdx = data.findIndex(r => String(r.id) === String(accId));
-
   if (rowIdx === -1) throw new Error('Account not found');
-
-  const rowNum = rowIdx + 2;
-  // Use the helper to find the exact column letter for 'status'
   const statusCol = colLetter(headers.indexOf('status'));
-
-  await sheetsWrite(auth, `AccountList!${statusCol}${rowNum}`, [[newStatus]]);
+  await sheetsWrite(auth, `AccountList!${statusCol}${rowIdx + 2}`, [[newStatus]]);
   return res.json({ result: 'ok' });
 }
 
-// ── Slideshow Handler ──────────────────────
 async function handleUploadSlideImg(auth, body, res) {
   checkToken(body);
-  console.log(`🖼 uploadSlideImg: slide ${body.slideIndex}`);
   const existing = await sheetsRead(auth, 'Settings!A2:C2');
   const currentRow = existing[0] || ['slideshow', '', ''];
   if (body.slideIndex === 0) currentRow[1] = body.url || '';
   if (body.slideIndex === 1) currentRow[2] = body.url || '';
   await sheetsWrite(auth, 'Settings!A2:C2', [currentRow]);
-  console.log(`✅ slide ${body.slideIndex} updated`);
   return res.json({ result: 'ok' });
 }
 
 async function handleGetSettings(auth, res) {
-  try {
-    const { data } = await getSheetData(auth, 'Settings');
-    const slideshowRow = data.find(r => r.key === 'slideshow');
-    const urls = slideshowRow ? [slideshowRow.slide1, slideshowRow.slide2] : ['', ''];
-    return res.json({ slides: urls });
-  } catch (err) {
-    return res.status(500).json({ error: 'Settings fetch failed' });
-  }
+  const { data } = await getSheetData(auth, 'Settings');
+  const row = data.find(r => r.key === 'slideshow');
+  return res.json({ slides: row ? [row.slide1, row.slide2] : ['', ''] });
 }
 
-// ── initData — fetch everything at once ────
 async function handleInitData(auth, res) {
   const [ordersResult, itemsResult, settingsRaw] = await Promise.all([
     getSheetData(auth, 'Orders'),
     getSheetData(auth, 'CurrentShop'),
     sheetsRead(auth, 'Settings!B2:C2'),
   ]);
-  return res.json({
-    orders: ordersResult.data,
-    items: itemsResult.data,
-    slides: settingsRaw[0] || ['', ''],
-  });
+  return res.json({ orders: ordersResult.data, items: itemsResult.data, slides: settingsRaw[0] || ['', ''] });
 }
 
-// ══════════════════════════════════════════
-// MAIN HANDLER
-// ══════════════════════════════════════════
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') return res.status(200).end();
-  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
-
   const body = req.body;
   const { action } = body;
-  console.log(`\n▶ action: ${action} — ${new Date().toISOString()}`);
-
   try {
-    // Get auth once, reuse everywhere
     const auth = await getAuth().getClient();
-
-    // ── Public actions ──────────────────────
     if (action === 'adminAuth') return await handleAdminAuth(body, res);
     if (action === 'getOrders') return await handleGetOrders(auth, res);
     if (action === 'getShopItems') return await handleGetShopItems(auth, res);
@@ -644,8 +436,6 @@ export default async function handler(req, res) {
     if (action === 'accountPurchase') return await handleAccountPurchase(auth, body, res);
     if (action === 'saveAccount' && body.isNew) return await handleSaveAccount(auth, body, res);
     if (action === 'uploadPublicAccountImage') return await handleUploadPublicAccountImage(auth, body, res);
-
-    // ── Admin-only actions ──────────────────
     if (action === 'updateOrderStatus') return await handleUpdateOrderStatus(auth, body, res);
     if (action === 'uploadProofItem') return await handleUploadProofItem(auth, body, res);
     if (action === 'saveItems') return await handleSaveItems(auth, body, res);
@@ -656,11 +446,8 @@ export default async function handler(req, res) {
     if (action === 'deleteAccount') return await handleDeleteAccount(auth, body, res);
     if (action === 'updateAccountStatus') return await handleUpdateAccountStatus(auth, body, res);
     if (action === 'uploadSlideImg') return await handleUploadSlideImg(auth, body, res);
-
     return res.status(400).json({ error: `Unknown action: ${action}` });
-
   } catch (err) {
-    console.error(`❌ action=${action} failed:`, err.message);
     return res.status(500).json({ error: err.message });
   }
 }
