@@ -1007,6 +1007,9 @@
         document.getElementById('f-ach').value=a.ach||'';
         document.getElementById('f-notes').value=a.notes||'';
         document.getElementById('f-status').value=a.status||'available';
+        document.getElementById('f-sellername').value = a.sellername || '';
+        document.getElementById('f-sellercontact').value = a.sellercontact || '';
+        document.getElementById('f-sellerign').value = a.sellerign || '';
         populateSlots(a);
       }
     }
@@ -1128,23 +1131,23 @@
       if(pending.length){if(st)st.textContent=`Uploading ${pending.length} media file(s)...`; await Promise.all(pending.map(i=>uploadSlot(i)));}
       if(st)st.textContent='Saving account data...';
       const acc = {
-        id: accId,
-        rank: rank,
-        price: price,
-        ign: document.getElementById('f-ign').value.trim(),
-        accid: document.getElementById('f-id').value.trim(),      // Standardized
-        sellername: '',                                           // Standardized
-        sellercontact: '',                                        // Standardized
-        sellerign: '',                                            // Standardized
-        kda: document.getElementById('f-kda').value.trim(),
-        winrate: document.getElementById('f-wr').value.trim(),    // Standardized
-        exp: document.getElementById('f-exp').value.trim(),
-        achievement: document.getElementById('f-ach').value.trim(),// Standardized
-        notes: document.getElementById('f-notes').value.trim(),
-        status: document.getElementById('f-status').value,
-        createdat: editingId ? (accounts.find(x => x.id === editingId)?.createdAt || Date.now()) : Date.now(),
-        img1: slotUrls[0], img2: slotUrls[1], img3: slotUrls[2], img4: slotUrls[3]
-      };
+          id: editingId || newAccId,
+          rank: document.getElementById('f-rank').value.trim(),
+          price: parseFloat(document.getElementById('f-price').value),
+          ign: document.getElementById('f-ign').value.trim(),
+          accid: document.getElementById('f-id').value.trim(),             // Standardized
+          sellername: document.getElementById('f-sellername').value.trim(),    // Standardized
+          sellercontact: document.getElementById('f-sellercontact').value.trim(),// Standardized
+          sellerign: document.getElementById('f-sellerign').value.trim(),      // Standardized
+          kda: document.getElementById('f-kda').value.trim(),
+          winrate: document.getElementById('f-wr').value.trim(),          // Standardized
+          exp: document.getElementById('f-exp').value.trim(),
+          achievement: document.getElementById('f-ach').value.trim(),      // Standardized
+          notes: document.getElementById('f-notes').value.trim(),
+          status: document.getElementById('f-status').value,
+          createdat: Date.now(),                                           // Standardized
+          img1: slotUrls[0], img2: slotUrls[1], img3: slotUrls[2], img4: slotUrls[3]
+        };
       const finalResp=await adminFetch({action:'saveAccount',account:acc,isNew:!editingId});
       const result=await finalResp.json(); if(result.error)throw new Error(result.error);
       if(st){st.textContent='Saved successfully!';st.style.color='var(--green)';}
