@@ -381,7 +381,7 @@ async function handleDeleteAccount(auth, body, res) {
 }
 
 async function handleUpdateAccountStatus(auth, body, res) {
-  checkToken(body);
+  //checkToken(body);
   const accId = body.id || (body.account && body.account.id);
   const newStatus = body.status || (body.account && body.account.status);
   const { headers, data } = await getSheetData(auth, 'AccountList');
