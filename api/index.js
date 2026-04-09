@@ -115,11 +115,11 @@ function driveUrl(fileId, mimeType = '') {
   if (isGif) {
     // GIFs → must use export=view to preserve animation
     // thumbnail URL kills the animation
-    return `https://drive.google.com/uc?export=view&id=${fileId}`;
+    return `https://lh3.googleusercontent.com/d/${fileId}`;
   }
 
   // all other images → thumbnail (fast, resizable, mobile friendly)
-  return `https://drive.google.com/thumbnail?id=${fileId}&sz=w1200`;
+  return `https://lh3.googleusercontent.com/d/${fileId}`;
 }
 
 // ── Sheet Read/Write Helpers ───────────────
@@ -462,17 +462,22 @@ async function handleSaveAccount(auth, body, res) {
   if (!body.isNew) checkToken(body);
   const acc = body.account;
 
-  // 1. Get current headers (already sanitized to lowercase by getSheetData)
   const { headers, data } = await getSheetData(auth, 'AccountList');
 
-  // 2. DYNAMIC MAPPING: Create row by finding the matching key in 'acc' for every header
+  // Mapping logic to ensure seller fields are included
   const row = headers.map(h => {
-    const key = h.toLowerCase().trim();
+    const key = h.toLowerCase().trim().replace(/\s+/g, '');
+    
+    // Explicit mapping for seller fields to handle variations in naming
+    if (key === 'sellername') return acc.sellername || '';
+    if (key === 'sellercontact' || key === 'sellerphone') return acc.sellercontact || acc.sellerphone || '';
+    if (key === 'sellerign') return acc.sellerign || '';
+    
     return acc[key] !== undefined ? acc[key] : '';
   });
 
-  // 3. Save Logic
   const rowIdx = data.findIndex(r => String(r.id) === String(acc.id));
+
   if (rowIdx >= 0) {
     const rowNum = rowIdx + 2;
     const lastCol = colLetter(headers.length - 1);
@@ -480,6 +485,8 @@ async function handleSaveAccount(auth, body, res) {
   } else {
     await sheetsAppend(auth, 'AccountList!A1', [row]);
   }
+
+  console.log(`✅ Account ${acc.id} saved (Seller Info included)`);
   return res.json({ result: 'ok' });
 }
 
