@@ -187,7 +187,23 @@ async function handleGetOrders(auth, res) {
 }
 
 async function handleGetShopItems(auth, res) {
-  const { data } = await getSheetData(auth, 'CurrentShop');
+  // Read raw rows so we're not dependent on the exact header names in the sheet
+  const rows = await sheetsRead(auth, 'CurrentShop!A1:F1000');
+  if (!rows || rows.length < 2) return res.json({ values: [] });
+
+  // Skip header row (row 0), map data rows by position
+  const data = rows.slice(1)
+    .filter(row => row.some(cell => cell !== ''))
+    .map((row, i) => ({
+      id:   row[0] || String(i + 1),
+      name: row[1] || '',
+      desc: row[2] || '',
+      p7:   row[3] || '',
+      p15:  row[4] || '',
+      p30:  row[5] || '',
+    }))
+    .filter(it => it.name);
+
   return res.json({ values: data });
 }
 
