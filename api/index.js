@@ -491,7 +491,10 @@ async function handleSaveAccount(auth, body, res) {
 
 async function handleDeleteAccount(auth, body, res) {
   checkToken(body);
-  console.log(`🗑 deleteAccount: ${body.acc_id}`);
+  const cleanId = body.acc_id.includes('-') && body.acc_id.split('-').length > 2 
+    ? body.acc_id.split('-').slice(0, 2).join('-') 
+    : body.acc_id;
+  console.log(`🗑 deleteAccount: ${cleanId}`);
 
   const { data } = await getSheetData(auth, 'AccountList');
   const rowIdx = data.findIndex(r => r.id === body.acc_id);
@@ -523,7 +526,7 @@ async function handleDeleteAccount(auth, body, res) {
   // delete Drive folder for this account
   const drive = google.drive({ version: 'v3', auth });
   const search = await drive.files.list({
-    q: `name='${body.acc_id}' and '${process.env.DRIVE_FOLDER_ACCOUNTS}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,
+    q: `name='${cleanId}' and '${process.env.DRIVE_FOLDER_ACCOUNTS}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,
     fields: 'files(id)',
     supportsAllDrives: true,
     includeItemsFromAllDrives: true,
@@ -532,7 +535,7 @@ async function handleDeleteAccount(auth, body, res) {
     await drive.files.delete({ fileId: search.data.files[0].id, supportsAllDrives: true });
     console.log(`🗑 Drive folder deleted`);
   }
-  console.log(`✅ account ${body.acc_id} deleted`);
+  console.log(`✅ account ${cleanId} deleted`);
   return res.json({ result: 'ok' });
 }
 
