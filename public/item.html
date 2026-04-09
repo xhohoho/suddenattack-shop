@@ -1,0 +1,322 @@
+<style>
+  /* ── Items-specific styles ── */
+  .layout { display: grid; grid-template-columns: 1fr 300px; gap: 16px; align-items: start }
+  .layout-sidebar { position: sticky; top: 1rem }
+  @media(max-width:680px) { .layout-sidebar { position: static; order: -1 } }
+  .card { background: var(--bg2); border: 1px solid var(--border); border-radius: 10px; padding: 1.25rem }
+  .sec-label { font-family: 'Rajdhani', sans-serif; font-size: 12px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--text3); margin-bottom: 14px }
+
+  .itbl { width: 100%; border-collapse: collapse; table-layout: fixed }
+  .itbl th { font-family: 'Rajdhani', sans-serif; font-size: 11px; color: var(--text3); font-weight: 600; text-align: left; padding: 0 6px 10px 0; border-bottom: 1px solid var(--border); letter-spacing: .07em; text-transform: uppercase }
+  .itbl th.c { text-align: center }
+  .itbl td { padding: 11px 6px 11px 0; border-bottom: 1px solid var(--border); vertical-align: middle }
+  .itbl tr:last-child td { border-bottom: none }
+  .iname { font-size: 14px; font-weight: 500; color: var(--text) }
+  .idesc { font-size: 11px; color: var(--text3); margin-top: 2px }
+
+  .qty-wrap { display: flex; align-items: center; justify-content: center; gap: 4px }
+  .qty-btn { width: 22px; height: 22px; border: 1px solid var(--border2); border-radius: 4px; background: var(--bg3); cursor: pointer; font-size: 13px; color: var(--text2); display: flex; align-items: center; justify-content: center; transition: all .12s; font-family: 'Rajdhani', sans-serif; font-weight: 600 }
+  .qty-btn:hover { border-color: var(--accent); color: var(--accent); background: #e8b84b10 }
+  .qty-btn:disabled { opacity: .3; cursor: not-allowed; pointer-events: none }
+  .qty-num { font-family: 'Rajdhani', sans-serif; font-size: 14px; font-weight: 700; color: var(--text); min-width: 16px; text-align: center }
+  .qty-num.zero { color: var(--text3) }
+  .unit-price { font-size: 10px; color: var(--text3); text-align: center; margin-top: 3px; font-family: 'Rajdhani', sans-serif; letter-spacing: .03em }
+  .row-amt { text-align: right; font-size: 14px; font-weight: 600; color: var(--accent); font-family: 'Rajdhani', sans-serif }
+  .row-amt.zero { color: var(--text3); font-weight: 400; font-size: 13px }
+
+  .total-row { display: flex; align-items: center; justify-content: space-between; padding-top: 14px; margin-top: 6px; border-top: 1px solid var(--border2) }
+  .total-lbl { font-family: 'Rajdhani', sans-serif; font-size: 13px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--text2) }
+  .total-num { font-family: 'Rajdhani', sans-serif; font-size: 24px; font-weight: 700; color: var(--accent) }
+
+  .sbtn { width: 100%; padding: 11px; background: var(--accent); color: #0a0b0f; border: none; border-radius: 6px; font-family: 'Rajdhani', sans-serif; font-size: 15px; font-weight: 700; cursor: pointer; transition: all .15s; margin-top: 4px; letter-spacing: .06em; text-transform: uppercase }
+  .sbtn:hover { background: var(--accent2) }
+  .sbtn:active { transform: scale(.98) }
+  .sbtn:disabled { opacity: .35; cursor: not-allowed }
+
+  .hint { font-size: 11px; color: var(--text3); text-align: center; margin-top: 8px; line-height: 1.5; font-family: 'Rajdhani', sans-serif; letter-spacing: .03em }
+
+  @media(max-width:680px) { .layout { grid-template-columns: 1fr } }
+</style>
+
+<div id="view-items" class="view-section active">
+  <div class="layout">
+    <div>
+      <div class="card">
+        <div class="sec-label">Select items &amp; quantity</div>
+        <div style="margin-bottom:12px;position:relative">
+          <input type="text" id="item-search" placeholder="Search items..." oninput="filterTable()"
+            style="width:100%;border:1px solid var(--border);border-radius:6px;padding:8px 11px 8px 32px;font-size:13px;font-family:'Inter',sans-serif;color:var(--text);background:var(--bg3);outline:none;transition:border-color .2s" />
+          <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text3);font-size:13px;pointer-events:none">⌕</span>
+        </div>
+        <table class="itbl">
+          <thead>
+            <tr>
+              <th style="width:35%">Item</th>
+              <th class="c" style="width:15%">7 days</th>
+              <th class="c" style="width:15%">15 days</th>
+              <th class="c" style="width:15%">30 days</th>
+              <th style="text-align:right;width:14%">Amount</th>
+            </tr>
+          </thead>
+          <tbody id="itbody"></tbody>
+        </table>
+        <div class="total-row">
+          <span class="total-lbl">Total</span>
+          <span class="total-num" id="gtotal">RM 0.00</span>
+        </div>
+      </div>
+    </div>
+    <div class="layout-sidebar">
+      <div class="card">
+        <div class="sec-label">Your details</div>
+        <div class="field"><label>In-game name</label><input id="fn" type="text" placeholder="Your in-game name" /></div>
+        <div class="field"><label>Note</label><textarea id="fno" placeholder="Special requests..."></textarea></div>
+        <button class="sbtn" id="sbtn" onclick="submitOrder()">Place order</button>
+        <div class="hint" id="sumhint">Add quantity to place an order.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Payment Modal (item orders) -->
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal()">✕</button>
+    <div class="modal-title">Payment</div>
+    <div class="modal-amt" id="modal-amt-item">RM 0.00</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:7px 12px;margin-bottom:4px">
+      <span style="font-family:'Rajdhani',sans-serif;font-size:11px;color:var(--text3);letter-spacing:.06em;text-transform:uppercase">Order ID</span>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span id="modal-order-id" style="font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:600;color:var(--text);letter-spacing:.04em">—</span>
+        <button onclick="copyOrderId()" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:13px;padding:0;transition:color .15s" title="Copy order ID">⧉</button>
+      </div>
+    </div>
+    <img class="modal-qr" src="https://lh3.googleusercontent.com/d/1rJPbucJNmQaR1cHU4CvI2AOMnp102GsM=w600" alt="Payment QR" />
+    <hr class="modal-divider" />
+    <div class="modal-sub">Upload payment screenshot</div>
+    <div class="upload-area" id="upload-area">
+      <input type="file" id="proof-file-item" accept="image/*,application/pdf" onchange="previewFileItem(this)" />
+      <div class="upload-lbl">Tap to select screenshot or PDF<br><span>JPG / PNG / PDF supported</span></div>
+      <img class="preview-img" id="preview-img-item" />
+      <div id="preview-pdf-item" style="display:none;margin-top:10px;padding:10px 14px;background:var(--bg3);border:1px solid var(--border2);border-radius:6px;font-family:'Rajdhani',sans-serif;font-size:12px;color:var(--accent);letter-spacing:.05em">📄 PDF selected — ready to upload</div>
+    </div>
+    <div class="upload-status" id="upload-status-item"></div>
+    <button class="upload-btn" id="upload-btn-item" onclick="uploadProofItem()">Submit proof</button>
+  </div>
+</div>
+
+<script>
+  // ── Items data ─────────────────────────────
+  // ITEMS, DAYS, qtys are declared in main.html — we just populate them here.
+  // Reset to empty defaults; fetchItems() will load real data from sheet.
+  ITEMS.length = 0;
+  ITEMS.push({ id:1, name:'Item 1', desc:'', p:{7:0,15:0,30:0} });
+  DAYS.forEach(d => { qtys[`1_${d}`] = 0; });
+
+  let currentOrderId   = null;
+  let currentOrderTimestamp = null;
+
+  // ── Table render ───────────────────────────
+  function buildTable() {
+    document.getElementById('itbody').innerHTML = ITEMS.map(it => `
+      <tr>
+        <td><div class="iname">${it.name}</div><div class="idesc">${it.desc}</div></td>
+        ${DAYS.map(d => {
+          if (!it.p[d]) return `<td><div style="text-align:center;color:var(--text3);font-size:12px">—</div></td>`;
+          return `<td>
+            <div class="qty-wrap">
+              <button class="qty-btn" onclick="changeQty(${it.id},${d},-1)" disabled>−</button>
+              <span class="qty-num zero" id="q${it.id}_${d}">0</span>
+              <button class="qty-btn" onclick="changeQty(${it.id},${d},1)">+</button>
+            </div>
+            <div class="unit-price">${fmt(it.p[d])}/unit</div>
+          </td>`;
+        }).join('')}
+        <td class="row-amt zero" id="ra${it.id}">—</td>
+      </tr>`).join('');
+  }
+
+  function changeQty(id, day, delta) {
+    const item = ITEMS.find(it => it.id === id);
+    if (!item || !item.p[day]) return;
+    const k = `${id}_${day}`;
+    qtys[k] = Math.max(0, (qtys[k]||0) + delta);
+    const el = document.getElementById(`q${id}_${day}`);
+    el.textContent = qtys[k];
+    el.className = 'qty-num' + (qtys[k]===0?' zero':'');
+    // Disable minus btn when qty is 0
+    const minusBtn = el.previousElementSibling;
+    if (minusBtn) minusBtn.disabled = qtys[k] === 0;
+    recalc();
+  }
+
+  function recalc() {
+    let tot = 0;
+    ITEMS.forEach(it => {
+      let r = 0;
+      DAYS.forEach(d => { r += qtys[`${it.id}_${d}`] * it.p[d]; });
+      tot += r;
+      const el = document.getElementById('ra'+it.id);
+      if (r > 0) { el.textContent=fmt(r); el.className='row-amt'; }
+      else { el.textContent='—'; el.className='row-amt zero'; }
+    });
+    document.getElementById('gtotal').textContent = fmt(tot);
+    const has = Object.values(qtys).some(v=>v>0);
+    document.getElementById('sumhint').textContent = has ? `Total ${fmt(tot)}` : 'Add quantity to place an order.';
+  }
+
+  function getLines() {
+    const l = [];
+    ITEMS.forEach(it => DAYS.forEach(d => { const q=qtys[`${it.id}_${d}`]; if(q>0) l.push(`${it.name} ${d}d x${q} (${fmt(it.p[d]*q)})`); }));
+    return l.join('; ');
+  }
+
+  function getTotal() {
+    return ITEMS.reduce((s,it) => s + DAYS.reduce((ss,d) => ss + qtys[`${it.id}_${d}`]*it.p[d], 0), 0);
+  }
+
+  function filterTable() {
+    const q = document.getElementById('item-search').value.toLowerCase();
+    document.querySelectorAll('#itbody tr').forEach(row => {
+      const name = row.querySelector('.iname')?.textContent.toLowerCase()||'';
+      const desc = row.querySelector('.idesc')?.textContent.toLowerCase()||'';
+      row.style.display = (name.includes(q)||desc.includes(q)) ? '' : 'none';
+    });
+  }
+
+  // ── Order submit ───────────────────────────
+  async function submitOrder() {
+    const name = document.getElementById('fn').value.trim();
+    if (!name) { showToast('Please enter your in-game name.'); return; }
+    if (!Object.values(qtys).some(v=>v>0)) { showToast('Add at least one item.'); return; }
+    const payload = {
+      order_id: genId('ORD'),
+      timestamp: new Date().toISOString(),
+      name, phone:'', email:'',
+      items: getLines(),
+      total: getTotal().toFixed(2),
+      note: document.getElementById('fno').value.trim(),
+      status: 'New', proof: ''
+    };
+    const btn = document.getElementById('sbtn');
+    btn.disabled=true; btn.textContent='Submitting...';
+    try {
+      await fetch(WEBHOOK_URL, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({...payload,action:'newOrder'}) });
+      ['fn','fno'].forEach(id=>document.getElementById(id).value='');
+      ITEMS.forEach(it=>DAYS.forEach(d=>{qtys[`${it.id}_${d}`]=0;}));
+      document.querySelectorAll('.qty-num').forEach(el=>{el.textContent='0';el.className='qty-num zero';});
+      recalc();
+      await fetchSheet();
+      openModal(payload.total, payload.order_id, payload.timestamp);
+    } catch(e) { showToast('Failed to submit. Check your connection.'); }
+    btn.disabled=false; btn.textContent='Place order';
+  }
+
+  // ── Payment modal ──────────────────────────
+  // Updated in itempdf.html logic
+  function openModal(total, orderId, timestamp) {
+    // If called from the 'Pay' button in the feed, 
+    // 'total' might be an element/event, so we handle both cases:
+    if (typeof total === 'object' && total.dataset) {
+      currentOrderId = total.dataset.oid;
+      currentOrderTimestamp = total.dataset.ts;
+      document.getElementById('modal-amt-item').textContent = fmt(parseFloat(total.dataset.tot));
+    } else {
+      // Called directly from submitOrder
+      currentOrderId = orderId;
+      currentOrderTimestamp = timestamp;
+      document.getElementById('modal-amt-item').textContent = fmt(parseFloat(total));
+    }
+
+    const oidEl = document.getElementById('modal-order-id');
+    if (oidEl) oidEl.textContent = currentOrderId || '—';
+    
+    document.getElementById('modal-overlay').classList.add('open');
+    document.getElementById('upload-status-item').textContent = '';
+    
+    const ubtn = document.getElementById('upload-btn-item');
+    ubtn.style.display = 'none'; 
+    ubtn.disabled = false; 
+    ubtn.textContent = 'Submit proof';
+    
+    document.getElementById('preview-img-item').style.display = 'none';
+    const pdfTagItem = document.getElementById('preview-pdf-item');
+    if (pdfTagItem) pdfTagItem.style.display = 'none';
+    
+    const fi = document.getElementById('proof-file-item');
+    fi.value = ''; 
+    fi.disabled = false;
+  }
+
+  function closeModal() {
+    document.getElementById('modal-overlay').classList.remove('open');
+    currentOrderId=null; currentOrderTimestamp=null;
+  }
+
+  function copyOrderId() {
+    if (!currentOrderId) return;
+    navigator.clipboard.writeText(currentOrderId).then(() => {
+      showToast('Order ID copied!');
+    }).catch(() => {
+      showToast(currentOrderId); // fallback — show it in toast
+    });
+  }
+
+  function previewFileItem(input) {
+    previewProofFile(input, 'preview-img-item', 'preview-pdf-item', 'upload-btn-item');
+  }
+
+  async function uploadProofItem() {
+    const file = document.getElementById('proof-file-item').files[0];
+    
+    // Use currentOrderId which was set by openModal(this)
+    if (!file || !currentOrderId) {
+      alert("Error: No file selected or Order ID not found. Try clicking 'Pay' again.");
+      return;
+    }
+
+    const btn = document.getElementById('upload-btn-item');
+    btn.disabled = true; btn.textContent = 'Uploading...';
+
+    try {
+      // Pass the recovered currentOrderId to your fixed helper
+      await uploadProofFile(file, currentOrderId, 'uploadProofItem');
+      
+      document.getElementById('upload-status-item').textContent = 'Submitted!';
+      btn.textContent = 'Submitted ✓';
+      setTimeout(() => { closeModal(); fetchSheet(); }, 3000);
+    } catch(e) {
+      btn.disabled = false; btn.textContent = 'Submit proof';
+    }
+  }
+
+  document.getElementById('modal-overlay').addEventListener('click', function(e){ if(e.target===this) closeModal(); });
+
+  // ── Fetch items from sheet ─────────────────
+  async function fetchItems() {
+    try {
+      const r = await fetch(WEBHOOK_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'getShopItems' })
+      });
+      const d = await r.json();
+      if (!d.values || !d.values.length) return;
+      const loaded = d.values.map((r,i) => ({
+        id: parseInt(r[0])||i+1,
+        name: r[1]||'',
+        desc: r[2]||'',
+        p: {
+          7:  parseFloat((r[3]||'0').toString().replace(/,/g,''))||0,
+          15: parseFloat((r[4]||'0').toString().replace(/,/g,''))||0,
+          30: parseFloat((r[5]||'0').toString().replace(/,/g,''))||0
+        }
+      })).filter(it=>it.name);
+      if (loaded.length) {
+        ITEMS.length=0; loaded.forEach(it=>ITEMS.push(it));
+        qtys={}; ITEMS.forEach(it=>DAYS.forEach(d=>{qtys[`${it.id}_${d}`]=0;}));
+      }
+    } catch(e) { /* keep defaults */ }
+  }
+  // NOTE: boot call (fetchItems + buildTable + recalc) is in main.html unified boot
+</script>
