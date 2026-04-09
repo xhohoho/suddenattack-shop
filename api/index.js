@@ -22,20 +22,32 @@ const SHEET_ID = process.env.SHEET_ID;
 
 // ── Sheet Helper ───────────────────────────
 async function getSheetData(sheetName) {
-  const r = await fetch(
-    `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${sheetName}?key=${process.env.SHEETS_API_KEY}`
-  );
-  const d = await r.json();
-  if (!d.values || d.values.length < 2) return { headers: [], data: [] };
+  try {
+    const auth = await getAuth().getClient();
+    const sheets = google.sheets({ version: 'v4', auth });
+    
+    // Use the official library instead of fetch
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId: SHEET_ID,
+      range: `${sheetName}!A1:Z1000`, // Fetches headers + data
+    });
 
-  const [headers, ...rows] = d.values;
-  const data = rows
-    .filter(row => row.some(cell => cell !== ''))
-    .map(row =>
-      Object.fromEntries(headers.map((key, i) => [key.toLowerCase().trim().replace(/\s+/g, ''), row[i] || '']))
-    );
+    const rows = response.data.values;
+    if (!rows || rows.length < 2) return { headers: [], data: [] };
 
-  return { headers, data };
+    // Process headers: "Item Name" -> "itemname"
+    const headers = rows[0].map(h => h.toLowerCase().trim().replace(/\s+/g, ''));
+    const data = rows.slice(1)
+      .filter(row => row.some(cell => cell !== ''))
+      .map(row =>
+        Object.fromEntries(headers.map((key, i) => [key, row[i] || '']))
+      );
+
+    return { headers, data };
+  } catch (err) {
+    console.error(`Error fetching sheet ${sheetName}:`, err.message);
+    throw err; // This will trigger the 500 catch block with a real error message
+  }
 }
 
 // ── Column Letter Helper ───────────────────
@@ -442,19 +454,14 @@ async function handleUploadSlideImg(auth, body, res) {
 // Inside index.js
 async function handleGetSettings(res) {
   try {
-    // 1. Get data as an object: { key: "slideshow", slide1: "...", slide2: "..." }
     const { data } = await getSheetData('Settings');
-    
-    // 2. Find the row where key is 'slideshow'
     const slideshowRow = data.find(r => r.key === 'slideshow');
     
-    // 3. Return just the array of URLs for the frontend
+    // Ensure we return the exact keys from your sheet
     const urls = slideshowRow ? [slideshowRow.slide1, slideshowRow.slide2] : ['', ''];
-    
     return res.json({ slides: urls });
   } catch (err) {
-    console.error("❌ handleGetSettings failed:", err.message);
-    return res.status(500).json({ error: "Failed to load slides" });
+    return res.status(500).json({ error: "Settings fetch failed" });
   }
 }
 
