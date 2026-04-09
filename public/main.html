@@ -362,10 +362,20 @@
         </div>
         <div id="acc-form" style="display:none;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:16px">
           <div style="font-family:'Rajdhani',sans-serif;font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--text3);margin-bottom:12px" id="acc-form-label">New account</div>
+          
           <div class="form-grid">
             <div class="field"><label>Rank *</label><input id="f-rank" placeholder="e.g. Diamond 1" /></div>
             <div class="field"><label>Price (RM) *</label><input id="f-price" type="number" placeholder="e.g. 350" /></div>
           </div>
+
+          <div style="font-family:'Rajdhani',sans-serif;font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);margin:10px 0 8px">Seller Info</div>
+          <div class="form-grid-3">
+            <div class="field"><label>Seller Name</label><input id="f-sellername" placeholder="Full Name" /></div>
+            <div class="field"><label>Seller Contact</label><input id="f-sellercontact" placeholder="Phone" /></div>
+            <div class="field"><label>Seller IGN</label><input id="f-sellerign" placeholder="IGN" /></div>
+          </div>
+          <hr style="border:0;border-top:1px solid var(--border);margin:12px 0" />
+
           <div class="form-grid">
             <div class="field"><label>IGN</label><input id="f-ign" placeholder="In-game name" /></div>
             <div class="field"><label>Account ID</label><input id="f-id" placeholder="e.g. 47046" /></div>
@@ -382,6 +392,7 @@
                 <option value="available">Available</option>
                 <option value="reserved">Reserved</option>
                 <option value="sold">Sold</option>
+                <option value="pending">Pending</option>
               </select>
             </div>
           </div>
