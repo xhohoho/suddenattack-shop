@@ -1,963 +1,2029 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-<meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Hohoh0 Shop</title>
-<style>
-  @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Inter:wght@300;400;500&display=swap');
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Hohoh0 Shop</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Inter:wght@300;400;500&display=swap');
 
-  * { box-sizing: border-box; margin: 0; padding: 0 }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0
+    }
 
-  :root {
-    --bg: #0a0b0f; --bg2: #111318; --bg3: #181b22;
-    --border: #ffffff12; --border2: #ffffff20;
-    --accent: #e8b84b; --accent2: #c9982a;
-    --text: #f0f0f0; --text2: #9099a8; --text3: #4a5260;
-    --green: #2ecc8a; --blue: #4a9eff; --red: #e24b4a;
-  }
+    :root {
+      --bg: #0a0b0f;
+      --bg2: #111318;
+      --bg3: #181b22;
+      --border: #ffffff12;
+      --border2: #ffffff20;
+      --accent: #e8b84b;
+      --accent2: #c9982a;
+      --text: #f0f0f0;
+      --text2: #9099a8;
+      --text3: #4a5260;
+      --green: #2ecc8a;
+      --blue: #4a9eff;
+      --red: #e24b4a;
+    }
 
-  body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text) }
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text)
+    }
 
-  .wrap { padding: 1.5rem 1rem; background: var(--bg); min-height: 100vh }
+    .wrap {
+      padding: 1.5rem 1rem;
+      background: var(--bg);
+      min-height: 100vh
+    }
 
-  .topbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; padding: 0 2px }
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1.5rem;
+      padding: 0 2px
+    }
 
-  .page-title { font-family: 'Rajdhani', sans-serif; font-size: 22px; font-weight: 700; color: var(--text); letter-spacing: .04em }
-  .page-title span { color: var(--accent) }
+    .page-title {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--text);
+      letter-spacing: .04em
+    }
 
-  .clock-time { font-size: 14px; font-weight: 500; color: var(--text); font-variant-numeric: tabular-nums; text-align: right; letter-spacing: .05em }
-  .clock-date { font-size: 11px; color: var(--text2); margin-top: 2px; text-align: right; letter-spacing: .03em }
+    .page-title span {
+      color: var(--accent)
+    }
 
-.banner-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px }
-  .banner-panel { 
-    border: 1px solid var(--border2); 
-    border-radius: 12px; 
-    overflow: hidden; 
-    background: var(--bg2); 
-    display: flex; 
-    flex-direction: column 
-  }
+    .clock-time {
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text);
+      font-variant-numeric: tabular-nums;
+      text-align: right;
+      letter-spacing: .05em
+    }
 
-  /* ==================== FIXED BANNER - FULL SIZE, NO CLIP, NO STRETCH ==================== */
-  .img-area {
-    height: 450px;                    /* You can change this height */
-    position: relative;
-    overflow: hidden;
-    background: var(--bg3);           /* Empty dark background when image doesn't fill */
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
+    .clock-date {
+      font-size: 11px;
+      color: var(--text2);
+      margin-top: 2px;
+      text-align: right;
+      letter-spacing: .03em
+    }
 
-  .img-area .profile,
-  .slideshow img {
-    max-width: 100%;
-    max-height: 100%;
-    width: auto;
-    height: auto;
-    object-fit: contain;              /* Shows full image without stretching or clipping */
-    display: block;
-  }
+    .banner-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 20px
+    }
 
-  .slideshow {
-    position: relative;
-    width: 100%;
-    height: 100%;
-  }
+    .banner-panel {
+      border: 1px solid var(--border2);
+      border-radius: 12px;
+      overflow: hidden;
+      background: var(--bg2);
+      display: flex;
+      flex-direction: column
+    }
 
-  .slideshow img {
-    position: absolute;
-    inset: 0;
-    margin: auto;                     /* Centers the image */
-    opacity: 0;
-    transition: opacity .8s ease;
-  }
+    /* ==================== FIXED BANNER - FULL SIZE, NO CLIP, NO STRETCH ==================== */
+    .img-area {
+      height: 450px;
+      /* You can change this height */
+      position: relative;
+      overflow: hidden;
+      background: var(--bg3);
+      /* Empty dark background when image doesn't fill */
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
 
-  .slideshow img.active {
-    opacity: 1;
-  }
+    .img-area .profile,
+    .slideshow img {
+      max-width: 100%;
+      max-height: 100%;
+      width: auto;
+      height: auto;
+      object-fit: contain;
+      /* Shows full image without stretching or clipping */
+      display: block;
+    }
 
-  /* Rest of your original styles (unchanged) */
-  .banner-info { 
-    padding: 12px 16px; 
-    display: flex; 
-    align-items: center; 
-    justify-content: space-between; 
-    gap: 8px; 
-    flex-wrap: wrap; 
-    background: var(--bg2); 
-    flex: 1 
-  }
-  .seller-name { font-family: 'Rajdhani', sans-serif; font-size: 17px; font-weight: 700; color: var(--text); letter-spacing: .03em }
-  .seller-ign { font-size: 11px; color: var(--text2); margin-top: 2px; letter-spacing: .05em }
-  .seller-ign span { color: var(--accent); font-weight: 500 }
-  .seller-badge { font-family: 'Rajdhani', sans-serif; font-size: 10px; padding: 3px 10px; border-radius: 3px; background: #e8b84b18; color: var(--accent); font-weight: 600; border: 1px solid #e8b84b30; letter-spacing: .08em; text-transform: uppercase; white-space: nowrap }
+    .slideshow {
+      position: relative;
+      width: 100%;
+      height: 100%;
+    }
 
-  .admin-toggle { font-size: 11px; color: var(--text3); cursor: pointer; text-decoration: none; letter-spacing: .05em; font-family: 'Rajdhani', sans-serif; padding: 2px 8px; border: 1px solid var(--border); border-radius: 3px; background: none; transition: all .15s }
-  .admin-toggle:hover { color: var(--text2); border-color: var(--border2) }
+    .slideshow img {
+      position: absolute;
+      inset: 0;
+      margin: auto;
+      /* Centers the image */
+      opacity: 0;
+      transition: opacity .8s ease;
+    }
 
-  .admin-panel { display: none; background: var(--bg2); border: 1px solid var(--border2); border-radius: 10px; padding: 1.25rem; margin-bottom: 20px }
-  .admin-panel.open { display: block }
-  .admin-title { font-family: 'Rajdhani', sans-serif; font-size: 13px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--accent); margin-bottom: 14px }
+    .slideshow img.active {
+      opacity: 1;
+    }
 
-  .admin-row { display: flex; gap: 8px; margin-bottom: 12px; align-items: flex-end }
-  .admin-row input { flex: 1; border: 1px solid var(--border); border-radius: 6px; padding: 8px 11px; font-size: 13px; font-family: 'Inter', sans-serif; color: var(--text); background: var(--bg3); outline: none; transition: border-color .2s }
-  .admin-row input:focus { border-color: #e8b84b50 }
+    /* Rest of your original styles (unchanged) */
+    .banner-info {
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      flex-wrap: wrap;
+      background: var(--bg2);
+      flex: 1
+    }
 
-  .admin-btn { padding: 8px 16px; background: var(--accent); color: #0a0b0f; border: none; border-radius: 6px; font-family: 'Rajdhani', sans-serif; font-size: 13px; font-weight: 700; cursor: pointer; transition: all .15s; white-space: nowrap; letter-spacing: .05em; text-transform: uppercase }
-  .admin-btn:hover { background: var(--accent2) }
-  .admin-btn:disabled { opacity: .4; cursor: not-allowed }
-  .admin-btn.sec { background: var(--bg3); color: var(--text2); border: 1px solid var(--border2) }
-  .admin-btn.sec:hover { border-color: var(--border); color: var(--text) }
+    .seller-name {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 17px;
+      font-weight: 700;
+      color: var(--text);
+      letter-spacing: .03em
+    }
 
-  .admin-status { font-size: 12px; color: var(--text2); font-family: 'Rajdhani', sans-serif; margin-top: 6px; min-height: 18px }
-  .admin-preview { margin-top: 12px; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; display: none }
-  .admin-preview img { width: 100%; display: block; max-height: 200px; object-fit: cover }
-  .admin-extracted { margin-top: 12px; display: none }
-  .admin-extracted table { width: 100%; border-collapse: collapse; font-size: 12px }
-  .admin-extracted th { font-family: 'Rajdhani', sans-serif; font-size: 10px; color: var(--text3); font-weight: 600; padding: 4px 6px; border-bottom: 1px solid var(--border); text-transform: uppercase; letter-spacing: .06em }
-  .admin-extracted td { padding: 5px 6px; border-bottom: 1px solid var(--border); color: var(--text2) }
-  .admin-extracted td input { width: 100%; background: var(--bg3); border: 1px solid var(--border); border-radius: 4px; padding: 3px 6px; font-size: 12px; color: var(--text); font-family: 'Inter', sans-serif; outline: none }
-  .admin-extracted td input:focus { border-color: #e8b84b50 }
+    .seller-ign {
+      font-size: 11px;
+      color: var(--text2);
+      margin-top: 2px;
+      letter-spacing: .05em
+    }
 
-  .admin-pass { display: flex; gap: 8px; align-items: center }
-  .admin-pass input { border: 1px solid var(--border); border-radius: 6px; padding: 8px 11px; font-size: 13px; font-family: 'Inter', sans-serif; color: var(--text); background: var(--bg3); outline: none; transition: border-color .2s; width: 180px }
-  .admin-pass input:focus { border-color: #e8b84b50 }
+    .seller-ign span {
+      color: var(--accent);
+      font-weight: 500
+    }
 
-  .admin-tabs { display: flex; gap: 0; margin-bottom: 16px; border-bottom: 1px solid var(--border) }
-  .admin-tab { font-family: 'Rajdhani', sans-serif; font-size: 12px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; padding: 8px 14px; cursor: pointer; color: var(--text3); border-bottom: 2px solid transparent; margin-bottom: -1px; transition: all .15s; background: none; border-top: none; border-left: none; border-right: none }
-  .admin-tab:hover { color: var(--text2) }
-  .admin-tab.active { color: var(--accent); border-bottom-color: var(--accent) }
-  .admin-tab-content { display: none }
-  .admin-tab-content.active { display: block }
+    .seller-badge {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 10px;
+      padding: 3px 10px;
+      border-radius: 3px;
+      background: #e8b84b18;
+      color: var(--accent);
+      font-weight: 600;
+      border: 1px solid #e8b84b30;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      white-space: nowrap
+    }
 
-  .admin-hint { font-size: 11px; color: var(--text3); font-family: 'Rajdhani', sans-serif; letter-spacing: .05em; text-transform: uppercase; margin-bottom: 10px }
-  .admin-loading { font-size: 12px; color: var(--text3); text-align: center; padding: 16px; font-family: 'Rajdhani', sans-serif }
-  .admin-error { font-size: 12px; color: var(--red); text-align: center; padding: 16px; font-family: 'Rajdhani', sans-serif }
-  .admin-row-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px }
-  .slide-label { font-family: 'Rajdhani', sans-serif; font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--text3); margin-bottom: 6px }
-  
-  .order-mgmt-list { display: flex; flex-direction: column; gap: 6px; max-height: 400px; overflow-y: auto }
-  .order-mgmt-item { background: var(--bg3); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap }
-  .order-mgmt-info { flex: 1; min-width: 0 }
-  .order-mgmt-id { font-family: 'Rajdhani', sans-serif; font-size: 10px; color: var(--text3); letter-spacing: .06em }
-  .order-mgmt-name { font-size: 13px; font-weight: 500; color: var(--text); margin-top: 1px }
-  .order-mgmt-items { font-size: 11px; color: var(--text2); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 260px }
-  .order-mgmt-total { font-family: 'Rajdhani', sans-serif; font-size: 13px; font-weight: 600; color: var(--accent); white-space: nowrap }
+    .admin-toggle {
+      font-size: 11px;
+      color: var(--text3);
+      cursor: pointer;
+      text-decoration: none;
+      letter-spacing: .05em;
+      font-family: 'Rajdhani', sans-serif;
+      padding: 2px 8px;
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      background: none;
+      transition: all .15s
+    }
 
-  .status-select { font-family: 'Rajdhani', sans-serif; font-size: 11px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; padding: 5px 8px; border-radius: 4px; border: 1px solid var(--border2); background: var(--bg2); color: var(--text2); cursor: pointer; outline: none; transition: border-color .2s }
-  .status-select:focus { border-color: #e8b84b50 }
-  .save-status-btn { font-family: 'Rajdhani', sans-serif; font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; padding: 5px 12px; border-radius: 4px; border: none; background: var(--accent); color: #0a0b0f; cursor: pointer; transition: all .15s; min-width: 52px }
-  .save-status-btn:hover { background: var(--accent2) }
+    .admin-toggle:hover {
+      color: var(--text2);
+      border-color: var(--border2)
+    }
 
-  .feed-section { margin-bottom: 20px }
-  .feed-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px }
-  .section-title { font-family: 'Rajdhani', sans-serif; font-size: 14px; font-weight: 600; color: var(--text2); letter-spacing: .1em; text-transform: uppercase; display: flex; align-items: center; gap: 8px }
-  .live-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); animation: blink 1.8s infinite; display: inline-block }
-  @keyframes blink { 0%, 100% { opacity: 1 } 50% { opacity: .2 } }
-  .sync-lbl { font-size: 11px; color: var(--text3) }
+    .admin-panel {
+      display: none;
+      background: var(--bg2);
+      border: 1px solid var(--border2);
+      border-radius: 10px;
+      padding: 1.25rem;
+      margin-bottom: 20px
+    }
 
-  .fcard { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; display: flex; align-items: flex-start; gap: 11px; animation: pop .3s ease; transition: border-color .2s }
-  .fcard:hover { border-color: var(--border2) }
-  @keyframes pop { from { opacity: 0; transform: translateY(-4px) } to { opacity: 1; transform: translateY(0) } }
-  .fcard+.fcard { margin-top: 6px }
-  .av { width: 32px; height: 32px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-family: 'Rajdhani', sans-serif; font-size: 13px; font-weight: 700; flex-shrink: 0; border: 1px solid var(--border2) }
-  .fb { flex: 1; min-width: 0 }
-  .fn2 { font-size: 13px; font-weight: 500; color: var(--text) }
-  .fi { font-size: 12px; color: var(--text2); margin-top: 2px; line-height: 1.5 }
-  .fr { text-align: right; flex-shrink: 0 }
-  .ft { font-size: 13px; font-weight: 500; color: var(--accent) }
-  .fa { font-size: 11px; color: var(--text3); margin-top: 2px }
+    .admin-panel.open {
+      display: block
+    }
 
-  .pill { font-size: 10px; padding: 2px 8px; border-radius: 3px; display: inline-block; margin-top: 4px; font-family: 'Rajdhani', sans-serif; font-weight: 600; letter-spacing: .06em; text-transform: uppercase }
-  .p-new { background: #4a9eff18; color: var(--blue); border: 1px solid #4a9eff25 }
-  .p-conf { background: #2ecc8a18; color: var(--green); border: 1px solid #2ecc8a25 }
-  .p-paid { background: #0d2a2a; color: #2ee8c8; border: 1px solid #2ee8c830 }
-  .p-verified { background: #2ecc8a18; color: var(--green); border: 1px solid #2ecc8a25 }
-  .p-completed { background: #ffffff0a; color: var(--text2); border: 1px solid var(--border2) }
-  .p-done { background: #ffffff0a; color: var(--text3); border: 1px solid var(--border) }
+    .admin-title {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 14px
+    }
 
-  .pay-btn { font-size: 10px; padding: 2px 8px; border-radius: 3px; display: inline-block; margin-top: 4px; margin-left: 4px; font-family: 'Rajdhani', sans-serif; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; background: #e8b84b18; color: var(--accent); border: 1px solid #e8b84b30; cursor: pointer; transition: all .15s }
-  .pay-btn:hover { background: #e8b84b30 }
+    .admin-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 12px;
+      align-items: flex-end
+    }
 
-  .empty-feed { text-align: center; padding: 24px; font-size: 12px; color: var(--text3); font-family: 'Rajdhani', sans-serif; letter-spacing: .05em; text-transform: uppercase }
+    .admin-row input {
+      flex: 1;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 8px 11px;
+      font-size: 13px;
+      font-family: 'Inter', sans-serif;
+      color: var(--text);
+      background: var(--bg3);
+      outline: none;
+      transition: border-color .2s
+    }
 
-  .main-tabs { display: flex; gap: 0; margin-bottom: 16px; border-bottom: 1px solid var(--border) }
-  .main-tab { font-family: 'Rajdhani', sans-serif; font-size: 14px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; padding: 12px 20px; cursor: pointer; color: var(--text3); border-bottom: 2px solid transparent; margin-bottom: -1px; transition: all .15s; background: none; border: none }
-  .main-tab:hover { color: var(--text2) }
-  .main-tab.active { color: var(--accent); border-bottom-color: var(--accent) }
-  .view-section { display: none }
-  .view-section.active { display: block }
+    .admin-row input:focus {
+      border-color: #e8b84b50
+    }
 
-  .img-slots { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 8px }
-  .img-slot { aspect-ratio: 1; border: 1px dashed var(--border2); border-radius: 6px; position: relative; overflow: hidden; background: var(--bg2); display: flex; align-items: center; justify-content: center; cursor: pointer }
-  .img-slot input { position: absolute; inset: 0; opacity: 0; cursor: pointer; z-index: 5 }
-  .img-slot img { width: 100%; height: 100%; object-fit: cover; display: none }
-  .slot-lbl { font-size: 10px; color: var(--text3); font-family: 'Rajdhani', sans-serif; letter-spacing: .05em; text-transform: uppercase; pointer-events: none }
-  .slot-rm { position: absolute; top: 4px; right: 4px; background: rgba(0,0,0,.7); border: none; border-radius: 4px; color: var(--text); font-size: 12px; width: 20px; height: 20px; cursor: pointer; display: none; z-index: 10; align-items: center; justify-content: center; line-height: 1 }
-  .slot-rm:hover { background: rgba(0,0,0,.9) }
-  .upload-prog { position: absolute; bottom: 0; left: 0; height: 3px; background: var(--accent); width: 0%; transition: width .3s }
+    .admin-btn {
+      padding: 8px 16px;
+      background: var(--accent);
+      color: #0a0b0f;
+      border: none;
+      border-radius: 6px;
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all .15s;
+      white-space: nowrap;
+      letter-spacing: .05em;
+      text-transform: uppercase
+    }
 
-  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px }
-  .form-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px }
-  .field { margin-bottom: 12px }
-  .field label { font-family: 'Rajdhani', sans-serif; font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--text3); display: block; margin-bottom: 5px }
-  .field input, .field textarea, .field select { width: 100%; border: 1px solid var(--border); border-radius: 6px; padding: 9px 11px; font-size: 13px; font-family: 'Inter', sans-serif; color: var(--text); background: var(--bg3); transition: border-color .2s; outline: none }
-  .field input:focus, .field textarea:focus { border-color: #e8b84b50 }
-  .field textarea { resize: vertical; min-height: 54px }
+    .admin-btn:hover {
+      background: var(--accent2)
+    }
 
-  .acc-list { display: flex; flex-direction: column; gap: 8px; margin-top: 16px; max-height: 400px; overflow-y: auto }
-  .acc-list-item { background: var(--bg3); border: 1px solid var(--border); border-radius: 6px; padding: 12px 14px; display: flex; justify-content: space-between; align-items: center; gap: 12px }
-  .acc-list-info { font-size: 12px; color: var(--text2); flex: 1 }
-  .acc-list-info strong { color: var(--text); font-family: 'Rajdhani', sans-serif; font-size: 14px }
-  .acc-list-actions { display: flex; gap: 6px }
-  .icon-btn { width: 28px; height: 28px; border-radius: 4px; background: var(--bg2); border: 1px solid var(--border); color: var(--text2); font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all .15s }
-  .icon-btn:hover { background: var(--bg3); color: var(--text); border-color: var(--border2) }
-  .icon-btn.danger:hover { color: #e24b4a; border-color: #e24b4a50; background: #e24b4a15 }
+    .admin-btn:disabled {
+      opacity: .4;
+      cursor: not-allowed
+    }
 
-  .toast { background: var(--bg3); border: 1px solid var(--border2); color: var(--text); padding: 8px 18px; border-radius: 6px; font-size: 13px; opacity: 0; transition: opacity .3s; pointer-events: none; text-align: center; display: block; margin-top: 10px }
-  .toast.show { opacity: 1 }
+    .admin-btn.sec {
+      background: var(--bg3);
+      color: var(--text2);
+      border: 1px solid var(--border2)
+    }
 
-  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.75); z-index: 1000; align-items: center; justify-content: center }
-  .modal-overlay.open { display: flex }
-  .modal { background: var(--bg2); border: 1px solid var(--border2); border-radius: 14px; padding: 28px 24px; width: 100%; max-width: 380px; margin: 16px; position: relative; max-height: 90vh; overflow-y: auto }
-  .modal-close { position: absolute; top: 14px; right: 16px; background: none; border: none; color: var(--text2); font-size: 20px; cursor: pointer; line-height: 1; padding: 2px 6px }
-  .modal-close:hover { color: var(--text) }
-  .modal-title { font-family: 'Rajdhani', sans-serif; font-size: 16px; font-weight: 700; color: var(--text); letter-spacing: .05em; text-transform: uppercase; margin-bottom: 4px }
-  .modal-amt { font-family: 'Rajdhani', sans-serif; font-size: 28px; font-weight: 700; color: var(--accent); margin-bottom: 16px }
-  .modal-qr { width: 100%; border-radius: 8px; display: block; border: 1px solid var(--border2) }
-  .modal-divider { border: none; border-top: 1px solid var(--border); margin: 18px 0 }
-  .modal-sub { font-family: 'Rajdhani', sans-serif; font-size: 12px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--text3); margin-bottom: 10px }
+    .admin-btn.sec:hover {
+      border-color: var(--border);
+      color: var(--text)
+    }
 
-  .upload-area { border: 1px dashed var(--border2); border-radius: 8px; padding: 20px; text-align: center; cursor: pointer; transition: border-color .2s; position: relative }
-  .upload-area:hover { border-color: var(--accent) }
-  .upload-area input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100% }
-  .upload-lbl { font-size: 13px; color: var(--text2); font-family: 'Rajdhani', sans-serif; letter-spacing: .03em }
-  .upload-lbl span { color: var(--accent) }
-  .preview-img { width: 100%; border-radius: 6px; margin-top: 10px; display: none }
-  .upload-btn { width: 100%; padding: 10px; background: var(--accent); color: #0a0b0f; border: none; border-radius: 6px; font-family: 'Rajdhani', sans-serif; font-size: 14px; font-weight: 700; cursor: pointer; margin-top: 12px; letter-spacing: .06em; text-transform: uppercase; display: none; transition: all .15s }
-  .upload-btn:hover { background: var(--accent2) }
-  .upload-btn:disabled { opacity: .4; cursor: not-allowed }
-  .upload-status { font-size: 12px; color: var(--text2); text-align: center; margin-top: 8px; font-family: 'Rajdhani', sans-serif; min-height: 18px }
+    .admin-status {
+      font-size: 12px;
+      color: var(--text2);
+      font-family: 'Rajdhani', sans-serif;
+      margin-top: 6px;
+      min-height: 18px
+    }
 
-  .se-td { padding: 4px 6px; border-bottom: 1px solid var(--border) }
-  .se-input { width: 100%; background: var(--bg3); border: 1px solid var(--border); border-radius: 4px; padding: 3px 6px; font-size: 12px; color: var(--text); font-family: 'Inter', sans-serif; outline: none }
-  .se-input:focus { border-color: #e8b84b50 }
-  .se-rm { background: none; border: none; color: var(--text3); cursor: pointer; font-size: 13px; padding: 2px 4px }
-  .se-rm:hover { color: var(--red) }
-  
-  @media(max-width:680px) { 
-    .banner-grid { grid-template-columns: 1fr }
-    .img-area { height: 260px }
-  }
-</style>
+    .admin-preview {
+      margin-top: 12px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      overflow: hidden;
+      display: none
+    }
+
+    .admin-preview img {
+      width: 100%;
+      display: block;
+      max-height: 200px;
+      object-fit: cover
+    }
+
+    .admin-extracted {
+      margin-top: 12px;
+      display: none
+    }
+
+    .admin-extracted table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px
+    }
+
+    .admin-extracted th {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 10px;
+      color: var(--text3);
+      font-weight: 600;
+      padding: 4px 6px;
+      border-bottom: 1px solid var(--border);
+      text-transform: uppercase;
+      letter-spacing: .06em
+    }
+
+    .admin-extracted td {
+      padding: 5px 6px;
+      border-bottom: 1px solid var(--border);
+      color: var(--text2)
+    }
+
+    .admin-extracted td input {
+      width: 100%;
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 3px 6px;
+      font-size: 12px;
+      color: var(--text);
+      font-family: 'Inter', sans-serif;
+      outline: none
+    }
+
+    .admin-extracted td input:focus {
+      border-color: #e8b84b50
+    }
+
+    .admin-pass {
+      display: flex;
+      gap: 8px;
+      align-items: center
+    }
+
+    .admin-pass input {
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 8px 11px;
+      font-size: 13px;
+      font-family: 'Inter', sans-serif;
+      color: var(--text);
+      background: var(--bg3);
+      outline: none;
+      transition: border-color .2s;
+      width: 180px
+    }
+
+    .admin-pass input:focus {
+      border-color: #e8b84b50
+    }
+
+    .admin-tabs {
+      display: flex;
+      gap: 0;
+      margin-bottom: 16px;
+      border-bottom: 1px solid var(--border)
+    }
+
+    .admin-tab {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      padding: 8px 14px;
+      cursor: pointer;
+      color: var(--text3);
+      border-bottom: 2px solid transparent;
+      margin-bottom: -1px;
+      transition: all .15s;
+      background: none;
+      border-top: none;
+      border-left: none;
+      border-right: none
+    }
+
+    .admin-tab:hover {
+      color: var(--text2)
+    }
+
+    .admin-tab.active {
+      color: var(--accent);
+      border-bottom-color: var(--accent)
+    }
+
+    .admin-tab-content {
+      display: none
+    }
+
+    .admin-tab-content.active {
+      display: block
+    }
+
+    .admin-hint {
+      font-size: 11px;
+      color: var(--text3);
+      font-family: 'Rajdhani', sans-serif;
+      letter-spacing: .05em;
+      text-transform: uppercase;
+      margin-bottom: 10px
+    }
+
+    .admin-loading {
+      font-size: 12px;
+      color: var(--text3);
+      text-align: center;
+      padding: 16px;
+      font-family: 'Rajdhani', sans-serif
+    }
+
+    .admin-error {
+      font-size: 12px;
+      color: var(--red);
+      text-align: center;
+      padding: 16px;
+      font-family: 'Rajdhani', sans-serif
+    }
+
+    .admin-row-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px
+    }
+
+    .slide-label {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      color: var(--text3);
+      margin-bottom: 6px
+    }
+
+    .order-mgmt-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      max-height: 400px;
+      overflow-y: auto
+    }
+
+    .order-mgmt-item {
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 10px 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap
+    }
+
+    .order-mgmt-info {
+      flex: 1;
+      min-width: 0
+    }
+
+    .order-mgmt-id {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 10px;
+      color: var(--text3);
+      letter-spacing: .06em
+    }
+
+    .order-mgmt-name {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text);
+      margin-top: 1px
+    }
+
+    .order-mgmt-items {
+      font-size: 11px;
+      color: var(--text2);
+      margin-top: 2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 260px
+    }
+
+    .order-mgmt-total {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--accent);
+      white-space: nowrap
+    }
+
+    .status-select {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: .05em;
+      text-transform: uppercase;
+      padding: 5px 8px;
+      border-radius: 4px;
+      border: 1px solid var(--border2);
+      background: var(--bg2);
+      color: var(--text2);
+      cursor: pointer;
+      outline: none;
+      transition: border-color .2s
+    }
+
+    .status-select:focus {
+      border-color: #e8b84b50
+    }
+
+    .save-status-btn {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .05em;
+      text-transform: uppercase;
+      padding: 5px 12px;
+      border-radius: 4px;
+      border: none;
+      background: var(--accent);
+      color: #0a0b0f;
+      cursor: pointer;
+      transition: all .15s;
+      min-width: 52px
+    }
+
+    .save-status-btn:hover {
+      background: var(--accent2)
+    }
+
+    .feed-section {
+      margin-bottom: 20px
+    }
+
+    .feed-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px
+    }
+
+    .section-title {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text2);
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      display: flex;
+      align-items: center;
+      gap: 8px
+    }
+
+    .live-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--green);
+      animation: blink 1.8s infinite;
+      display: inline-block
+    }
+
+    @keyframes blink {
+
+      0%,
+      100% {
+        opacity: 1
+      }
+
+      50% {
+        opacity: .2
+      }
+    }
+
+    .sync-lbl {
+      font-size: 11px;
+      color: var(--text3)
+    }
+
+    .fcard {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 14px;
+      display: flex;
+      align-items: flex-start;
+      gap: 11px;
+      animation: pop .3s ease;
+      transition: border-color .2s
+    }
+
+    .fcard:hover {
+      border-color: var(--border2)
+    }
+
+    @keyframes pop {
+      from {
+        opacity: 0;
+        transform: translateY(-4px)
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0)
+      }
+    }
+
+    .fcard+.fcard {
+      margin-top: 6px
+    }
+
+    .av {
+      width: 32px;
+      height: 32px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 13px;
+      font-weight: 700;
+      flex-shrink: 0;
+      border: 1px solid var(--border2)
+    }
+
+    .fb {
+      flex: 1;
+      min-width: 0
+    }
+
+    .fn2 {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text)
+    }
+
+    .fi {
+      font-size: 12px;
+      color: var(--text2);
+      margin-top: 2px;
+      line-height: 1.5
+    }
+
+    .fr {
+      text-align: right;
+      flex-shrink: 0
+    }
+
+    .ft {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--accent)
+    }
+
+    .fa {
+      font-size: 11px;
+      color: var(--text3);
+      margin-top: 2px
+    }
+
+    .pill {
+      font-size: 10px;
+      padding: 2px 8px;
+      border-radius: 3px;
+      display: inline-block;
+      margin-top: 4px;
+      font-family: 'Rajdhani', sans-serif;
+      font-weight: 600;
+      letter-spacing: .06em;
+      text-transform: uppercase
+    }
+
+    .p-new {
+      background: #4a9eff18;
+      color: var(--blue);
+      border: 1px solid #4a9eff25
+    }
+
+    .p-conf {
+      background: #2ecc8a18;
+      color: var(--green);
+      border: 1px solid #2ecc8a25
+    }
+
+    .p-paid {
+      background: #0d2a2a;
+      color: #2ee8c8;
+      border: 1px solid #2ee8c830
+    }
+
+    .p-verified {
+      background: #2ecc8a18;
+      color: var(--green);
+      border: 1px solid #2ecc8a25
+    }
+
+    .p-completed {
+      background: #ffffff0a;
+      color: var(--text2);
+      border: 1px solid var(--border2)
+    }
+
+    .p-done {
+      background: #ffffff0a;
+      color: var(--text3);
+      border: 1px solid var(--border)
+    }
+
+    .pay-btn {
+      font-size: 10px;
+      padding: 2px 8px;
+      border-radius: 3px;
+      display: inline-block;
+      margin-top: 4px;
+      margin-left: 4px;
+      font-family: 'Rajdhani', sans-serif;
+      font-weight: 600;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      background: #e8b84b18;
+      color: var(--accent);
+      border: 1px solid #e8b84b30;
+      cursor: pointer;
+      transition: all .15s
+    }
+
+    .pay-btn:hover {
+      background: #e8b84b30
+    }
+
+    .empty-feed {
+      text-align: center;
+      padding: 24px;
+      font-size: 12px;
+      color: var(--text3);
+      font-family: 'Rajdhani', sans-serif;
+      letter-spacing: .05em;
+      text-transform: uppercase
+    }
+
+    .main-tabs {
+      display: flex;
+      gap: 0;
+      margin-bottom: 16px;
+      border-bottom: 1px solid var(--border)
+    }
+
+    .main-tab {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 14px;
+      font-weight: 600;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      padding: 12px 20px;
+      cursor: pointer;
+      color: var(--text3);
+      border-bottom: 2px solid transparent;
+      margin-bottom: -1px;
+      transition: all .15s;
+      background: none;
+      border: none
+    }
+
+    .main-tab:hover {
+      color: var(--text2)
+    }
+
+    .main-tab.active {
+      color: var(--accent);
+      border-bottom-color: var(--accent)
+    }
+
+    .view-section {
+      display: none
+    }
+
+    .view-section.active {
+      display: block
+    }
+
+    .img-slots {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+      margin-bottom: 8px
+    }
+
+    .img-slot {
+      aspect-ratio: 1;
+      border: 1px dashed var(--border2);
+      border-radius: 6px;
+      position: relative;
+      overflow: hidden;
+      background: var(--bg2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer
+    }
+
+    .img-slot input {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      cursor: pointer;
+      z-index: 5
+    }
+
+    .img-slot img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: none
+    }
+
+    .slot-lbl {
+      font-size: 10px;
+      color: var(--text3);
+      font-family: 'Rajdhani', sans-serif;
+      letter-spacing: .05em;
+      text-transform: uppercase;
+      pointer-events: none
+    }
+
+    .slot-rm {
+      position: absolute;
+      top: 4px;
+      right: 4px;
+      background: rgba(0, 0, 0, .7);
+      border: none;
+      border-radius: 4px;
+      color: var(--text);
+      font-size: 12px;
+      width: 20px;
+      height: 20px;
+      cursor: pointer;
+      display: none;
+      z-index: 10;
+      align-items: center;
+      justify-content: center;
+      line-height: 1
+    }
+
+    .slot-rm:hover {
+      background: rgba(0, 0, 0, .9)
+    }
+
+    .upload-prog {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      height: 3px;
+      background: var(--accent);
+      width: 0%;
+      transition: width .3s
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px
+    }
+
+    .form-grid-3 {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 12px
+    }
+
+    .field {
+      margin-bottom: 12px
+    }
+
+    .field label {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      color: var(--text3);
+      display: block;
+      margin-bottom: 5px
+    }
+
+    .field input,
+    .field textarea,
+    .field select {
+      width: 100%;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 9px 11px;
+      font-size: 13px;
+      font-family: 'Inter', sans-serif;
+      color: var(--text);
+      background: var(--bg3);
+      transition: border-color .2s;
+      outline: none
+    }
+
+    .field input:focus,
+    .field textarea:focus {
+      border-color: #e8b84b50
+    }
+
+    .field textarea {
+      resize: vertical;
+      min-height: 54px
+    }
+
+    .acc-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-top: 16px;
+      max-height: 400px;
+      overflow-y: auto
+    }
+
+    .acc-list-item {
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 12px 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px
+    }
+
+    .acc-list-info {
+      font-size: 12px;
+      color: var(--text2);
+      flex: 1
+    }
+
+    .acc-list-info strong {
+      color: var(--text);
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 14px
+    }
+
+    .acc-list-actions {
+      display: flex;
+      gap: 6px
+    }
+
+    .icon-btn {
+      width: 28px;
+      height: 28px;
+      border-radius: 4px;
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      color: var(--text2);
+      font-size: 14px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all .15s
+    }
+
+    .icon-btn:hover {
+      background: var(--bg3);
+      color: var(--text);
+      border-color: var(--border2)
+    }
+
+    .icon-btn.danger:hover {
+      color: #e24b4a;
+      border-color: #e24b4a50;
+      background: #e24b4a15
+    }
+
+    .toast {
+      background: var(--bg3);
+      border: 1px solid var(--border2);
+      color: var(--text);
+      padding: 8px 18px;
+      border-radius: 6px;
+      font-size: 13px;
+      opacity: 0;
+      transition: opacity .3s;
+      pointer-events: none;
+      text-align: center;
+      display: block;
+      margin-top: 10px
+    }
+
+    .toast.show {
+      opacity: 1
+    }
+
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, .75);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center
+    }
+
+    .modal-overlay.open {
+      display: flex
+    }
+
+    .modal {
+      background: var(--bg2);
+      border: 1px solid var(--border2);
+      border-radius: 14px;
+      padding: 28px 24px;
+      width: 100%;
+      max-width: 380px;
+      margin: 16px;
+      position: relative;
+      max-height: 90vh;
+      overflow-y: auto
+    }
+
+    .modal-close {
+      position: absolute;
+      top: 14px;
+      right: 16px;
+      background: none;
+      border: none;
+      color: var(--text2);
+      font-size: 20px;
+      cursor: pointer;
+      line-height: 1;
+      padding: 2px 6px
+    }
+
+    .modal-close:hover {
+      color: var(--text)
+    }
+
+    .modal-title {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text);
+      letter-spacing: .05em;
+      text-transform: uppercase;
+      margin-bottom: 4px
+    }
+
+    .modal-amt {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--accent);
+      margin-bottom: 16px
+    }
+
+    .modal-qr {
+      width: 100%;
+      border-radius: 8px;
+      display: block;
+      border: 1px solid var(--border2)
+    }
+
+    .modal-divider {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 18px 0
+    }
+
+    .modal-sub {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      color: var(--text3);
+      margin-bottom: 10px
+    }
+
+    .upload-area {
+      border: 1px dashed var(--border2);
+      border-radius: 8px;
+      padding: 20px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color .2s;
+      position: relative
+    }
+
+    .upload-area:hover {
+      border-color: var(--accent)
+    }
+
+    .upload-area input {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      cursor: pointer;
+      width: 100%;
+      height: 100%
+    }
+
+    .upload-lbl {
+      font-size: 13px;
+      color: var(--text2);
+      font-family: 'Rajdhani', sans-serif;
+      letter-spacing: .03em
+    }
+
+    .upload-lbl span {
+      color: var(--accent)
+    }
+
+    .preview-img {
+      width: 100%;
+      border-radius: 6px;
+      margin-top: 10px;
+      display: none
+    }
+
+    .upload-btn {
+      width: 100%;
+      padding: 10px;
+      background: var(--accent);
+      color: #0a0b0f;
+      border: none;
+      border-radius: 6px;
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      margin-top: 12px;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      display: none;
+      transition: all .15s
+    }
+
+    .upload-btn:hover {
+      background: var(--accent2)
+    }
+
+    .upload-btn:disabled {
+      opacity: .4;
+      cursor: not-allowed
+    }
+
+    .upload-status {
+      font-size: 12px;
+      color: var(--text2);
+      text-align: center;
+      margin-top: 8px;
+      font-family: 'Rajdhani', sans-serif;
+      min-height: 18px
+    }
+
+    .se-td {
+      padding: 4px 6px;
+      border-bottom: 1px solid var(--border)
+    }
+
+    .se-input {
+      width: 100%;
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 3px 6px;
+      font-size: 12px;
+      color: var(--text);
+      font-family: 'Inter', sans-serif;
+      outline: none
+    }
+
+    .se-input:focus {
+      border-color: #e8b84b50
+    }
+
+    .se-rm {
+      background: none;
+      border: none;
+      color: var(--text3);
+      cursor: pointer;
+      font-size: 13px;
+      padding: 2px 4px
+    }
+
+    .se-rm:hover {
+      color: var(--red)
+    }
+
+    @media(max-width:680px) {
+      .banner-grid {
+        grid-template-columns: 1fr
+      }
+
+      .img-area {
+        height: 260px
+      }
+    }
+  </style>
 </head>
+
 <body>
-<div class="wrap">
-  <div class="topbar">
-    <div class="page-title"><span>Hohoh0</span> Shop</div>
-    <div style="display:flex;align-items:center;gap:12px">
-      <button class="admin-toggle" onclick="toggleAdmin()">Admin</button>
-      <div>
-        <div class="clock-time" id="ct">--:--:--</div>
-        <div class="clock-date" id="cd">--</div>
+  <div class="wrap">
+    <div class="topbar">
+      <div class="page-title"><span>Hohoh0</span> Shop</div>
+      <div style="display:flex;align-items:center;gap:12px">
+        <button class="admin-toggle" onclick="toggleAdmin()">Admin</button>
+        <div>
+          <div class="clock-time" id="ct">--:--:--</div>
+          <div class="clock-date" id="cd">--</div>
+        </div>
       </div>
     </div>
-  </div>
 
-  <!-- Admin Panel -->
-  <div class="admin-panel" id="admin-panel">
-    <div id="admin-gate">
-      <div class="admin-title">Admin access</div>
-      <div class="admin-pass">
-        <input type="password" id="admin-pw" placeholder="Enter password" onkeydown="if(event.key==='Enter')checkPass()" />
-        <button class="admin-btn" onclick="checkPass()">Unlock</button>
+    <!-- Admin Panel -->
+    <div class="admin-panel" id="admin-panel">
+      <div id="admin-gate">
+        <div class="admin-title">Admin access</div>
+        <div class="admin-pass">
+          <input type="password" id="admin-pw" placeholder="Enter password"
+            onkeydown="if(event.key==='Enter')checkPass()" />
+          <button class="admin-btn" onclick="checkPass()">Unlock</button>
+        </div>
+        <div class="admin-status" id="gate-status"></div>
       </div>
-      <div class="admin-status" id="gate-status"></div>
-    </div>
-    <div id="admin-content" style="display:none">
-      <div class="admin-title">Shop management</div>
-      <div class="admin-tabs">
-        <button class="admin-tab active" onclick="switchTab('extract',this)">Extract items</button>
-        <button class="admin-tab" onclick="switchTab('edit-shop',this)">Edit shop</button>
-        <button class="admin-tab" onclick="switchTab('orders',this)">Orders</button>
-        <button class="admin-tab" onclick="switchTab('manage-accounts',this)">Accounts</button>
-        <button class="admin-tab" onclick="switchTab('slideshow',this)">Slideshow</button>
-      </div>
+      <div id="admin-content" style="display:none">
+        <div class="admin-title">Shop management</div>
+        <div class="admin-tabs">
+          <button class="admin-tab active" onclick="switchTab('extract',this)">Extract items</button>
+          <button class="admin-tab" onclick="switchTab('edit-shop',this)">Edit shop</button>
+          <button class="admin-tab" onclick="switchTab('orders',this)">Orders</button>
+          <button class="admin-tab" onclick="switchTab('manage-accounts',this)">Accounts</button>
+          <button class="admin-tab" onclick="switchTab('slideshow',this)">Slideshow</button>
+        </div>
 
-      <!-- Tab: Extract items -->
-      <div class="admin-tab-content active" id="tab-extract">
-        <div class="admin-hint">Upload shop images & extract items</div>
-        <div class="field">
-          <label>Shop Images (up to 2)</label>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
-            <div class="img-slot" id="sslot-0" style="aspect-ratio:1;border:1px dashed var(--border2);border-radius:6px;cursor:pointer;position:relative;overflow:hidden;background:var(--bg2);display:flex;align-items:center;justify-content:center;transition:border-color .2s">
-              <input type="file" accept="image/*" onchange="handleShopSlotFile(this,0)" style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%" />
-              <img id="sslot-img-0" style="width:100%;height:100%;object-fit:cover;display:none;border-radius:5px" />
-              <span class="slot-lbl" id="sslot-lbl-0" style="font-size:10px;color:var(--text3);font-family:'Rajdhani',sans-serif;letter-spacing:.05em;text-align:center;pointer-events:none">+ Photo 1</span>
-              <button class="slot-rm" id="sslot-rm-0" onclick="removeShopSlot(event,0)" style="position:absolute;top:3px;right:3px;background:rgba(0,0,0,.7);border:none;border-radius:3px;color:var(--text2);font-size:10px;cursor:pointer;padding:1px 5px;display:none;z-index:2">✕</button>
-            </div>
-            <div class="img-slot" id="sslot-1" style="aspect-ratio:1;border:1px dashed var(--border2);border-radius:6px;cursor:pointer;position:relative;overflow:hidden;background:var(--bg2);display:flex;align-items:center;justify-content:center;transition:border-color .2s">
-              <input type="file" accept="image/*" onchange="handleShopSlotFile(this,1)" style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%" />
-              <img id="sslot-img-1" style="width:100%;height:100%;object-fit:cover;display:none;border-radius:5px" />
-              <span class="slot-lbl" id="sslot-lbl-1" style="font-size:10px;color:var(--text3);font-family:'Rajdhani',sans-serif;letter-spacing:.05em;text-align:center;pointer-events:none">+ Photo 2</span>
-              <button class="slot-rm" id="sslot-rm-1" onclick="removeShopSlot(event,1)" style="position:absolute;top:3px;right:3px;background:rgba(0,0,0,.7);border:none;border-radius:3px;color:var(--text2);font-size:10px;cursor:pointer;padding:1px 5px;display:none;z-index:2">✕</button>
-            </div>
-          </div>
-        </div>
-        <div class="admin-row">
-          <button class="admin-btn" id="extract-btn" onclick="extractItems()" style="width:100%">Upload &amp; Extract items</button>
-        </div>
-        <div class="admin-status" id="extract-status"></div>
-        <div class="admin-extracted" id="admin-extracted">
-          <div style="font-size:11px;color:var(--text3);font-family:'Rajdhani',sans-serif;letter-spacing:.05em;text-transform:uppercase;margin-bottom:8px">Extracted items — edit before applying</div>
-          <table>
-            <thead>
-              <tr><th>#</th><th>Item name</th><th>Description</th><th>7d (RM)</th><th>15d (RM)</th><th>30d (RM)</th></tr>
-            </thead>
-            <tbody id="extracted-tbody"></tbody>
-          </table>
-          <div style="display:flex;gap:8px;margin-top:12px">
-            <button class="admin-btn" onclick="applyItems()">Apply to table</button>
-            <button class="admin-btn sec" onclick="addExtractedRow()">+ Add row</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Tab: Edit shop -->
-      <div class="admin-tab-content" id="tab-edit-shop">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-          <div style="font-size:11px;color:var(--text3);font-family:'Rajdhani',sans-serif;letter-spacing:.05em;text-transform:uppercase">Edit current shop items &amp; prices</div>
-          <button class="admin-btn sec" onclick="loadShopEditor()">↺ Reload</button>
-        </div>
-        <div id="shop-editor-wrap">
-          <table style="width:100%;border-collapse:collapse;font-size:12px">
-            <thead>
-              <tr>
-                <th style="font-family:'Rajdhani',sans-serif;font-size:10px;color:var(--text3);font-weight:600;padding:4px 6px;border-bottom:1px solid var(--border);text-align:left;text-transform:uppercase;letter-spacing:.06em">Item name</th>
-                <th style="font-family:'Rajdhani',sans-serif;font-size:10px;color:var(--text3);font-weight:600;padding:4px 6px;border-bottom:1px solid var(--border);text-align:left;text-transform:uppercase;letter-spacing:.06em">Desc</th>
-                <th style="font-family:'Rajdhani',sans-serif;font-size:10px;color:var(--text3);font-weight:600;padding:4px 6px;border-bottom:1px solid var(--border);text-transform:uppercase;letter-spacing:.06em">7d</th>
-                <th style="font-family:'Rajdhani',sans-serif;font-size:10px;color:var(--text3);font-weight:600;padding:4px 6px;border-bottom:1px solid var(--border);text-transform:uppercase;letter-spacing:.06em">15d</th>
-                <th style="font-family:'Rajdhani',sans-serif;font-size:10px;color:var(--text3);font-weight:600;padding:4px 6px;border-bottom:1px solid var(--border);text-transform:uppercase;letter-spacing:.06em">30d</th>
-                <th style="width:24px"></th>
-              </tr>
-            </thead>
-            <tbody id="shop-editor-tbody"></tbody>
-          </table>
-          <div style="display:flex;gap:8px;margin-top:12px">
-            <button class="admin-btn" onclick="saveShopEdit()">Save changes</button>
-            <button class="admin-btn sec" onclick="addShopEditorRow()">+ Add row</button>
-          </div>
-          <div class="admin-status" id="shop-edit-status"></div>
-        </div>
-      </div>
-
-      <!-- Tab: Manage Accounts -->
-      <div class="admin-tab-content" id="tab-manage-accounts">
-        <div class="admin-title">Manage accounts</div>
-        <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
-          <button class="admin-btn" onclick="showAddForm()">+ Add account</button>
-          <button class="admin-btn sec" id="cancel-form-btn" onclick="hideAddForm()" style="display:none">Cancel</button>
-        </div>
-        <div id="acc-form" style="display:none;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:16px">
-          <div style="font-family:'Rajdhani',sans-serif;font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--text3);margin-bottom:12px" id="acc-form-label">New account</div>
-          
-          <div class="form-grid">
-            <div class="field"><label>Rank *</label><input id="f-rank" placeholder="e.g. Diamond 1" /></div>
-            <div class="field"><label>Price (RM) *</label><input id="f-price" type="number" placeholder="e.g. 350" /></div>
-          </div>
-
-          <div style="font-family:'Rajdhani',sans-serif;font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);margin:10px 0 8px">Seller Info</div>
-          <div class="form-grid-3">
-            <div class="field"><label>Seller Name</label><input id="f-sellername" placeholder="Full Name" /></div>
-            <div class="field"><label>Seller Contact</label><input id="f-sellercontact" placeholder="Phone" /></div>
-            <div class="field"><label>Seller IGN</label><input id="f-sellerign" placeholder="IGN" /></div>
-          </div>
-          <hr style="border:0;border-top:1px solid var(--border);margin:12px 0" />
-
-          <div class="form-grid">
-            <div class="field"><label>IGN</label><input id="f-ign" placeholder="In-game name" /></div>
-            <div class="field"><label>Account ID</label><input id="f-id" placeholder="e.g. 47046" /></div>
-          </div>
-          <div class="form-grid-3">
-            <div class="field"><label>KDA</label><input id="f-kda" placeholder="e.g. 2.5" /></div>
-            <div class="field"><label>Win Rate %</label><input id="f-wr" placeholder="e.g. 64" /></div>
-            <div class="field"><label>EXP %</label><input id="f-exp" type="number" min="0" max="100" placeholder="0–100" /></div>
-          </div>
-          <div class="form-grid">
-            <div class="field"><label>Achievement %</label><input id="f-ach" type="number" min="0" max="100" placeholder="0–100" /></div>
-            <div class="field"><label>Status</label>
-              <select id="f-status">
-                <option value="available">Available</option>
-                <option value="reserved">Reserved</option>
-                <option value="sold">Sold</option>
-                <option value="pending">Pending</option>
-              </select>
-            </div>
-          </div>
-          <div class="field"><label>Notes (comma separated tags)</label><textarea id="f-notes" placeholder="e.g. Full skin, Rare weapon, OG account"></textarea></div>
+        <!-- Tab: Extract items -->
+        <div class="admin-tab-content active" id="tab-extract">
+          <div class="admin-hint">Upload shop images & extract items</div>
           <div class="field">
-            <label>Media (Slot 1 = Stats screenshot · Slots 2–4 = Image or Video)</label>
-            <div class="img-slots" id="img-slots">
-              <!-- Slot 0: Stats screenshot — auto-extracts IGN, ID, KDA, WR, EXP -->
-              <div style="position:relative">
-                <div class="img-slot" id="slot-0" style="border-color:#e8b84b40">
-                  <input type="file" accept="image/*" onchange="handleSlotFile(this,0)"/>
-                  <img id="slot-img-0" style="display:none"/>
-                  <span class="slot-lbl" style="color:var(--accent);font-size:9px;text-align:center;padding:0 4px">📊 Stats<br>Screenshot</span>
-                  <button class="slot-rm" id="slot-rm-0" onclick="removeSlot(event,0)">✕</button>
-                  <div class="upload-prog" id="slot-prog-0"></div>
+            <label>Shop Images (up to 2)</label>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
+              <div class="img-slot" id="sslot-0"
+                style="aspect-ratio:1;border:1px dashed var(--border2);border-radius:6px;cursor:pointer;position:relative;overflow:hidden;background:var(--bg2);display:flex;align-items:center;justify-content:center;transition:border-color .2s">
+                <input type="file" accept="image/*" onchange="handleShopSlotFile(this,0)"
+                  style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%" />
+                <img id="sslot-img-0" style="width:100%;height:100%;object-fit:cover;display:none;border-radius:5px" />
+                <span class="slot-lbl" id="sslot-lbl-0"
+                  style="font-size:10px;color:var(--text3);font-family:'Rajdhani',sans-serif;letter-spacing:.05em;text-align:center;pointer-events:none">+
+                  Photo 1</span>
+                <button class="slot-rm" id="sslot-rm-0" onclick="removeShopSlot(event,0)"
+                  style="position:absolute;top:3px;right:3px;background:rgba(0,0,0,.7);border:none;border-radius:3px;color:var(--text2);font-size:10px;cursor:pointer;padding:1px 5px;display:none;z-index:2">✕</button>
+              </div>
+              <div class="img-slot" id="sslot-1"
+                style="aspect-ratio:1;border:1px dashed var(--border2);border-radius:6px;cursor:pointer;position:relative;overflow:hidden;background:var(--bg2);display:flex;align-items:center;justify-content:center;transition:border-color .2s">
+                <input type="file" accept="image/*" onchange="handleShopSlotFile(this,1)"
+                  style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%" />
+                <img id="sslot-img-1" style="width:100%;height:100%;object-fit:cover;display:none;border-radius:5px" />
+                <span class="slot-lbl" id="sslot-lbl-1"
+                  style="font-size:10px;color:var(--text3);font-family:'Rajdhani',sans-serif;letter-spacing:.05em;text-align:center;pointer-events:none">+
+                  Photo 2</span>
+                <button class="slot-rm" id="sslot-rm-1" onclick="removeShopSlot(event,1)"
+                  style="position:absolute;top:3px;right:3px;background:rgba(0,0,0,.7);border:none;border-radius:3px;color:var(--text2);font-size:10px;cursor:pointer;padding:1px 5px;display:none;z-index:2">✕</button>
+              </div>
+            </div>
+          </div>
+          <div class="admin-row">
+            <button class="admin-btn" id="extract-btn" onclick="extractItems()" style="width:100%">Upload &amp; Extract
+              items</button>
+          </div>
+          <div class="admin-status" id="extract-status"></div>
+          <div class="admin-extracted" id="admin-extracted">
+            <div
+              style="font-size:11px;color:var(--text3);font-family:'Rajdhani',sans-serif;letter-spacing:.05em;text-transform:uppercase;margin-bottom:8px">
+              Extracted items — edit before applying</div>
+            <table>
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Item name</th>
+                  <th>Description</th>
+                  <th>7d (RM)</th>
+                  <th>15d (RM)</th>
+                  <th>30d (RM)</th>
+                </tr>
+              </thead>
+              <tbody id="extracted-tbody"></tbody>
+            </table>
+            <div style="display:flex;gap:8px;margin-top:12px">
+              <button class="admin-btn" onclick="applyItems()">Apply to table</button>
+              <button class="admin-btn sec" onclick="addExtractedRow()">+ Add row</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab: Edit shop -->
+        <div class="admin-tab-content" id="tab-edit-shop">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+            <div
+              style="font-size:11px;color:var(--text3);font-family:'Rajdhani',sans-serif;letter-spacing:.05em;text-transform:uppercase">
+              Edit current shop items &amp; prices</div>
+            <button class="admin-btn sec" onclick="loadShopEditor()">↺ Reload</button>
+          </div>
+          <div id="shop-editor-wrap">
+            <table style="width:100%;border-collapse:collapse;font-size:12px">
+              <thead>
+                <tr>
+                  <th
+                    style="font-family:'Rajdhani',sans-serif;font-size:10px;color:var(--text3);font-weight:600;padding:4px 6px;border-bottom:1px solid var(--border);text-align:left;text-transform:uppercase;letter-spacing:.06em">
+                    Item name</th>
+                  <th
+                    style="font-family:'Rajdhani',sans-serif;font-size:10px;color:var(--text3);font-weight:600;padding:4px 6px;border-bottom:1px solid var(--border);text-align:left;text-transform:uppercase;letter-spacing:.06em">
+                    Desc</th>
+                  <th
+                    style="font-family:'Rajdhani',sans-serif;font-size:10px;color:var(--text3);font-weight:600;padding:4px 6px;border-bottom:1px solid var(--border);text-transform:uppercase;letter-spacing:.06em">
+                    7d</th>
+                  <th
+                    style="font-family:'Rajdhani',sans-serif;font-size:10px;color:var(--text3);font-weight:600;padding:4px 6px;border-bottom:1px solid var(--border);text-transform:uppercase;letter-spacing:.06em">
+                    15d</th>
+                  <th
+                    style="font-family:'Rajdhani',sans-serif;font-size:10px;color:var(--text3);font-weight:600;padding:4px 6px;border-bottom:1px solid var(--border);text-transform:uppercase;letter-spacing:.06em">
+                    30d</th>
+                  <th style="width:24px"></th>
+                </tr>
+              </thead>
+              <tbody id="shop-editor-tbody"></tbody>
+            </table>
+            <div style="display:flex;gap:8px;margin-top:12px">
+              <button class="admin-btn" onclick="saveShopEdit()">Save changes</button>
+              <button class="admin-btn sec" onclick="addShopEditorRow()">+ Add row</button>
+            </div>
+            <div class="admin-status" id="shop-edit-status"></div>
+          </div>
+        </div>
+
+        <!-- Tab: Manage Accounts -->
+        <div class="admin-tab-content" id="tab-manage-accounts">
+          <div class="admin-title">Manage accounts</div>
+          <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
+            <button class="admin-btn" onclick="showAddForm()">+ Add account</button>
+            <button class="admin-btn sec" id="cancel-form-btn" onclick="hideAddForm()"
+              style="display:none">Cancel</button>
+          </div>
+          <div id="acc-form"
+            style="display:none;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:16px">
+            <div
+              style="font-family:'Rajdhani',sans-serif;font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--text3);margin-bottom:12px"
+              id="acc-form-label">New account</div>
+
+            <div class="form-grid">
+              <div class="field"><label>Rank *</label><input id="f-rank" placeholder="e.g. Diamond 1" /></div>
+              <div class="field"><label>Price (RM) *</label><input id="f-price" type="number" placeholder="e.g. 350" />
+              </div>
+            </div>
+
+            <div
+              style="font-family:'Rajdhani',sans-serif;font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);margin:10px 0 8px">
+              Seller Info</div>
+            <div class="form-grid-3">
+              <div class="field"><label>Seller Name</label><input id="f-sellername" placeholder="Full Name" /></div>
+              <div class="field"><label>Seller Contact</label><input id="f-sellercontact" placeholder="Phone" /></div>
+              <div class="field"><label>Seller IGN</label><input id="f-sellerign" placeholder="IGN" /></div>
+            </div>
+            <hr style="border:0;border-top:1px solid var(--border);margin:12px 0" />
+
+            <div class="form-grid">
+              <div class="field"><label>IGN</label><input id="f-ign" placeholder="In-game name" /></div>
+              <div class="field"><label>Account ID</label><input id="f-id" placeholder="e.g. 47046" /></div>
+            </div>
+            <div class="form-grid-3">
+              <div class="field"><label>KDA</label><input id="f-kda" placeholder="e.g. 2.5" /></div>
+              <div class="field"><label>Win Rate %</label><input id="f-wr" placeholder="e.g. 64" /></div>
+              <div class="field"><label>EXP %</label><input id="f-exp" type="number" min="0" max="100"
+                  placeholder="0–100" /></div>
+            </div>
+            <div class="form-grid">
+              <div class="field"><label>Achievement %</label><input id="f-ach" type="number" min="0" max="100"
+                  placeholder="0–100" /></div>
+              <div class="field"><label>Status</label>
+                <select id="f-status">
+                  <option value="available">Available</option>
+                  <option value="reserved">Reserved</option>
+                  <option value="sold">Sold</option>
+                  <option value="pending">Pending</option>
+                </select>
+              </div>
+            </div>
+            <div class="field"><label>Notes (comma separated tags)</label><textarea id="f-notes"
+                placeholder="e.g. Full skin, Rare weapon, OG account"></textarea></div>
+            <div class="field">
+              <label>Media (Slot 1 = Stats screenshot · Slots 2–4 = Image or Video)</label>
+              <div class="img-slots" id="img-slots">
+                <!-- Slot 0: Stats screenshot — auto-extracts IGN, ID, KDA, WR, EXP -->
+                <div style="position:relative">
+                  <div class="img-slot" id="slot-0" style="border-color:#e8b84b40">
+                    <input type="file" accept="image/*" onchange="handleSlotFile(this,0)" />
+                    <img id="slot-img-0" style="display:none" />
+                    <span class="slot-lbl" style="color:var(--accent);font-size:9px;text-align:center;padding:0 4px">📊
+                      Stats<br>Screenshot</span>
+                    <button class="slot-rm" id="slot-rm-0" onclick="removeSlot(event,0)">✕</button>
+                    <div class="upload-prog" id="slot-prog-0"></div>
+                  </div>
+                </div>
+                <!-- Slots 1-3: Image or Video -->
+                <div class="img-slot" id="slot-1"><input type="file" accept="image/*,video/*"
+                    onchange="handleSlotFile(this,1)" /><img id="slot-img-1" style="display:none" /><video
+                    id="slot-vid-1" style="display:none;width:100%;height:100%;object-fit:cover" muted></video><span
+                    class="slot-lbl">+ Photo/Video</span><button class="slot-rm" id="slot-rm-1"
+                    onclick="removeSlot(event,1)">✕</button>
+                  <div class="upload-prog" id="slot-prog-1"></div>
+                </div>
+                <div class="img-slot" id="slot-2"><input type="file" accept="image/*,video/*"
+                    onchange="handleSlotFile(this,2)" /><img id="slot-img-2" style="display:none" /><video
+                    id="slot-vid-2" style="display:none;width:100%;height:100%;object-fit:cover" muted></video><span
+                    class="slot-lbl">+ Photo/Video</span><button class="slot-rm" id="slot-rm-2"
+                    onclick="removeSlot(event,2)">✕</button>
+                  <div class="upload-prog" id="slot-prog-2"></div>
+                </div>
+                <div class="img-slot" id="slot-3"><input type="file" accept="image/*,video/*"
+                    onchange="handleSlotFile(this,3)" /><img id="slot-img-3" style="display:none" /><video
+                    id="slot-vid-3" style="display:none;width:100%;height:100%;object-fit:cover" muted></video><span
+                    class="slot-lbl">+ Photo/Video</span><button class="slot-rm" id="slot-rm-3"
+                    onclick="removeSlot(event,3)">✕</button>
+                  <div class="upload-prog" id="slot-prog-3"></div>
                 </div>
               </div>
-              <!-- Slots 1-3: Image or Video -->
-              <div class="img-slot" id="slot-1"><input type="file" accept="image/*,video/*" onchange="handleSlotFile(this,1)"/><img id="slot-img-1" style="display:none"/><video id="slot-vid-1" style="display:none;width:100%;height:100%;object-fit:cover" muted></video><span class="slot-lbl">+ Photo/Video</span><button class="slot-rm" id="slot-rm-1" onclick="removeSlot(event,1)">✕</button><div class="upload-prog" id="slot-prog-1"></div></div>
-              <div class="img-slot" id="slot-2"><input type="file" accept="image/*,video/*" onchange="handleSlotFile(this,2)"/><img id="slot-img-2" style="display:none"/><video id="slot-vid-2" style="display:none;width:100%;height:100%;object-fit:cover" muted></video><span class="slot-lbl">+ Photo/Video</span><button class="slot-rm" id="slot-rm-2" onclick="removeSlot(event,2)">✕</button><div class="upload-prog" id="slot-prog-2"></div></div>
-              <div class="img-slot" id="slot-3"><input type="file" accept="image/*,video/*" onchange="handleSlotFile(this,3)"/><img id="slot-img-3" style="display:none"/><video id="slot-vid-3" style="display:none;width:100%;height:100%;object-fit:cover" muted></video><span class="slot-lbl">+ Photo/Video</span><button class="slot-rm" id="slot-rm-3" onclick="removeSlot(event,3)">✕</button><div class="upload-prog" id="slot-prog-3"></div></div>
-            </div>
-            <div class="admin-status" id="stats-extract-status" style="margin-top:6px"></div>
-            <!-- Stats review panel — shown after slot 0 extraction -->
-            <div class="stats-review" id="stats-review-panel">
-              <div class="stats-review-title">Extracted stats — edit if needed</div>
-              <div class="stats-review-grid">
-                <div class="stats-field"><label>IGN</label><input id="rv-ign" placeholder="e.g. Hohoh0" /></div>
-                <div class="stats-field"><label>Account ID</label><input id="rv-accid" placeholder="e.g. 47046" /></div>
-                <div class="stats-field"><label>KDA Rate %</label><input id="rv-kda" placeholder="e.g. 64.23" /></div>
-                <div class="stats-field"><label>Win Rate %</label><input id="rv-wr" placeholder="e.g. 69.19" /></div>
-                <div class="stats-field" style="grid-column:span 2"><label>EXP %</label><input id="rv-exp" placeholder="e.g. 13.7" /></div>
+              <div class="admin-status" id="stats-extract-status" style="margin-top:6px"></div>
+              <!-- Stats review panel — shown after slot 0 extraction -->
+              <div class="stats-review" id="stats-review-panel">
+                <div class="stats-review-title">Extracted stats — edit if needed</div>
+                <div class="stats-review-grid">
+                  <div class="stats-field"><label>IGN</label><input id="rv-ign" placeholder="e.g. Hohoh0" /></div>
+                  <div class="stats-field"><label>Account ID</label><input id="rv-accid" placeholder="e.g. 47046" />
+                  </div>
+                  <div class="stats-field"><label>KDA Rate %</label><input id="rv-kda" placeholder="e.g. 64.23" /></div>
+                  <div class="stats-field"><label>Win Rate %</label><input id="rv-wr" placeholder="e.g. 69.19" /></div>
+                  <div class="stats-field" style="grid-column:span 2"><label>EXP %</label><input id="rv-exp"
+                      placeholder="e.g. 13.7" /></div>
+                </div>
+                <div class="stats-review-actions">
+                  <button class="admin-btn" onclick="applyStatsToForm()">Apply to form</button>
+                  <button class="admin-btn sec"
+                    onclick="document.getElementById('stats-review-panel').style.display='none'">Dismiss</button>
+                </div>
               </div>
-              <div class="stats-review-actions">
-                <button class="admin-btn" onclick="applyStatsToForm()">Apply to form</button>
-                <button class="admin-btn sec" onclick="document.getElementById('stats-review-panel').style.display='none'">Dismiss</button>
+              <div style="font-size:11px;color:var(--text3);font-family:'Rajdhani',sans-serif;margin-top:6px">Slot 1
+                auto-extracts player stats. Save account after all media is uploaded.</div>
+            </div>
+            <div style="display:flex;gap:8px;flex-direction:column">
+              <button class="admin-btn" id="save-acc-btn" onclick="saveAccount()">Save account</button>
+              <div id="save-acc-status"
+                style="font-size:12px;color:var(--text2);font-family:'Rajdhani',sans-serif;min-height:16px;text-align:center">
               </div>
             </div>
-            <div style="font-size:11px;color:var(--text3);font-family:'Rajdhani',sans-serif;margin-top:6px">Slot 1 auto-extracts player stats. Save account after all media is uploaded.</div>
           </div>
-          <div style="display:flex;gap:8px;flex-direction:column">
-            <button class="admin-btn" id="save-acc-btn" onclick="saveAccount()">Save account</button>
-            <div id="save-acc-status" style="font-size:12px;color:var(--text2);font-family:'Rajdhani',sans-serif;min-height:16px;text-align:center"></div>
-          </div>
+          <div id="acc-manage-list" class="acc-list"></div>
         </div>
-        <div id="acc-manage-list" class="acc-list"></div>
-      </div>
 
-      <!-- Tab: Slideshow -->
-      <div class="admin-tab-content" id="tab-slideshow">
-        <div style="font-size:11px;color:var(--text3);font-family:'Rajdhani',sans-serif;letter-spacing:.05em;margin-bottom:14px;text-transform:uppercase">Upload images — slideshow updates automatically</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
-          <div>
-            <div class="slide-label">Slide 1</div>
-            <div class="img-slot" id="ss-slot-0" style="aspect-ratio:16/9;border:1px dashed var(--border2);border-radius:8px;cursor:pointer;position:relative;overflow:hidden;background:var(--bg2);display:flex;align-items:center;justify-content:center;transition:border-color .2s">
-              <input type="file" accept="image/*" onchange="uploadSlide(this,0)" style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;z-index:5"/>
-              <img id="ss-img-0" style="width:100%;height:100%;object-fit:cover;display:none;border-radius:7px"/>
-              <div id="ss-lbl-0" style="text-align:center;pointer-events:none"><div style="font-size:22px;margin-bottom:4px">📷</div><div style="font-size:11px;color:var(--text3);font-family:'Rajdhani',sans-serif;letter-spacing:.04em">Tap to upload</div></div>
-              <div id="ss-prog-0" style="position:absolute;bottom:0;left:0;height:3px;background:var(--accent);width:0%;transition:width .3s"></div>
-              <div id="ss-overlay-0" style="position:absolute;inset:0;background:rgba(10,11,15,.6);display:none;align-items:center;justify-content:center;font-family:'Rajdhani',sans-serif;font-size:12px;color:var(--text2);letter-spacing:.05em">Uploading…</div>
+        <!-- Tab: Slideshow -->
+        <div class="admin-tab-content" id="tab-slideshow">
+          <div
+            style="font-size:11px;color:var(--text3);font-family:'Rajdhani',sans-serif;letter-spacing:.05em;margin-bottom:14px;text-transform:uppercase">
+            Upload images — slideshow updates automatically</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+            <div>
+              <div class="slide-label">Slide 1</div>
+              <div class="img-slot" id="ss-slot-0"
+                style="aspect-ratio:16/9;border:1px dashed var(--border2);border-radius:8px;cursor:pointer;position:relative;overflow:hidden;background:var(--bg2);display:flex;align-items:center;justify-content:center;transition:border-color .2s">
+                <input type="file" accept="image/*" onchange="uploadSlide(this,0)"
+                  style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;z-index:5" />
+                <img id="ss-img-0" style="width:100%;height:100%;object-fit:cover;display:none;border-radius:7px" />
+                <div id="ss-lbl-0" style="text-align:center;pointer-events:none">
+                  <div style="font-size:22px;margin-bottom:4px">📷</div>
+                  <div style="font-size:11px;color:var(--text3);font-family:'Rajdhani',sans-serif;letter-spacing:.04em">
+                    Tap to upload</div>
+                </div>
+                <div id="ss-prog-0"
+                  style="position:absolute;bottom:0;left:0;height:3px;background:var(--accent);width:0%;transition:width .3s">
+                </div>
+                <div id="ss-overlay-0"
+                  style="position:absolute;inset:0;background:rgba(10,11,15,.6);display:none;align-items:center;justify-content:center;font-family:'Rajdhani',sans-serif;font-size:12px;color:var(--text2);letter-spacing:.05em">
+                  Uploading…</div>
+              </div>
+              <button class="admin-btn sec" onclick="clearSlideUpload(0)"
+                style="width:100%;margin-top:6px;font-size:11px;padding:5px">✕ Clear</button>
             </div>
-            <button class="admin-btn sec" onclick="clearSlideUpload(0)" style="width:100%;margin-top:6px;font-size:11px;padding:5px">✕ Clear</button>
-          </div>
-          <div>
-            <div class="slide-label">Slide 2</div>
-            <div class="img-slot" id="ss-slot-1" style="aspect-ratio:16/9;border:1px dashed var(--border2);border-radius:8px;cursor:pointer;position:relative;overflow:hidden;background:var(--bg2);display:flex;align-items:center;justify-content:center;transition:border-color .2s">
-              <input type="file" accept="image/*" onchange="uploadSlide(this,1)" style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;z-index:5"/>
-              <img id="ss-img-1" style="width:100%;height:100%;object-fit:cover;display:none;border-radius:7px"/>
-              <div id="ss-lbl-1" style="text-align:center;pointer-events:none"><div style="font-size:22px;margin-bottom:4px">📷</div><div style="font-size:11px;color:var(--text3);font-family:'Rajdhani',sans-serif;letter-spacing:.04em">Tap to upload</div></div>
-              <div id="ss-prog-1" style="position:absolute;bottom:0;left:0;height:3px;background:var(--accent);width:0%;transition:width .3s"></div>
-              <div id="ss-overlay-1" style="position:absolute;inset:0;background:rgba(10,11,15,.6);display:none;align-items:center;justify-content:center;font-family:'Rajdhani',sans-serif;font-size:12px;color:var(--text2);letter-spacing:.05em">Uploading…</div>
+            <div>
+              <div class="slide-label">Slide 2</div>
+              <div class="img-slot" id="ss-slot-1"
+                style="aspect-ratio:16/9;border:1px dashed var(--border2);border-radius:8px;cursor:pointer;position:relative;overflow:hidden;background:var(--bg2);display:flex;align-items:center;justify-content:center;transition:border-color .2s">
+                <input type="file" accept="image/*" onchange="uploadSlide(this,1)"
+                  style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;z-index:5" />
+                <img id="ss-img-1" style="width:100%;height:100%;object-fit:cover;display:none;border-radius:7px" />
+                <div id="ss-lbl-1" style="text-align:center;pointer-events:none">
+                  <div style="font-size:22px;margin-bottom:4px">📷</div>
+                  <div style="font-size:11px;color:var(--text3);font-family:'Rajdhani',sans-serif;letter-spacing:.04em">
+                    Tap to upload</div>
+                </div>
+                <div id="ss-prog-1"
+                  style="position:absolute;bottom:0;left:0;height:3px;background:var(--accent);width:0%;transition:width .3s">
+                </div>
+                <div id="ss-overlay-1"
+                  style="position:absolute;inset:0;background:rgba(10,11,15,.6);display:none;align-items:center;justify-content:center;font-family:'Rajdhani',sans-serif;font-size:12px;color:var(--text2);letter-spacing:.05em">
+                  Uploading…</div>
+              </div>
+              <button class="admin-btn sec" onclick="clearSlideUpload(1)"
+                style="width:100%;margin-top:6px;font-size:11px;padding:5px">✕ Clear</button>
             </div>
-            <button class="admin-btn sec" onclick="clearSlideUpload(1)" style="width:100%;margin-top:6px;font-size:11px;padding:5px">✕ Clear</button>
+          </div>
+          <div class="admin-status" id="slide-status"></div>
+        </div>
+
+        <!-- Tab: Orders -->
+        <div class="admin-tab-content" id="tab-orders">
+          <div class="admin-row-header">
+            <div class="admin-hint" style="margin-bottom:0">Update order status</div>
+            <button class="admin-btn sec" onclick="loadOrderMgmt()">↺ Reload</button>
+          </div>
+          <div class="order-mgmt-list" id="order-mgmt-list">
+            <div class="admin-loading">Loading...</div>
           </div>
         </div>
-        <div class="admin-status" id="slide-status"></div>
       </div>
+    </div>
 
-      <!-- Tab: Orders -->
-      <div class="admin-tab-content" id="tab-orders">
-        <div class="admin-row-header">
-          <div class="admin-hint" style="margin-bottom:0">Update order status</div>
-          <button class="admin-btn sec" onclick="loadOrderMgmt()">↺ Reload</button>
+    <!-- Banner -->
+    <div class="banner-grid">
+      <!-- Profile Banner -->
+      <div class="banner-panel">
+        <div class="img-area" id="profile-area">
+          <img src="https://lh3.googleusercontent.com/d/1MMFRF9EnvocTTn0VvX9aeDEJSTf_YgAB" class="profile"
+            alt="Hohoh0 Profile">
         </div>
-        <div class="order-mgmt-list" id="order-mgmt-list">
-          <div class="admin-loading">Loading...</div>
+        <div class="banner-info">
+          <div>
+            <div class="seller-name">Muhammad Safie Bin Sijamsir</div>
+            <div class="seller-ign">In-game: <span>Hohoh0</span></div>
+            <div class="seller-ign">***Notes*** Need friend 24 hours for gift!</div>
+            <div class="seller-ign">Untuk pembelian account contact dulu ye</div>
+            <div class="seller-ign">Contact: 01127195149</div>
+          </div>
+          <span class="seller-badge">Game item seller</span>
+        </div>
+      </div>
+
+      <!-- Slideshow Banner -->
+      <div class="banner-panel">
+        <div class="img-area" id="slideshow-area">
+          <div class="slideshow" id="slideshow">
+            <img src="" alt="In-game shop 1" class="active">
+            <img src="" alt="In-game shop 2">
+          </div>
+        </div>
+        <div class="banner-info" style="justify-content:flex-start;gap:0;padding:10px 16px">
+          <div
+            style="font-size:11px;color:var(--text3);font-family:'Rajdhani',sans-serif;font-weight:600;letter-spacing:.1em;text-transform:uppercase">
+            Current in-game shop
+          </div>
         </div>
       </div>
     </div>
-  </div>
 
-<!-- Banner -->
-<div class="banner-grid">
-  <!-- Profile Banner -->
-  <div class="banner-panel">
-    <div class="img-area" id="profile-area">
-      <img src="https://lh3.googleusercontent.com/d/1MMFRF9EnvocTTn0VvX9aeDEJSTf_YgAB" 
-           class="profile" 
-           alt="Hohoh0 Profile">
-    </div>
-    <div class="banner-info">
-      <div>
-        <div class="seller-name">Muhammad Safie Bin Sijamsir</div>
-        <div class="seller-ign">In-game: <span>Hohoh0</span></div>
-        <div class="seller-ign">***Notes*** Need friend 24 hours for gift!</div>
-        <div class="seller-ign">Untuk pembelian account contact dulu ye</div>
-        <div class="seller-ign">Contact: 01127195149</div>
+    <!-- Order Feed -->
+    <div class="feed-section">
+      <div class="feed-header">
+        <div class="section-title"><span class="live-dot"></span>Recent orders</div>
+        <div class="sync-lbl" id="sync-lbl">—</div>
       </div>
-      <span class="seller-badge">Game item seller</span>
-    </div>
-  </div>
-
-  <!-- Slideshow Banner -->
-  <div class="banner-panel">
-    <div class="img-area" id="slideshow-area">
-      <div class="slideshow" id="slideshow">
-        <img src="" alt="In-game shop 1" class="active">
-        <img src="" alt="In-game shop 2">
+      <div id="feed">
+        <div class="empty-feed">Loading orders...</div>
       </div>
     </div>
-    <div class="banner-info" style="justify-content:flex-start;gap:0;padding:10px 16px">
-      <div style="font-size:11px;color:var(--text3);font-family:'Rajdhani',sans-serif;font-weight:600;letter-spacing:.1em;text-transform:uppercase">
-        Current in-game shop
-      </div>
+
+    <!-- Main Tabs -->
+    <div class="main-tabs">
+      <button class="main-tab active" onclick="switchMainTab('view-items',this)">Game Items</button>
+      <button class="main-tab" onclick="switchMainTab('view-accounts',this)">Accounts</button>
     </div>
-  </div>
-</div>
 
-  <!-- Order Feed -->
-  <div class="feed-section">
-    <div class="feed-header">
-      <div class="section-title"><span class="live-dot"></span>Recent orders</div>
-      <div class="sync-lbl" id="sync-lbl">—</div>
-    </div>
-    <div id="feed">
-      <div class="empty-feed">Loading orders...</div>
-    </div>
-  </div>
+    <!-- view-items and view-accounts are injected after shared JS below -->
 
-  <!-- Main Tabs -->
-  <div class="main-tabs">
-    <button class="main-tab active" onclick="switchMainTab('view-items',this)">Game Items</button>
-    <button class="main-tab" onclick="switchMainTab('view-accounts',this)">Accounts</button>
-  </div>
+    <!-- .wrap closes AFTER inject below -->
 
-  <!-- view-items and view-accounts are injected after shared JS below -->
+    <div class="toast" id="toast"></div>
 
-<!-- .wrap closes AFTER inject below -->
-
-<div class="toast" id="toast"></div>
-
-<!-- ═══════════════════════════════════════════
+    <!-- ═══════════════════════════════════════════
      SHARED JAVASCRIPT — loads first
 ════════════════════════════════════════════ -->
-<script>
-  // ── Config ─────────────────────────────────
-  const API_URL = '/api/index';
+    <script>
+      // ── Config ─────────────────────────────────
+      const API_URL = '/api/index';
 
-  // ── Shared item state (used by main.html admin + item.html) ──
-  const ITEMS = [];
-  const DAYS  = [7, 15, 30];
-  let qtys    = {};
-  ITEMS.forEach(it => DAYS.forEach(d => { qtys[`${it.id}_${d}`] = 0; }));
+      // ── Shared item state (used by main.html admin + item.html) ──
+      const ITEMS = [];
+      const DAYS = [7, 15, 30];
+      let qtys = {};
+      ITEMS.forEach(it => DAYS.forEach(d => { qtys[`${it.id}_${d}`] = 0; }));
 
-  // ── Safe fn registry ───────────────────────
-  // item.html and account.html call registerFn() to install real implementations.
-  // Calls made before registration are queued and replayed once the fn registers.
-  const _fnRegistry = {};
-  function registerFn(name, fn) {
-    _fnRegistry[name] = fn;
-    const queue = _fnRegistry['__q_' + name] || [];
-    delete _fnRegistry['__q_' + name];
-    queue.forEach(args => fn(...args));
-  }
-  function _callRegistered(name, ...args) {
-    if (_fnRegistry[name]) { _fnRegistry[name](...args); return; }
-    if (!_fnRegistry['__q_' + name]) _fnRegistry['__q_' + name] = [];
-    _fnRegistry['__q_' + name].push(args);
-  }
-  function buildTable()       { _callRegistered('buildTable'); }
-  function recalc()           { _callRegistered('recalc'); }
-  function renderManageList() { _callRegistered('renderManageList'); }
+      // ── Safe fn registry ───────────────────────
+      // item.html and account.html call registerFn() to install real implementations.
+      // Calls made before registration are queued and replayed once the fn registers.
+      const _fnRegistry = {};
+      function registerFn(name, fn) {
+        _fnRegistry[name] = fn;
+        const queue = _fnRegistry['__q_' + name] || [];
+        delete _fnRegistry['__q_' + name];
+        queue.forEach(args => fn(...args));
+      }
+      function _callRegistered(name, ...args) {
+        if (_fnRegistry[name]) { _fnRegistry[name](...args); return; }
+        if (!_fnRegistry['__q_' + name]) _fnRegistry['__q_' + name] = [];
+        _fnRegistry['__q_' + name].push(args);
+      }
+      function buildTable() { _callRegistered('buildTable'); }
+      function recalc() { _callRegistered('recalc'); }
+      function renderManageList() { _callRegistered('renderManageList'); }
 
-  // ── Shared account state ───────────────────
-  let accounts = [];
+      // ── Shared account state ───────────────────
+      let accounts = [];
 
-  // ── Helpers ────────────────────────────────
-  function fmt(n) {
-    return 'RM ' + parseFloat(n||0).toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  }
+      // ── Helpers ────────────────────────────────
+      function fmt(n) {
+        return 'RM ' + parseFloat(n || 0).toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      }
 
-  let _toastTimer = null;
-  function showToast(msg) {
-    const t = document.getElementById('toast');
-    clearTimeout(_toastTimer);
-    t.textContent = msg;
-    t.classList.add('show');
-    _toastTimer = setTimeout(() => t.classList.remove('show'), 3000);
-  }
+      let _toastTimer = null;
+      function showToast(msg) {
+        const t = document.getElementById('toast');
+        clearTimeout(_toastTimer);
+        t.textContent = msg;
+        t.classList.add('show');
+        _toastTimer = setTimeout(() => t.classList.remove('show'), 3000);
+      }
 
-  function timeAgo(ts) {
-    const s = Math.floor((Date.now() - new Date(ts)) / 1000);
-    if (s < 60) return s + 's ago';
-    if (s < 3600) return Math.floor(s/60) + 'm ago';
-    if (s < 86400) return Math.floor(s/3600) + 'h ago';
-    if (s < 172800) return 'Yesterday';
-    return Math.floor(s/86400) + 'd ago';
-  }
+      function timeAgo(ts) {
+        const s = Math.floor((Date.now() - new Date(ts)) / 1000);
+        if (s < 60) return s + 's ago';
+        if (s < 3600) return Math.floor(s / 60) + 'm ago';
+        if (s < 86400) return Math.floor(s / 3600) + 'h ago';
+        if (s < 172800) return 'Yesterday';
+        return Math.floor(s / 86400) + 'd ago';
+      }
 
-  function isToday(ts) {
-    if (!ts) return false;
-    const d = new Date(ts), n = new Date();
-    return d.getDate()===n.getDate() && d.getMonth()===n.getMonth() && d.getFullYear()===n.getFullYear();
-  }
+      function isToday(ts) {
+        if (!ts) return false;
+        const d = new Date(ts), n = new Date();
+        return d.getDate() === n.getDate() && d.getMonth() === n.getMonth() && d.getFullYear() === n.getFullYear();
+      }
 
-  function statusClass(s) {
-    if (!s || s==='New') return 'p-new';
-    if (s==='Paid') return 'p-paid';
-    if (s==='Verified') return 'p-verified';
-    if (s==='Completed') return 'p-completed';
-    if (s==='Confirmed') return 'p-conf';
-    return 'p-done';
-  }
+      function statusClass(s) {
+        if (!s || s === 'New') return 'p-new';
+        if (s === 'Paid') return 'p-paid';
+        if (s === 'Verified') return 'p-verified';
+        if (s === 'Completed') return 'p-completed';
+        if (s === 'Confirmed') return 'p-conf';
+        return 'p-done';
+      }
 
-  // ── Clock ──────────────────────────────────
-  function tick() {
-    const n = new Date();
-    document.getElementById('ct').textContent = n.toLocaleTimeString('en-MY',{hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:true});
-    document.getElementById('cd').textContent = n.toLocaleDateString('en-MY',{weekday:'short',day:'numeric',month:'short',year:'numeric'});
-  }
-  tick(); setInterval(tick, 1000);
+      // ── Clock ──────────────────────────────────
+      function tick() {
+        const n = new Date();
+        document.getElementById('ct').textContent = n.toLocaleTimeString('en-MY', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
+        document.getElementById('cd').textContent = n.toLocaleDateString('en-MY', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+      }
+      tick(); setInterval(tick, 1000);
 
-  // ── Main tab switcher ──────────────────────
-  function switchMainTab(viewId, btn) {
-    document.querySelectorAll('.main-tab').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    document.querySelectorAll('.view-section').forEach(v => v.classList.remove('active'));
-    document.getElementById(viewId).classList.add('active');
-  }
+      // ── Main tab switcher ──────────────────────
+      function switchMainTab(viewId, btn) {
+        document.querySelectorAll('.main-tab').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        document.querySelectorAll('.view-section').forEach(v => v.classList.remove('active'));
+        document.getElementById(viewId).classList.add('active');
+      }
 
-  // ── Admin auth ─────────────────────────────
-  let adminUnlocked = false;
-  let adminToken = null;
+      // ── Admin auth ─────────────────────────────
+      let adminUnlocked = false;
+      let adminToken = null;
 
-  function adminFetch(payload) {
-    return fetch(API_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...payload, _token: adminToken })
-    });
-  }
-
-  let _lastAdminTab = 'extract'; // remember last open tab
-
-  function toggleAdmin() {
-    const p = document.getElementById('admin-panel');
-    p.classList.toggle('open');
-    if (!adminUnlocked) {
-      document.getElementById('admin-gate').style.display = 'block';
-      document.getElementById('admin-content').style.display = 'none';
-    } else if (p.classList.contains('open')) {
-      // Restore last active tab when reopening
-      const btn = document.querySelector(`.admin-tab[onclick*="'${_lastAdminTab}'"]`);
-      if (btn) switchTab(_lastAdminTab, btn);
-    }
-  }
-
-  async function checkPass() {
-    const pw = document.getElementById('admin-pw').value;
-    const st = document.getElementById('gate-status');
-    st.textContent = 'Verifying...'; st.style.color = 'var(--text2)';
-    try {
-      const resp = await fetch(API_URL, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({action:'adminAuth',password:pw}) });
-      const result = await resp.json();
-      if (result.token) {
-        adminToken = result.token;
-        adminUnlocked = true;
-        document.getElementById('admin-gate').style.display = 'none';
-        document.getElementById('admin-content').style.display = 'block';
-        st.textContent = '';
-        
-        // Populate slideshow thumbnails now that admin is open
-        slideUrls.forEach((url, i) => {
-          if (!url) return;
-          const thumb = document.getElementById('ss-img-'+i);
-          const lbl = document.getElementById('ss-lbl-'+i);
-          if (thumb) { thumb.src=url; thumb.style.display='block'; }
-          if (lbl) lbl.style.display='none';
+      function adminFetch(payload) {
+        return fetch(API_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ...payload, _token: adminToken })
         });
-
-        loadShopEditor();
-        renderManageList();
       }
-      else {
-        st.textContent = 'Wrong password.'; st.style.color = 'var(--red)';
+
+      let _lastAdminTab = 'extract'; // remember last open tab
+
+      function toggleAdmin() {
+        const p = document.getElementById('admin-panel');
+        p.classList.toggle('open');
+        if (!adminUnlocked) {
+          document.getElementById('admin-gate').style.display = 'block';
+          document.getElementById('admin-content').style.display = 'none';
+        } else if (p.classList.contains('open')) {
+          // Restore last active tab when reopening
+          const btn = document.querySelector(`.admin-tab[onclick*="'${_lastAdminTab}'"]`);
+          if (btn) switchTab(_lastAdminTab, btn);
+        }
       }
-    } catch(e) {
-      st.textContent = 'Auth failed. Check connection.'; st.style.color = 'var(--red)';
-    }
-  }
 
-  let shopEditorDirty = false;
-  // ── Admin tab switcher ─────────────────────
-  function switchTab(tab, btn) {
-    // Guard dirty shop editor
-    if (tab !== 'edit-shop' && shopEditorDirty) {
-      if (!confirm('You have unsaved changes in Edit Shop. Leave anyway?')) return;
-      shopEditorDirty = false;
-    }
+      async function checkPass() {
+        const pw = document.getElementById('admin-pw').value;
+        const st = document.getElementById('gate-status');
+        st.textContent = 'Verifying...'; st.style.color = 'var(--text2)';
+        try {
+          const resp = await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'adminAuth', password: pw }) });
+          const result = await resp.json();
+          if (result.token) {
+            adminToken = result.token;
+            adminUnlocked = true;
+            document.getElementById('admin-gate').style.display = 'none';
+            document.getElementById('admin-content').style.display = 'block';
+            st.textContent = '';
 
-    document.querySelectorAll('.admin-tab').forEach(t => t.classList.remove('active'));
-    document.querySelectorAll('.admin-tab-content').forEach(t => t.classList.remove('active'));
-    btn.classList.add('active');
-    document.getElementById('tab-' + tab).classList.add('active');
-    _lastAdminTab = tab; // remember for next reopen
-    if (tab==='edit-shop') { loadShopEditor(); shopEditorDirty = false; }
-    if (tab==='orders') loadOrderMgmt();
-  }
+            // Populate slideshow thumbnails now that admin is open
+            slideUrls.forEach((url, i) => {
+              if (!url) return;
+              const thumb = document.getElementById('ss-img-' + i);
+              const lbl = document.getElementById('ss-lbl-' + i);
+              if (thumb) { thumb.src = url; thumb.style.display = 'block'; }
+              if (lbl) lbl.style.display = 'none';
+            });
 
-  // ── Order feed ─────────────────────────────
-  const AVC = [['#1a1230','#9b7fe8'],['#0d1f18','#2ecc8a'],['#0d1825','#4a9eff'],['#1f160a','#e8b84b'],['#0f1a12','#5ecb7a']];
+            loadShopEditor();
+            renderManageList();
+          }
+          else {
+            st.textContent = 'Wrong password.'; st.style.color = 'var(--red)';
+          }
+        } catch (e) {
+          st.textContent = 'Auth failed. Check connection.'; st.style.color = 'var(--red)';
+        }
+      }
 
-  function renderFeed(orders) {
-    const el = document.getElementById('feed');
-    if (!orders.length) { el.innerHTML = '<div class="empty-feed">No orders yet</div>'; return; }
-    
-    const visible = orders.slice(0, 8);
+      let shopEditorDirty = false;
+      // ── Admin tab switcher ─────────────────────
+      function switchTab(tab, btn) {
+        // Guard dirty shop editor
+        if (tab !== 'edit-shop' && shopEditorDirty) {
+          if (!confirm('You have unsaved changes in Edit Shop. Leave anyway?')) return;
+          shopEditorDirty = false;
+        }
 
-    // Remove extra cards if order count shrank
-    while (el.children.length > visible.length) el.removeChild(el.lastChild);
+        document.querySelectorAll('.admin-tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.admin-tab-content').forEach(t => t.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById('tab-' + tab).classList.add('active');
+        _lastAdminTab = tab; // remember for next reopen
+        if (tab === 'edit-shop') { loadShopEditor(); shopEditorDirty = false; }
+        if (tab === 'orders') loadOrderMgmt();
+      }
 
-    visible.forEach((o, i) => {
-      const [bg,fg] = AVC[i % AVC.length];
-      const ini = o.name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
-      const ts = o.timestamp||'', oid = o.order_id||'';
-      const tot = parseFloat(o.total||0);
-      const actualStatus = (!o.status && isToday(ts)) ? 'New' : (o.status||'New');
-      const sc = statusClass(actualStatus);
-      const showNewBadge = isToday(ts) && o.status && o.status !== 'New';
-      const fp = `${oid}|${actualStatus}|${tot}`;
+      // ── Order feed ─────────────────────────────
+      const AVC = [['#1a1230', '#9b7fe8'], ['#0d1f18', '#2ecc8a'], ['#0d1825', '#4a9eff'], ['#1f160a', '#e8b84b'], ['#0f1a12', '#5ecb7a']];
 
-      let card = el.children[i];
-      if (card && card.dataset.fp === fp) return; // unchanged, skip
+      function renderFeed(orders) {
+        const el = document.getElementById('feed');
+        if (!orders.length) { el.innerHTML = '<div class="empty-feed">No orders yet</div>'; return; }
 
-      const html = `<div class="fcard" data-fp="${fp}">
+        const visible = orders.slice(0, 8);
+
+        // Remove extra cards if order count shrank
+        while (el.children.length > visible.length) el.removeChild(el.lastChild);
+
+        visible.forEach((o, i) => {
+          const [bg, fg] = AVC[i % AVC.length];
+          const ini = o.name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+          const ts = o.timestamp || '', oid = o.order_id || '';
+          const tot = parseFloat(o.total || 0);
+          const actualStatus = (!o.status && isToday(ts)) ? 'New' : (o.status || 'New');
+          const sc = statusClass(actualStatus);
+          const showNewBadge = isToday(ts) && o.status && o.status !== 'New';
+          const fp = `${oid}|${actualStatus}|${tot}`;
+
+          let card = el.children[i];
+          if (card && card.dataset.fp === fp) return; // unchanged, skip
+
+          const html = `<div class="fcard" data-fp="${fp}">
         <div class="av" style="background:${bg};color:${fg}">${ini}</div>
         <div class="fb">
           <div class="fn2">${o.name}</div>
           <div class="fi">${o.items}</div>
-          ${o.note?`<div class="fi" style="font-style:italic;color:var(--text3)">${o.note}</div>`:''}
-          <span class="pill ${sc}">${actualStatus}</span>${showNewBadge?`<span class="pill p-new" style="margin-left:4px">New</span>`:''}${isPayable(o.status)?`<button class="pay-btn" data-tot="${tot}" data-oid="${oid}" data-ts="${ts||new Date().toISOString()}" onclick="openModal(this)">Pay</button>`:''}
+          ${o.note ? `<div class="fi" style="font-style:italic;color:var(--text3)">${o.note}</div>` : ''}
+          <span class="pill ${sc}">${actualStatus}</span>${showNewBadge ? `<span class="pill p-new" style="margin-left:4px">New</span>` : ''}${isPayable(o.status) ? `<button class="pay-btn" data-tot="${tot}" data-oid="${oid}" data-ts="${ts || new Date().toISOString()}" onclick="openModal(this)">Pay</button>` : ''}
         </div>
         <div class="fr"><div class="ft">${fmt(tot)}</div><div class="fa">${timeAgo(ts)}</div></div>
       </div>`;
 
-      if (!card) {
-        el.insertAdjacentHTML('beforeend', html);
-      } else {
-        card.outerHTML = html;
+          if (!card) {
+            el.insertAdjacentHTML('beforeend', html);
+          } else {
+            card.outerHTML = html;
+          }
+        });
       }
-    });
-  }
 
-  function isPayable(s) { return !s || s==='New'; }
+      function isPayable(s) { return !s || s === 'New'; }
 
-  let _lastFeedData = '';
-  async function fetchSheet() {
-    try {
-      const r = await fetch(API_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'getOrders' })
-      });
-      const d = await r.json();
-      // API returns { values: [ {order_id, timestamp, name, ...}, ... ] }
-      const rows = (d.values || []).reverse();
-      const fp = rows.length + '|' + (rows[0]?.order_id || '') + '|' + (rows[rows.length-1]?.order_id || '') + '|' + (rows[0]?.status || '');
-      if (_lastFeedData !== fp) {
-        _lastFeedData = fp;
-        renderFeed(rows);
-        allOrders = rows.map(r => ({
-          order_id: r.order_id, timestamp: r.timestamp, name: r.name,
-          items: r.items, total: r.total, status: r.status
-        }));
+      let _lastFeedData = '';
+      async function fetchSheet() {
+        try {
+          const r = await fetch(API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'getOrders' })
+          });
+          const d = await r.json();
+          // API returns { values: [ {order_id, timestamp, name, ...}, ... ] }
+          const rows = (d.values || []).reverse();
+          const fp = rows.length + '|' + (rows[0]?.order_id || '') + '|' + (rows[rows.length - 1]?.order_id || '') + '|' + (rows[0]?.status || '');
+          if (_lastFeedData !== fp) {
+            _lastFeedData = fp;
+            renderFeed(rows);
+            allOrders = rows.map(r => ({
+              order_id: r.order_id, timestamp: r.timestamp, name: r.name,
+              items: r.items, total: r.total, status: r.status
+            }));
+          }
+          document.getElementById('sync-lbl').textContent = 'Synced ' + new Date().toLocaleTimeString();
+        } catch (e) { document.getElementById('sync-lbl').textContent = 'Sync failed'; }
       }
-      document.getElementById('sync-lbl').textContent = 'Synced ' + new Date().toLocaleTimeString();
-    } catch(e) { document.getElementById('sync-lbl').textContent = 'Sync failed'; }
-  }
 
-  // ── Shop extract (admin) ───────────────────
-  let shopExtractFiles = [null, null];
+      // ── Shop extract (admin) ───────────────────
+      let shopExtractFiles = [null, null];
 
-  function handleShopSlotFile(input, idx) {
-    const file = input.files[0]; if (!file) return;
-    shopExtractFiles[idx] = file;
-    const reader = new FileReader();
-    reader.onload = e => {
-      const img = document.getElementById('sslot-img-'+idx);
-      img.src = e.target.result; img.style.display = 'block';
-      document.getElementById('sslot-rm-'+idx).style.display = 'block';
-      document.getElementById('sslot-lbl-'+idx).style.display = 'none';
-    };
-    reader.readAsDataURL(file);
-  }
-
-  function removeShopSlot(e, idx) {
-    e.stopPropagation();
-    shopExtractFiles[idx] = null;
-    const img = document.getElementById('sslot-img-'+idx);
-    img.src=''; img.style.display='none';
-    document.getElementById('sslot-rm-'+idx).style.display='none';
-    document.getElementById('sslot-lbl-'+idx).style.display='block';
-    document.getElementById('sslot-'+idx).querySelector('input').value='';
-  }
-
-  async function extractItems() {
-    if (!shopExtractFiles[0] && !shopExtractFiles[1]) { showToast('Please select at least one shop image.'); return; }
-    const btn = document.getElementById('extract-btn');
-    const status = document.getElementById('extract-status');
-    btn.disabled=true; btn.textContent='Extracting...';
-    status.textContent='Uploading and sending to AI...'; status.style.color='var(--text2)';
-    try {
-      const filesToUpload = shopExtractFiles.filter(Boolean);
-      const allItems = []; let uploadedUrls = [];
-      for (let i=0; i<filesToUpload.length; i++) {
-        status.textContent = `Processing image ${i+1} of ${filesToUpload.length}...`;
-        const file = filesToUpload[i];
-        const base64 = await compressImage(file, 1200, 0.8);
-        const resp = await adminFetch({ action:'extractItems', fileName:`shop_img_${Date.now()}_${i}.jpg`, mimeType:'image/jpeg', base64 });
-        const result = await resp.json();
-        if (result.error) throw new Error(result.error);
-        (result.items||[]).forEach(it => allItems.push(it));
-        if (result.url) uploadedUrls.push(result.url);
+      function handleShopSlotFile(input, idx) {
+        const file = input.files[0]; if (!file) return;
+        shopExtractFiles[idx] = file;
+        const reader = new FileReader();
+        reader.onload = e => {
+          const img = document.getElementById('sslot-img-' + idx);
+          img.src = e.target.result; img.style.display = 'block';
+          document.getElementById('sslot-rm-' + idx).style.display = 'block';
+          document.getElementById('sslot-lbl-' + idx).style.display = 'none';
+        };
+        reader.readAsDataURL(file);
       }
-      const slides = document.querySelectorAll('#slideshow img');
-      for (let i=0; i<uploadedUrls.length; i++) {
-        if (slides[i]) slides[i].src = uploadedUrls[i];
-        try { await adminFetch({action:'uploadSlideImg',slideIndex:i,url:uploadedUrls[i]}); } catch(_){}
-      }
-      startSlideshow();
-      const seen = new Set();
-      const deduped = allItems.filter(it => { const k=(it.name||'').toLowerCase().trim(); if(seen.has(k))return false; seen.add(k); return true; });
-      renderExtracted(deduped);
-      status.textContent = 'Extracted '+deduped.length+' items from '+filesToUpload.length+' image(s). Review and apply.';
-      status.style.color = 'var(--green)';
-    } catch(e) { status.textContent='Failed: '+e.message; status.style.color='var(--red)'; }
-    btn.disabled=false; btn.textContent='Upload & Extract items';
-  }
 
-  function renderExtracted(items) {
-    const tbody = document.getElementById('extracted-tbody');
-    tbody.innerHTML = items.map((it,i) => `<tr>
-      <td>${i+1}</td>
-      <td><input value="${it.name||''}" data-field="name" data-idx="${i}"/></td>
-      <td><input value="${it.desc||''}" data-field="desc" data-idx="${i}"/></td>
-      <td><input value="${it.p7||''}" data-field="p7" data-idx="${i}" style="width:60px"/></td>
-      <td><input value="${it.p15||''}" data-field="p15" data-idx="${i}" style="width:60px"/></td>
-      <td><input value="${it.p30||''}" data-field="p30" data-idx="${i}" style="width:60px"/></td>
+      function removeShopSlot(e, idx) {
+        e.stopPropagation();
+        shopExtractFiles[idx] = null;
+        const img = document.getElementById('sslot-img-' + idx);
+        img.src = ''; img.style.display = 'none';
+        document.getElementById('sslot-rm-' + idx).style.display = 'none';
+        document.getElementById('sslot-lbl-' + idx).style.display = 'block';
+        document.getElementById('sslot-' + idx).querySelector('input').value = '';
+      }
+
+      async function extractItems() {
+        if (!shopExtractFiles[0] && !shopExtractFiles[1]) { showToast('Please select at least one shop image.'); return; }
+        const btn = document.getElementById('extract-btn');
+        const status = document.getElementById('extract-status');
+        btn.disabled = true; btn.textContent = 'Extracting...';
+        status.textContent = 'Uploading and sending to AI...'; status.style.color = 'var(--text2)';
+        try {
+          const filesToUpload = shopExtractFiles.filter(Boolean);
+          const allItems = []; let uploadedUrls = [];
+          for (let i = 0; i < filesToUpload.length; i++) {
+            status.textContent = `Processing image ${i + 1} of ${filesToUpload.length}...`;
+            const file = filesToUpload[i];
+            const base64 = await compressImage(file, 1200, 0.8);
+            const resp = await adminFetch({ action: 'extractItems', fileName: `shop_img_${Date.now()}_${i}.jpg`, mimeType: 'image/jpeg', base64 });
+            const result = await resp.json();
+            if (result.error) throw new Error(result.error);
+            (result.items || []).forEach(it => allItems.push(it));
+            if (result.url) uploadedUrls.push(result.url);
+          }
+          const slides = document.querySelectorAll('#slideshow img');
+          for (let i = 0; i < uploadedUrls.length; i++) {
+            if (slides[i]) slides[i].src = uploadedUrls[i];
+            try { await adminFetch({ action: 'uploadSlideImg', slideIndex: i, url: uploadedUrls[i] }); } catch (_) { }
+          }
+          startSlideshow();
+          const seen = new Set();
+          const deduped = allItems.filter(it => { const k = (it.name || '').toLowerCase().trim(); if (seen.has(k)) return false; seen.add(k); return true; });
+          renderExtracted(deduped);
+          status.textContent = 'Extracted ' + deduped.length + ' items from ' + filesToUpload.length + ' image(s). Review and apply.';
+          status.style.color = 'var(--green)';
+        } catch (e) { status.textContent = 'Failed: ' + e.message; status.style.color = 'var(--red)'; }
+        btn.disabled = false; btn.textContent = 'Upload & Extract items';
+      }
+
+      function renderExtracted(items) {
+        const tbody = document.getElementById('extracted-tbody');
+        tbody.innerHTML = items.map((it, i) => `<tr>
+      <td>${i + 1}</td>
+      <td><input value="${it.name || ''}" data-field="name" data-idx="${i}"/></td>
+      <td><input value="${it.desc || ''}" data-field="desc" data-idx="${i}"/></td>
+      <td><input value="${it.p7 || ''}" data-field="p7" data-idx="${i}" style="width:60px"/></td>
+      <td><input value="${it.p15 || ''}" data-field="p15" data-idx="${i}" style="width:60px"/></td>
+      <td><input value="${it.p30 || ''}" data-field="p30" data-idx="${i}" style="width:60px"/></td>
     </tr>`).join('');
-    document.getElementById('admin-extracted').style.display = 'block';
-  }
+        document.getElementById('admin-extracted').style.display = 'block';
+      }
 
-  function addExtractedRow() {
-    const tbody = document.getElementById('extracted-tbody');
-    const i = tbody.rows.length;
-    const tr = document.createElement('tr');
-    tr.innerHTML = `<td>${i+1}</td><td><input value="" data-field="name" data-idx="${i}"/></td><td><input value="" data-field="desc" data-idx="${i}"/></td><td><input value="" data-field="p7" data-idx="${i}" style="width:60px"/></td><td><input value="" data-field="p15" data-idx="${i}" style="width:60px"/></td><td><input value="" data-field="p30" data-idx="${i}" style="width:60px"/></td>`;
-    tbody.appendChild(tr);
-  }
+      function addExtractedRow() {
+        const tbody = document.getElementById('extracted-tbody');
+        const i = tbody.rows.length;
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${i + 1}</td><td><input value="" data-field="name" data-idx="${i}"/></td><td><input value="" data-field="desc" data-idx="${i}"/></td><td><input value="" data-field="p7" data-idx="${i}" style="width:60px"/></td><td><input value="" data-field="p15" data-idx="${i}" style="width:60px"/></td><td><input value="" data-field="p30" data-idx="${i}" style="width:60px"/></td>`;
+        tbody.appendChild(tr);
+      }
 
-  function applyNewItems(items) {
-    ITEMS.length = 0;
-    items.forEach(it => ITEMS.push(it));
-    qtys = {};
-    ITEMS.forEach(it => DAYS.forEach(d => { qtys[`${it.id}_${d}`] = 0; }));
-    buildTable();
-    recalc();
-  }
+      function applyNewItems(items) {
+        ITEMS.length = 0;
+        items.forEach(it => ITEMS.push(it));
+        qtys = {};
+        ITEMS.forEach(it => DAYS.forEach(d => { qtys[`${it.id}_${d}`] = 0; }));
+        buildTable();
+        recalc();
+      }
 
-  async function applyItems() {
-    const rows = document.querySelectorAll('#extracted-tbody tr');
-    const newItems = [];
-    rows.forEach((row,i) => {
-      const get = f => row.querySelector(`[data-field="${f}"]`)?.value.trim()||'';
-      if (get('name')) newItems.push({id:i+1, name:get('name'), desc:get('desc'), p:{7:parseFloat(get('p7'))||0, 15:parseFloat(get('p15'))||0, 30:parseFloat(get('p30'))||0}});
-    });
-    if (!newItems.length) return;
-    applyNewItems(newItems);
-    try { await adminFetch({action:'saveItems', items:newItems}); showToast('Items updated & saved!'); }
-    catch(e) { showToast('Items updated (save failed)'); }
-    document.getElementById('admin-panel').classList.remove('open');
-  }
+      async function applyItems() {
+        const rows = document.querySelectorAll('#extracted-tbody tr');
+        const newItems = [];
+        rows.forEach((row, i) => {
+          const get = f => row.querySelector(`[data-field="${f}"]`)?.value.trim() || '';
+          if (get('name')) newItems.push({ id: i + 1, name: get('name'), desc: get('desc'), p: { 7: parseFloat(get('p7')) || 0, 15: parseFloat(get('p15')) || 0, 30: parseFloat(get('p30')) || 0 } });
+        });
+        if (!newItems.length) return;
+        applyNewItems(newItems);
+        try { await adminFetch({ action: 'saveItems', items: newItems }); showToast('Items updated & saved!'); }
+        catch (e) { showToast('Items updated (save failed)'); }
+        document.getElementById('admin-panel').classList.remove('open');
+      }
 
-  // ── Shop editor (admin) ───────────────────
-  function loadShopEditor() {
-    const tbody = document.getElementById('shop-editor-tbody');
-    tbody.innerHTML = ITEMS.map((it,i) => `<tr>
+      // ── Shop editor (admin) ───────────────────
+      function loadShopEditor() {
+        const tbody = document.getElementById('shop-editor-tbody');
+        tbody.innerHTML = ITEMS.map((it, i) => `<tr>
       <td class="se-td"><input class="se-input" value="${it.name}" data-se="name" data-i="${i}"/></td>
-      <td class="se-td"><input class="se-input" value="${it.desc||''}" data-se="desc" data-i="${i}"/></td>
-      <td class="se-td"><input class="se-input" value="${it.p[7]||''}" data-se="p7" data-i="${i}" style="width:56px"/></td>
-      <td class="se-td"><input class="se-input" value="${it.p[15]||''}" data-se="p15" data-i="${i}" style="width:56px"/></td>
-      <td class="se-td"><input class="se-input" value="${it.p[30]||''}" data-se="p30" data-i="${i}" style="width:56px"/></td>
+      <td class="se-td"><input class="se-input" value="${it.desc || ''}" data-se="desc" data-i="${i}"/></td>
+      <td class="se-td"><input class="se-input" value="${it.p[7] || ''}" data-se="p7" data-i="${i}" style="width:56px"/></td>
+      <td class="se-td"><input class="se-input" value="${it.p[15] || ''}" data-se="p15" data-i="${i}" style="width:56px"/></td>
+      <td class="se-td"><input class="se-input" value="${it.p[30] || ''}" data-se="p30" data-i="${i}" style="width:56px"/></td>
       <td class="se-td"><button class="se-rm" onclick="removeShopEditorRow(this)">✕</button></td>
     </tr>`).join('');
 
-    // Track dirty state
-    tbody.addEventListener('input', () => { shopEditorDirty = true; }, { once: false });
-  }
+        // Track dirty state
+        tbody.addEventListener('input', () => { shopEditorDirty = true; }, { once: false });
+      }
 
-  function addShopEditorRow() {
-    const tbody = document.getElementById('shop-editor-tbody');
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
+      function addShopEditorRow() {
+        const tbody = document.getElementById('shop-editor-tbody');
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
       <td class="se-td"><input class="se-input" value="" data-se="name"/></td>
       <td class="se-td"><input class="se-input" value="" data-se="desc"/></td>
       <td class="se-td"><input class="se-input" value="" data-se="p7" style="width:56px"/></td>
       <td class="se-td"><input class="se-input" value="" data-se="p15" style="width:56px"/></td>
       <td class="se-td"><input class="se-input" value="" data-se="p30" style="width:56px"/></td>
       <td class="se-td"><button class="se-rm" onclick="removeShopEditorRow(this)">✕</button></td>`;
-    tbody.appendChild(tr);
-    shopEditorDirty = true;  // ← add this
-  }
+        tbody.appendChild(tr);
+        shopEditorDirty = true;  // ← add this
+      }
 
-  function removeShopEditorRow(btn) {
-    btn.closest('tr').remove();
-    shopEditorDirty = true;  // ← add this
-  }
+      function removeShopEditorRow(btn) {
+        btn.closest('tr').remove();
+        shopEditorDirty = true;  // ← add this
+      }
 
-  async function saveShopEdit() {
-    const rows = document.querySelectorAll('#shop-editor-tbody tr');
-    const newItems = [];
-    rows.forEach((row,i) => {
-      const get = f => row.querySelector(`[data-se="${f}"]`)?.value.trim()||'';
-      if (get('name')) newItems.push({id:i+1, name:get('name'), desc:get('desc'), p:{7:parseFloat(get('p7'))||0, 15:parseFloat(get('p15'))||0, 30:parseFloat(get('p30'))||0}});
-    });
-    if (!newItems.length) return;
-    const st = document.getElementById('shop-edit-status');
-    st.textContent='Saving...'; st.style.color='var(--text2)';
-    applyNewItems(newItems);
-    try {
-      await adminFetch({action:'saveItems', items:newItems});
-      shopEditorDirty = false;  // ← add this
-      st.textContent='Saved!'; st.style.color='var(--green)';
-      setTimeout(()=>{ st.textContent=''; }, 3000);
-    } catch(e) { st.textContent='Save failed'; st.style.color='var(--red)'; }
-  }
+      async function saveShopEdit() {
+        const rows = document.querySelectorAll('#shop-editor-tbody tr');
+        const newItems = [];
+        rows.forEach((row, i) => {
+          const get = f => row.querySelector(`[data-se="${f}"]`)?.value.trim() || '';
+          if (get('name')) newItems.push({ id: i + 1, name: get('name'), desc: get('desc'), p: { 7: parseFloat(get('p7')) || 0, 15: parseFloat(get('p15')) || 0, 30: parseFloat(get('p30')) || 0 } });
+        });
+        if (!newItems.length) return;
+        const st = document.getElementById('shop-edit-status');
+        st.textContent = 'Saving...'; st.style.color = 'var(--text2)';
+        applyNewItems(newItems);
+        try {
+          await adminFetch({ action: 'saveItems', items: newItems });
+          shopEditorDirty = false;  // ← add this
+          st.textContent = 'Saved!'; st.style.color = 'var(--green)';
+          setTimeout(() => { st.textContent = ''; }, 3000);
+        } catch (e) { st.textContent = 'Save failed'; st.style.color = 'var(--red)'; }
+      }
 
-  // ── Order management (admin) ───────────────
-  let allOrders = [];
-  async function loadOrderMgmt() {
-    const el = document.getElementById('order-mgmt-list');
-    el.innerHTML = '<div class="admin-loading">Loading...</div>';
-    if (allOrders.length) {
-      renderOrderMgmt();
-      return;
-    }
-    // fallback if fetchSheet hasn't run yet
-    await fetchSheet();
-    renderOrderMgmt();
-  }
+      // ── Order management (admin) ───────────────
+      let allOrders = [];
+      async function loadOrderMgmt() {
+        const el = document.getElementById('order-mgmt-list');
+        el.innerHTML = '<div class="admin-loading">Loading...</div>';
+        if (allOrders.length) {
+          renderOrderMgmt();
+          return;
+        }
+        // fallback if fetchSheet hasn't run yet
+        await fetchSheet();
+        renderOrderMgmt();
+      }
 
-  function renderOrderMgmt() {
-    const el = document.getElementById('order-mgmt-list');
-    if (!allOrders.length) { el.innerHTML = '<div class="admin-loading">No orders</div>'; return; }
-    el.innerHTML = allOrders.slice(0,30).map(o => `
+      function renderOrderMgmt() {
+        const el = document.getElementById('order-mgmt-list');
+        if (!allOrders.length) { el.innerHTML = '<div class="admin-loading">No orders</div>'; return; }
+        el.innerHTML = allOrders.slice(0, 30).map(o => `
       <div class="order-mgmt-item" id="row-${o.order_id}">
         <div class="order-mgmt-info">
           <div class="order-mgmt-id">${o.order_id}</div>
@@ -965,279 +2031,286 @@
           <div class="order-mgmt-items">${o.items}</div>
         </div>
         <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
-          <span class="order-mgmt-total">${o.total?'RM '+parseFloat(o.total).toFixed(2):''}</span>
+          <span class="order-mgmt-total">${o.total ? 'RM ' + parseFloat(o.total).toFixed(2) : ''}</span>
           <select class="status-select" id="st-${o.order_id}">
-            <option ${o.status==='New'?'selected':''}>New</option>
-            <option ${o.status==='Paid'?'selected':''}>Paid</option>
-            <option ${o.status==='Verified'?'selected':''}>Verified</option>
-            <option ${o.status==='Completed'?'selected':''}>Completed</option>
+            <option ${o.status === 'New' ? 'selected' : ''}>New</option>
+            <option ${o.status === 'Paid' ? 'selected' : ''}>Paid</option>
+            <option ${o.status === 'Verified' ? 'selected' : ''}>Verified</option>
+            <option ${o.status === 'Completed' ? 'selected' : ''}>Completed</option>
           </select>
           <button class="save-status-btn" id="btn-${o.order_id}" onclick="updateOrderStatus('${o.order_id}')">Save</button>
           <span id="ind-${o.order_id}" style="font-size:13px;width:16px;text-align:center;flex-shrink:0"></span>
         </div>
       </div>`).join('');
-  }
-
-  async function updateOrderStatus(orderId) {
-    const sel = document.getElementById('st-'+orderId);
-    const btn = document.getElementById('btn-'+orderId);
-    const ind = document.getElementById('ind-'+orderId);
-    btn.disabled=true; btn.textContent='...'; ind.textContent='';
-    try {
-      await adminFetch({action:'updateOrderStatus',order_id:orderId,status:sel.value});
-      const o = allOrders.find(x=>x.order_id===orderId);
-      if (o) o.status = sel.value;
-      ind.textContent='✓'; ind.style.color='var(--green)';
-      btn.textContent='Save'; btn.disabled=false;
-      setTimeout(()=>{if(ind)ind.textContent='';},3000);
-      fetchSheet();
-    } catch(e) {
-      ind.textContent='✕'; ind.style.color='var(--red)';
-      btn.textContent='Save'; btn.disabled=false;
-      setTimeout(()=>{if(ind)ind.textContent='';},4000);
-    }
-  }
-
-  // ── Slideshow ──────────────────────────────
-  let slideshowTimer = null;
-  let slideshowIdx   = 0;
-  let slideUrls      = ['', ''];  // track loaded URLs
-
-  function startSlideshow() {
-    if (slideshowTimer) { clearInterval(slideshowTimer); slideshowTimer = null; }
-
-    const slides = document.querySelectorAll('#slideshow img');
-    const loaded = slideUrls.filter(u => u);
-
-    slides.forEach(img => img.classList.remove('active'));
-
-    if (loaded.length === 0) {
-      const area = document.getElementById('slideshow-area');
-      if (area && !area.querySelector('.ss-placeholder')) {
-        const ph = document.createElement('div');
-        ph.className = 'ss-placeholder';
-        ph.style.cssText = 'position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:8px;pointer-events:none';
-        ph.innerHTML = '<div style="font-size:28px;opacity:.3">🖼</div><div style="font-family:Rajdhani,sans-serif;font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--text3)">No slides uploaded</div>';
-        area.appendChild(ph);
       }
-      return;
-    }
 
-    document.querySelector('#slideshow-area .ss-placeholder')?.remove();
-
-    if (loaded.length === 1) {
-      const activeIdx = slideUrls.findIndex(u => u);
-      if (slides[activeIdx]) slides[activeIdx].classList.add('active');
-      slideshowIdx = activeIdx;
-      return;
-    }
-
-    if (slideUrls[slideshowIdx]) {
-      slides[slideshowIdx].classList.add('active');
-    } else {
-      slides[0].classList.add('active');
-      slideshowIdx = 0;
-    }
-
-    slideshowTimer = setInterval(() => {
-      const imgs = document.querySelectorAll('#slideshow img');
-      imgs.forEach(img => img.classList.remove('active'));
-      slideshowIdx = (slideshowIdx + 1) % imgs.length;
-      imgs[slideshowIdx].classList.add('active');
-    }, 4000);
-  }
-
-  async function fetchSlideUrls() {
-    try {
-      const r = await fetch(API_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'getSettings' })
-      });
-      const d = await r.json();
-      const row = d.slides || [];
-      const slides = document.querySelectorAll('#slideshow img');
-
-      row.forEach((url, i) => {
-        if (!url) return;
-        slideUrls[i] = url;
-        if (slides[i]) slides[i].src = url;
-
-        // Only update admin thumbnails if panel is open
-        if (adminUnlocked) {
-          const thumb = document.getElementById('ss-img-'+i);
-          const lbl = document.getElementById('ss-lbl-'+i);
-          if (thumb) { thumb.src=url; thumb.style.display='block'; }
-          if (lbl) lbl.style.display='none';
+      async function updateOrderStatus(orderId) {
+        const sel = document.getElementById('st-' + orderId);
+        const btn = document.getElementById('btn-' + orderId);
+        const ind = document.getElementById('ind-' + orderId);
+        btn.disabled = true; btn.textContent = '...'; ind.textContent = '';
+        try {
+          await adminFetch({ action: 'updateOrderStatus', order_id: orderId, status: sel.value });
+          const o = allOrders.find(x => x.order_id === orderId);
+          if (o) o.status = sel.value;
+          ind.textContent = '✓'; ind.style.color = 'var(--green)';
+          btn.textContent = 'Save'; btn.disabled = false;
+          setTimeout(() => { if (ind) ind.textContent = ''; }, 3000);
+          fetchSheet();
+        } catch (e) {
+          ind.textContent = '✕'; ind.style.color = 'var(--red)';
+          btn.textContent = 'Save'; btn.disabled = false;
+          setTimeout(() => { if (ind) ind.textContent = ''; }, 4000);
         }
-      });
-
-      document.getElementById('slideshow-area')?.classList.remove('loading');
-      slideshowIdx = 0;
-      startSlideshow();
-      initImgFadeIn();
-    } catch(e) {}
-  }
-
-  async function uploadSlide(input, idx) {
-    const file = input.files[0]; if (!file) return;
-    const prog = document.getElementById('ss-prog-'+idx);
-    const overlay = document.getElementById('ss-overlay-'+idx);
-    const ssImg = document.getElementById('ss-img-'+idx);
-    const ssLbl = document.getElementById('ss-lbl-'+idx);
-    const reader = new FileReader();
-    reader.onload = e => { ssImg.src=e.target.result; ssImg.style.display='block'; ssLbl.style.display='none'; };
-    reader.readAsDataURL(file);
-    prog.style.width='15%'; overlay.style.display='flex';
-    showSlideStatus('Uploading slide '+(idx+1)+'...', true);
-    try {
-      const base64 = await compressImage(file, 1400, 0.82);
-      prog.style.width='40%';
-      const r1 = await adminFetch({action:'extractItems',fileName:`slide_${idx}_${Date.now()}.jpg`,mimeType:'image/jpeg',base64});
-      const d1 = await r1.json();
-      if (d1.error) throw new Error(d1.error);
-      const url = d1.url||'';
-      prog.style.width='75%';
-      if (!url) throw new Error('No URL returned from Drive upload');
-      await adminFetch({action:'uploadSlideImg',slideIndex:idx,url});
-      prog.style.width='100%';
-      const slides = document.querySelectorAll('#slideshow img');
-      if (slides[idx]) {
-        slides[idx].src = url;
-        slideUrls[idx] = url;
-      }
-      ssImg.src = url;
-      showSlideStatus('Slide '+(idx+1)+' updated ✓ — saved to sheet', true);
-      slideshowIdx = 0;
-      startSlideshow();
-    } catch(e) { showSlideStatus('Upload failed: '+e.message, false); }
-    setTimeout(()=>{prog.style.width='0%';},800);
-    overlay.style.display='none';
-  }
-
-  function clearSlideUpload(idx) {
-    if (!slideUrls[idx]) return; // nothing to clear
-    if (!confirm(`Clear slide ${idx + 1}? This cannot be undone.`)) return;
-    
-    slideUrls[idx] = '';
-    const slides = document.querySelectorAll('#slideshow img');
-    if (slides[idx]) { slides[idx].src = ''; slides[idx].classList.remove('active'); }
-    const ssImg = document.getElementById('ss-img-'+idx); if(ssImg){ssImg.src='';ssImg.style.display='none';}
-    const ssLbl = document.getElementById('ss-lbl-'+idx); if(ssLbl) ssLbl.style.display='';
-    const inp = document.getElementById('ss-slot-'+idx)?.querySelector('input'); if(inp) inp.value='';
-    adminFetch({action:'uploadSlideImg',slideIndex:idx,url:''}).catch(()=>{});
-    startSlideshow();
-    showSlideStatus('Slide '+(idx+1)+' cleared.', true);
-  }
-
-  function showSlideStatus(msg, ok) {
-    const el = document.getElementById('slide-status'); if(!el) return;
-    el.textContent=msg; el.style.color=ok?'var(--green)':'var(--red)';
-    setTimeout(()=>{el.textContent='';},4000);
-  }
-
-  // ── Shared image compress util ─────────────
-  function compressImage(file, maxSize, quality) {
-    return new Promise((res, rej) => {
-      const im = new Image();
-      const r2 = new FileReader();
-
-      function cleanup() {
-        im.onload = im.onerror = null;
-        r2.onload = r2.onerror = null;
       }
 
-      r2.onload = ev => {
-        im.onload = () => {
-          try {
-            const c = document.createElement('canvas');
-            let w=im.width, h=im.height;
-            if (w>maxSize) { h=Math.round(h*maxSize/w); w=maxSize; }
-            if (h>maxSize) { w=Math.round(w*maxSize/h); h=maxSize; }
-            c.width=w; c.height=h;
-            c.getContext('2d').drawImage(im,0,0,w,h);
-            res(c.toDataURL('image/jpeg',quality).split(',')[1]);
-          } catch(e) { rej(e); } finally { cleanup(); }
-        };
-        im.onerror = e => { cleanup(); rej(e); };
-        im.src = ev.target.result;
-      };
-      r2.onerror = e => { cleanup(); rej(e); };
-      r2.readAsDataURL(file);
-    });
-  }
+      // ── Slideshow ──────────────────────────────
+      let slideshowTimer = null;
+      let slideshowIdx = 0;
+      let slideUrls = ['', ''];  // track loaded URLs
 
-  // ── Image fade in ──────────────────────────
-  function initImgFadeIn() {
-    document.querySelectorAll('.img-area img, #slideshow img').forEach(img => {
-      const done = () => { img.classList.add('img-loaded'); };
-      if (img.complete && img.naturalWidth) done();
-      else { img.addEventListener('load', done); img.addEventListener('error', done); }
-    });
-  }
+      function startSlideshow() {
+        if (slideshowTimer) { clearInterval(slideshowTimer); slideshowTimer = null; }
 
-  function genId(prefix) {
-    return prefix + '-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).slice(2,5).toUpperCase();
-  }
+        const slides = document.querySelectorAll('#slideshow img');
+        const loaded = slideUrls.filter(u => u);
 
-  function previewProofFile(inputEl, imgId, pdfId, btnId) {
-    const file = inputEl.files[0]; if (!file) return;
-    const isPdf = file.type === 'application/pdf';
-    const img = document.getElementById(imgId);
-    const pdfTag = document.getElementById(pdfId);
-    if (isPdf) {
-      img.style.display = 'none';
-      pdfTag.style.display = 'block';
-      pdfTag.textContent = '📄 ' + file.name + ' — ready to upload';
-    } else {
-      pdfTag.style.display = 'none';
-      const reader = new FileReader();
-      reader.onload = e => { img.src = e.target.result; img.style.display = 'block'; };
-      reader.readAsDataURL(file);
-    }
-    document.getElementById(btnId).style.display = 'block';
-  }
+        slides.forEach(img => img.classList.remove('active'));
 
-  // In main.html
-  async function uploadProofFile(file, idToUse, action, extraPayload={}) {
-      console.log("Starting upload for Action:", action, "ID:", idToUse);
-      const isPdf = file.type === 'application/pdf';
-      let base64, mimeType, fileName;
+        if (loaded.length === 0) {
+          const area = document.getElementById('slideshow-area');
+          if (area && !area.querySelector('.ss-placeholder')) {
+            const ph = document.createElement('div');
+            ph.className = 'ss-placeholder';
+            ph.style.cssText = 'position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:8px;pointer-events:none';
+            ph.innerHTML = '<div style="font-size:28px;opacity:.3">🖼</div><div style="font-family:Rajdhani,sans-serif;font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--text3)">No slides uploaded</div>';
+            area.appendChild(ph);
+          }
+          return;
+        }
 
-      try {
+        document.querySelector('#slideshow-area .ss-placeholder')?.remove();
+
+        if (loaded.length === 1) {
+          const activeIdx = slideUrls.findIndex(u => u);
+          if (slides[activeIdx]) slides[activeIdx].classList.add('active');
+          slideshowIdx = activeIdx;
+          return;
+        }
+
+        if (slideUrls[slideshowIdx]) {
+          slides[slideshowIdx].classList.add('active');
+        } else {
+          slides[0].classList.add('active');
+          slideshowIdx = 0;
+        }
+
+        slideshowTimer = setInterval(() => {
+          const imgs = document.querySelectorAll('#slideshow img');
+          imgs.forEach(img => img.classList.remove('active'));
+          slideshowIdx = (slideshowIdx + 1) % imgs.length;
+          imgs[slideshowIdx].classList.add('active');
+        }, 4000);
+      }
+
+      async function fetchSlideUrls() {
+        try {
+          const r = await fetch(API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'getSettings' })
+          });
+          const d = await r.json();
+          const row = d.slides || [];
+          const slides = document.querySelectorAll('#slideshow img');
+
+          row.forEach((url, i) => {
+            if (!url) return;
+            slideUrls[i] = url;
+            if (slides[i]) slides[i].src = url;
+
+            // Only update admin thumbnails if panel is open
+            if (adminUnlocked) {
+              const thumb = document.getElementById('ss-img-' + i);
+              const lbl = document.getElementById('ss-lbl-' + i);
+              if (thumb) { thumb.src = url; thumb.style.display = 'block'; }
+              if (lbl) lbl.style.display = 'none';
+            }
+          });
+
+          document.getElementById('slideshow-area')?.classList.remove('loading');
+          slideshowIdx = 0;
+          startSlideshow();
+          initImgFadeIn();
+        } catch (e) { }
+      }
+
+      async function uploadSlide(input, idx) {
+        const file = input.files[0]; if (!file) return;
+        const prog = document.getElementById('ss-prog-' + idx);
+        const overlay = document.getElementById('ss-overlay-' + idx);
+        const ssImg = document.getElementById('ss-img-' + idx);
+        const ssLbl = document.getElementById('ss-lbl-' + idx);
+        const reader = new FileReader();
+        reader.onload = e => { ssImg.src = e.target.result; ssImg.style.display = 'block'; ssLbl.style.display = 'none'; };
+        reader.readAsDataURL(file);
+        prog.style.width = '15%'; overlay.style.display = 'flex';
+        showSlideStatus('Uploading slide ' + (idx + 1) + '...', true);
+        try {
+          const base64 = await compressImage(file, 1400, 0.82);
+          prog.style.width = '40%';
+          const r1 = await adminFetch({ action: 'extractItems', fileName: `slide_${idx}_${Date.now()}.jpg`, mimeType: 'image/jpeg', base64 });
+          const d1 = await r1.json();
+          if (d1.error) throw new Error(d1.error);
+          const url = d1.url || '';
+          prog.style.width = '75%';
+          if (!url) throw new Error('No URL returned from Drive upload');
+          await adminFetch({ action: 'uploadSlideImg', slideIndex: idx, url });
+          prog.style.width = '100%';
+          const slides = document.querySelectorAll('#slideshow img');
+          if (slides[idx]) {
+            slides[idx].src = url;
+            slideUrls[idx] = url;
+          }
+          ssImg.src = url;
+          showSlideStatus('Slide ' + (idx + 1) + ' updated ✓ — saved to sheet', true);
+          slideshowIdx = 0;
+          startSlideshow();
+        } catch (e) { showSlideStatus('Upload failed: ' + e.message, false); }
+        setTimeout(() => { prog.style.width = '0%'; }, 800);
+        overlay.style.display = 'none';
+      }
+
+      function clearSlideUpload(idx) {
+        if (!slideUrls[idx]) return; // nothing to clear
+        if (!confirm(`Clear slide ${idx + 1}? This cannot be undone.`)) return;
+
+        slideUrls[idx] = '';
+        const slides = document.querySelectorAll('#slideshow img');
+        if (slides[idx]) { slides[idx].src = ''; slides[idx].classList.remove('active'); }
+        const ssImg = document.getElementById('ss-img-' + idx); if (ssImg) { ssImg.src = ''; ssImg.style.display = 'none'; }
+        const ssLbl = document.getElementById('ss-lbl-' + idx); if (ssLbl) ssLbl.style.display = '';
+        const inp = document.getElementById('ss-slot-' + idx)?.querySelector('input'); if (inp) inp.value = '';
+        adminFetch({ action: 'uploadSlideImg', slideIndex: idx, url: '' }).catch(() => { });
+        startSlideshow();
+        showSlideStatus('Slide ' + (idx + 1) + ' cleared.', true);
+      }
+
+      function showSlideStatus(msg, ok) {
+        const el = document.getElementById('slide-status'); if (!el) return;
+        el.textContent = msg; el.style.color = ok ? 'var(--green)' : 'var(--red)';
+        setTimeout(() => { el.textContent = ''; }, 4000);
+      }
+
+      // ── Shared image compress util ─────────────
+      function compressImage(file, maxSize, quality) {
+        return new Promise((res, rej) => {
+          const im = new Image();
+          const r2 = new FileReader();
+
+          function cleanup() {
+            im.onload = im.onerror = null;
+            r2.onload = r2.onerror = null;
+          }
+
+          r2.onload = ev => {
+            im.onload = () => {
+              try {
+                const c = document.createElement('canvas');
+                let w = im.width, h = im.height;
+                if (w > maxSize) { h = Math.round(h * maxSize / w); w = maxSize; }
+                if (h > maxSize) { w = Math.round(w * maxSize / h); h = maxSize; }
+                c.width = w; c.height = h;
+                c.getContext('2d').drawImage(im, 0, 0, w, h);
+                res(c.toDataURL('image/jpeg', quality).split(',')[1]);
+              } catch (e) { rej(e); } finally { cleanup(); }
+            };
+            im.onerror = e => { cleanup(); rej(e); };
+            im.src = ev.target.result;
+          };
+          r2.onerror = e => { cleanup(); rej(e); };
+          r2.readAsDataURL(file);
+        });
+      }
+
+      // ── Image fade in ──────────────────────────
+      function initImgFadeIn() {
+        document.querySelectorAll('.img-area img, #slideshow img').forEach(img => {
+          const done = () => { img.classList.add('img-loaded'); };
+          if (img.complete && img.naturalWidth) done();
+          else { img.addEventListener('load', done); img.addEventListener('error', done); }
+        });
+      }
+
+      // In main.html
+      function genId(prefix, isAccount = false) {
+        const coreId = prefix + '-' + Date.now().toString(36).toUpperCase();
+        
+        // Accounts get clean IDs: ACC-MNRDMSY4
+        if (isAccount) return coreId; 
+        
+        // Items/Orders get unique suffixes: ORD-MNRDMSY4-SV2
+        return coreId + '-' + Math.random().toString(36).slice(2, 5).toUpperCase();
+      }
+
+      function previewProofFile(inputEl, imgId, pdfId, btnId) {
+        const file = inputEl.files[0]; if (!file) return;
+        const isPdf = file.type === 'application/pdf';
+        const img = document.getElementById(imgId);
+        const pdfTag = document.getElementById(pdfId);
+        if (isPdf) {
+          img.style.display = 'none';
+          pdfTag.style.display = 'block';
+          pdfTag.textContent = '📄 ' + file.name + ' — ready to upload';
+        } else {
+          pdfTag.style.display = 'none';
+          const reader = new FileReader();
+          reader.onload = e => { img.src = e.target.result; img.style.display = 'block'; };
+          reader.readAsDataURL(file);
+        }
+        document.getElementById(btnId).style.display = 'block';
+      }
+
+      // In main.html
+      async function uploadProofFile(file, idToUse, action, extraPayload = {}) {
+        console.log("Starting upload for Action:", action, "ID:", idToUse);
+        const isPdf = file.type === 'application/pdf';
+        let base64, mimeType, fileName;
+
+        try {
           if (isPdf) {
-              // PDF: Read and strip the prefix
-              base64 = await new Promise((res, rej) => {
-                  const r = new FileReader();
-                  r.onload = e => {
-                      const pureBase64 = e.target.result.split(',')[1]; 
-                      res(pureBase64);
-                  };
-                  r.onerror = () => rej(new Error("Failed to read PDF file"));
-                  r.readAsDataURL(file);
-              });
-              mimeType = 'application/pdf';
-              fileName = `${idToUse}.pdf`;
+            // PDF: Read and strip the prefix
+            base64 = await new Promise((res, rej) => {
+              const r = new FileReader();
+              r.onload = e => {
+                const pureBase64 = e.target.result.split(',')[1];
+                res(pureBase64);
+              };
+              r.onerror = () => rej(new Error("Failed to read PDF file"));
+              r.readAsDataURL(file);
+            });
+            mimeType = 'application/pdf';
+            fileName = `${idToUse}.pdf`;
           } else {
-              // Image: Use your existing compressImage util
-              base64 = await compressImage(file, 1200, 0.7);
-              mimeType = 'image/jpeg';
-              fileName = `${idToUse}.jpg`;
+            // Image: Use your existing compressImage util
+            base64 = await compressImage(file, 1200, 0.7);
+            mimeType = 'image/jpeg';
+            fileName = `${idToUse}.jpg`;
           }
 
           if (!base64) throw new Error("File conversion failed - base64 is empty");
 
           const resp = await fetch(API_URL, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ 
-                  action, 
-                  order_id: idToUse, 
-                  fileName, 
-                  mimeType, 
-                  base64, 
-                  ...extraPayload 
-              })
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              action,
+              order_id: idToUse,
+              fileName,
+              mimeType,
+              base64,
+              ...extraPayload
+            })
           });
 
           if (!resp.ok) throw new Error("Server Error: " + resp.status);
@@ -1245,37 +2318,38 @@
           const result = await resp.json().catch(() => ({}));
           if (result.error) throw new Error(result.error);
           return result;
-      } catch(err) {
+        } catch (err) {
           console.error("Upload Error:", err);
           alert("Critical Error: " + err.message); // This will pop up on your screen
           throw err;
+        }
       }
-  }
 
-  function debounce(fn, delay) {
-    let timer;
-    return (...args) => {
-      clearTimeout(timer);
-      timer = setTimeout(() => fn(...args), delay);
-    };
-  }
-</script>
+      function debounce(fn, delay) {
+        let timer;
+        return (...args) => {
+          clearTimeout(timer);
+          timer = setTimeout(() => fn(...args), delay);
+        };
+      }
+    </script>
 
-<!-- ═══════════════════════════════════════════
+    <!-- ═══════════════════════════════════════════
      INJECTED SECTIONS — item.html + account.html
 ════════════════════════════════════════════ -->
-<!-- INJECT:ITEMS -->
-<!-- INJECT:ACCOUNTS -->
-</div><!-- end .wrap -->
+    <!-- INJECT:ITEMS -->
+    <!-- INJECT:ACCOUNTS -->
+  </div><!-- end .wrap -->
 
-<!-- ── Unified boot — runs last, after all scripts are defined ── -->
-<script>
-  fetchSheet();      setInterval(fetchSheet, 30000);
-  fetchSlideUrls();
-  // item.html boot
-  if (typeof fetchItems === 'function')    fetchItems().then(() => { buildTable(); recalc(); });
-  // account.html boot
-  if (typeof fetchAccounts === 'function') { fetchAccounts(); setInterval(fetchAccounts, 60000); }
-</script>
+  <!-- ── Unified boot — runs last, after all scripts are defined ── -->
+  <script>
+    fetchSheet(); setInterval(fetchSheet, 30000);
+    fetchSlideUrls();
+    // item.html boot
+    if (typeof fetchItems === 'function') fetchItems().then(() => { buildTable(); recalc(); });
+    // account.html boot
+    if (typeof fetchAccounts === 'function') { fetchAccounts(); setInterval(fetchAccounts, 60000); }
+  </script>
 </body>
+
 </html>
