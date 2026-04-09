@@ -459,27 +459,42 @@ async function handleUploadPublicAccountImage(auth, body, res) {
 }
 
 async function handleSaveAccount(auth, body, res) {
-  // public sell submissions (isNew=true, no token) are allowed
   if (!body.isNew) checkToken(body);
   const acc = body.account;
-  console.log(`💾 saveAccount: ${acc.id} ${acc.rank}`);
+  
+  // Ensure we are pulling the right keys from the frontend object
+  // Note: frontend uses 'accId' and 'winRate', but let's be safe
+  const row = [
+    acc.id, 
+    acc.rank, 
+    acc.price, 
+    acc.ign || '', 
+    acc.accId || acc.accid || '', // Support both casings
+    acc.kda || '', 
+    acc.winRate || acc.winrate || '', 
+    acc.exp || '', 
+    acc.ach || '', 
+    acc.notes || '',
+    acc.status || 'available', 
+    acc.createdAt || Date.now(),
+    acc.img1 || '', 
+    acc.img2 || '', 
+    acc.img3 || '', 
+    acc.img4 || '',
+    acc.sellerName || '', 
+    acc.sellerPhone || '', 
+    acc.sellerIgn || ''
+  ];
 
   const { data } = await getSheetData(auth, 'AccountList');
-  const rowIdx = data.findIndex(r => r.id === acc.id);
-  const row = [
-    acc.id, acc.rank, acc.price, acc.ign, acc.accId,
-    acc.kda, acc.winRate, acc.exp, acc.ach, acc.notes,
-    acc.status, acc.createdAt,
-    acc.img1 || '', acc.img2 || '', acc.img3 || '', acc.img4 || '',
-    acc.sellerName || '', acc.sellerPhone || '', acc.sellerIgn || ''
-  ];
+  // Use lowercase 'id' for comparison as per getSheetData's processing
+  const rowIdx = data.findIndex(r => String(r.id) === String(acc.id));
+  
   if (rowIdx >= 0) {
     const rowNum = rowIdx + 2;
     await sheetsWrite(auth, `AccountList!A${rowNum}:Z${rowNum}`, [row]);
-    console.log(`✅ updated account row ${rowNum}`);
   } else {
     await sheetsAppend(auth, 'AccountList!A1', [row]);
-    console.log(`✅ appended new account`);
   }
   return res.json({ result: 'ok' });
 }
@@ -533,15 +548,21 @@ async function handleDeleteAccount(auth, body, res) {
 
 async function handleUpdateAccountStatus(auth, body, res) {
   checkToken(body);
-  console.log(`📝 updateAccountStatus: ${body.account.id} → ${body.account.status}`);
+  
+  // Extract ID and Status safely from body or body.account
+  const accId = body.id || (body.account && body.account.id);
+  const newStatus = body.status || (body.account && body.account.status);
 
   const { headers, data } = await getSheetData(auth, 'AccountList');
-  const rowIdx = data.findIndex(r => r.id === body.account.id);
+  const rowIdx = data.findIndex(r => String(r.id) === String(accId));
+  
   if (rowIdx === -1) throw new Error('Account not found');
+  
   const rowNum = rowIdx + 2;
+  // Use the helper to find the exact column letter for 'status'
   const statusCol = colLetter(headers.indexOf('status'));
-  await sheetsWrite(auth, `AccountList!${statusCol}${rowNum}`, [[body.account.status]]);
-  console.log(`✅ status updated`);
+  
+  await sheetsWrite(auth, `AccountList!${statusCol}${rowNum}`, [[newStatus]]);
   return res.json({ result: 'ok' });
 }
 
