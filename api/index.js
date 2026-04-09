@@ -442,12 +442,14 @@ async function handleUploadSlideImg(auth, body, res) {
 // Inside index.js
 async function handleGetSettings(res) {
   try {
-    const auth = await getAuth().getClient();
-    // Read raw cells B2 and C2 from the Settings tab
-    const rows = await sheetsRead(auth, 'Settings!B2:C2');
+    // 1. Get data as an object: { key: "slideshow", slide1: "...", slide2: "..." }
+    const { data } = await getSheetData('Settings');
     
-    // rows[0] will be an array: ["https://url1.com", "https://url2.com"]
-    const urls = (rows && rows.length > 0) ? rows[0] : ['', ''];
+    // 2. Find the row where key is 'slideshow'
+    const slideshowRow = data.find(r => r.key === 'slideshow');
+    
+    // 3. Return just the array of URLs for the frontend
+    const urls = slideshowRow ? [slideshowRow.slide1, slideshowRow.slide2] : ['', ''];
     
     return res.json({ slides: urls });
   } catch (err) {
@@ -465,6 +467,23 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+  // Add this inside handler (req, res) logic
+	if (action === 'initData') {
+	  const auth = await getAuth().getClient();
+	  
+	  // Fetch everything in parallel for speed
+	  const [orders, items, settings] = await Promise.all([
+		getSheetData('Orders'),
+		getSheetData('CurrentShop'),
+		sheetsRead(auth, 'Settings!B2:C2')
+	  ]);
+
+	  return res.json({
+		orders: orders.data,
+		items: items.data,
+		slides: settings[0] || ['', '']
+	  });
+	}
 
   const body     = req.body;
   const { action } = body;
