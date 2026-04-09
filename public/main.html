@@ -2343,8 +2343,8 @@
 
   <!-- ── Unified boot — runs last, after all scripts are defined ── -->
   <script>
-    fetchSheet(); setInterval(fetchSheet, 30000);
     fetchSlideUrls();
+    fetchSheet(); setInterval(fetchSheet, 30000);
     // item.html boot
     if (typeof fetchItems === 'function') fetchItems().then(() => { buildTable(); recalc(); });
     // account.html boot
