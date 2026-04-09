@@ -39,7 +39,7 @@ function getAuth() {
 // Files uploaded via OAuth are owned by YOUR Google account → uses your quota.
 // Service accounts have no quota, so Drive uploads must go through OAuth instead.
 function getDriveAuth() {
-  const clientId     = process.env.GOOGLE_OAUTH_CLIENT_ID;
+  const clientId = process.env.GOOGLE_OAUTH_CLIENT_ID;
   const clientSecret = process.env.GOOGLE_OAUTH_CLIENT_SECRET;
   const refreshToken = process.env.GOOGLE_OAUTH_REFRESH_TOKEN;
 
@@ -462,33 +462,29 @@ async function handleSaveAccount(auth, body, res) {
   if (!body.isNew) checkToken(body);
   const acc = body.account;
 
-  // 1. Get the current headers from the sheet to know the correct order
+  // 1. Get current headers (sanitized to lowercase/no-space by your getSheetData)
   const { headers, data } = await getSheetData(auth, 'AccountList');
 
-  // 2. Map the frontend object to the sheet's column order automatically
-  const row = headers.map(header => {
-    // Standardize key names to match the backend's lowercase headers
-    // Example: 'sellercontact' in sheet will match 'sellerPhone' or 'sellercontact' in acc object
-    const val = acc[header] 
-             || acc[header === 'sellercontact' ? 'sellerPhone' : ''] 
-             || acc[header === 'accid' ? 'accId' : '']
-             || acc[header === 'winrate' ? 'winRate' : '']
-             || '';
-    return val;
+  // 2. AUTO MAPPING: Loop through headers and pull matching key from 'acc'
+  // This ensures data always goes into the correct column regardless of order.
+  const row = headers.map(h => {
+    const key = h.toLowerCase().trim();
+    // If the standardized key exists in 'acc', use it. Otherwise, empty string.
+    return acc[key] !== undefined ? acc[key] : '';
   });
 
-  // 3. Find if the ID already exists to Update, otherwise Append
+  // 3. Find row index by ID
   const rowIdx = data.findIndex(r => String(r.id) === String(acc.id));
-  
+
   if (rowIdx >= 0) {
     const rowNum = rowIdx + 2;
-    // Dynamically calculate the range based on number of headers
     const lastCol = colLetter(headers.length - 1);
     await sheetsWrite(auth, `AccountList!A${rowNum}:${lastCol}${rowNum}`, [row]);
   } else {
     await sheetsAppend(auth, 'AccountList!A1', [row]);
   }
-  
+
+  console.log(`✅ Account ${acc.id} saved via Auto-Mapping`);
   return res.json({ result: 'ok' });
 }
 
@@ -541,20 +537,20 @@ async function handleDeleteAccount(auth, body, res) {
 
 async function handleUpdateAccountStatus(auth, body, res) {
   checkToken(body);
-  
+
   // Extract ID and Status safely from body or body.account
   const accId = body.id || (body.account && body.account.id);
   const newStatus = body.status || (body.account && body.account.status);
 
   const { headers, data } = await getSheetData(auth, 'AccountList');
   const rowIdx = data.findIndex(r => String(r.id) === String(accId));
-  
+
   if (rowIdx === -1) throw new Error('Account not found');
-  
+
   const rowNum = rowIdx + 2;
   // Use the helper to find the exact column letter for 'status'
   const statusCol = colLetter(headers.indexOf('status'));
-  
+
   await sheetsWrite(auth, `AccountList!${statusCol}${rowNum}`, [[newStatus]]);
   return res.json({ result: 'ok' });
 }
