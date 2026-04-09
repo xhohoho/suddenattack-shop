@@ -115,11 +115,11 @@ function driveUrl(fileId, mimeType = '') {
   if (isGif) {
     // GIFs → must use export=view to preserve animation
     // thumbnail URL kills the animation
-    return `https://lh3.googleusercontent.com/d/${fileId}`;
+    return `https://drive.google.com/uc?export=view&id=${fileId}`;
   }
 
   // all other images → thumbnail (fast, resizable, mobile friendly)
-  return `https://lh3.googleusercontent.com/d/${fileId}`;
+  return `https://drive.google.com/thumbnail?id=${fileId}&sz=w1200`;
 }
 
 // ── Sheet Read/Write Helpers ───────────────
@@ -385,12 +385,13 @@ async function handleUploadAccountImage(auth, body, res) {
   checkToken(body);
   console.log(`📤 uploadAccountImage: ${body.fileName}`);
   // Use OAuth drive client so folder creation is owned by your personal account
+  const cleanFolderId = body.folder_id.split('-').slice(0, 2).join('-');
   const drive = google.drive({ version: 'v3', auth: getDriveAuth() });
 
   // find or create account subfolder
   let folderId;
   const search = await drive.files.list({
-    q: `name='${body.folder_id}' and '${process.env.DRIVE_FOLDER_ACCOUNTS}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,
+    q: `name='${cleanFolderId}' and '${process.env.DRIVE_FOLDER_ACCOUNTS}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,
     fields: 'files(id)',
     spaces: 'drive',
     supportsAllDrives: true,
@@ -403,7 +404,7 @@ async function handleUploadAccountImage(auth, body, res) {
     const folder = await drive.files.create({
       supportsAllDrives: true,
       requestBody: {
-        name: body.folder_id,
+        name: cleanFolderId,
         mimeType: 'application/vnd.google-apps.folder',
         parents: [process.env.DRIVE_FOLDER_ACCOUNTS],
       },
@@ -462,20 +463,18 @@ async function handleSaveAccount(auth, body, res) {
   if (!body.isNew) checkToken(body);
   const acc = body.account;
 
+  // 1. Get current headers (sanitized to lowercase/no-space by your getSheetData)
   const { headers, data } = await getSheetData(auth, 'AccountList');
 
-  // Mapping logic to ensure seller fields are included
+  // 2. AUTO MAPPING: Loop through headers and pull matching key from 'acc'
+  // This ensures data always goes into the correct column regardless of order.
   const row = headers.map(h => {
-    const key = h.toLowerCase().trim().replace(/\s+/g, '');
-    
-    // Explicit mapping for seller fields to handle variations in naming
-    if (key === 'sellername') return acc.sellername || '';
-    if (key === 'sellercontact' || key === 'sellerphone') return acc.sellercontact || acc.sellerphone || '';
-    if (key === 'sellerign') return acc.sellerign || '';
-    
+    const key = h.toLowerCase().trim();
+    // If the standardized key exists in 'acc', use it. Otherwise, empty string.
     return acc[key] !== undefined ? acc[key] : '';
   });
 
+  // 3. Find row index by ID
   const rowIdx = data.findIndex(r => String(r.id) === String(acc.id));
 
   if (rowIdx >= 0) {
@@ -486,7 +485,7 @@ async function handleSaveAccount(auth, body, res) {
     await sheetsAppend(auth, 'AccountList!A1', [row]);
   }
 
-  console.log(`✅ Account ${acc.id} saved (Seller Info included)`);
+  console.log(`✅ Account ${acc.id} saved via Auto-Mapping`);
   return res.json({ result: 'ok' });
 }
 
@@ -494,12 +493,12 @@ async function handleDeleteAccount(auth, body, res) {
   checkToken(body);
   console.log(`🗑 deleteAccount: ${body.acc_id}`);
 
-  // 1. SHEET DELETION (Stays using 'auth' - Service Account)
   const { data } = await getSheetData(auth, 'AccountList');
-  const rowIdx = data.findIndex(r => String(r.id) === String(body.acc_id));
+  const rowIdx = data.findIndex(r => r.id === body.acc_id);
   if (rowIdx === -1) throw new Error('Account not found');
   const rowNum = rowIdx + 2;
 
+  // get sheetId dynamically — no hardcoded gid
   const sheets = google.sheets({ version: 'v4', auth });
   const meta = await sheets.spreadsheets.get({ spreadsheetId: SHEET_ID });
   const sheet = meta.data.sheets.find(s => s.properties.title === 'AccountList');
@@ -521,24 +520,18 @@ async function handleDeleteAccount(auth, body, res) {
     }
   });
 
-  // 2. DRIVE DELETION (FIX: Must switch to OAuth)
-  // Use getDriveAuth() here instead of the 'auth' variable
-  const oauthAuth = getDriveAuth(); 
-  const drive = google.drive({ version: 'v3', auth: oauthAuth });
-
+  // delete Drive folder for this account
+  const drive = google.drive({ version: 'v3', auth });
   const search = await drive.files.list({
     q: `name='${body.acc_id}' and '${process.env.DRIVE_FOLDER_ACCOUNTS}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,
     fields: 'files(id)',
     supportsAllDrives: true,
     includeItemsFromAllDrives: true,
   });
-
   if (search.data.files.length > 0) {
-    // This will now work because it uses your Personal Account's permissions
     await drive.files.delete({ fileId: search.data.files[0].id, supportsAllDrives: true });
-    console.log(`🗑 Drive folder deleted via OAuth`);
+    console.log(`🗑 Drive folder deleted`);
   }
-
   console.log(`✅ account ${body.acc_id} deleted`);
   return res.json({ result: 'ok' });
 }
