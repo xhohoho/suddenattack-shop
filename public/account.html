@@ -581,10 +581,10 @@
       if (isVid && !fileId) return `<div class="carousel-slide">${statsTag}${counter}<div style="color:var(--red);text-align:center;padding:20px;font-size:12px">Invalid video URL</div></div>`;
       let media;
       if (isVid && fileId) {
-        // Use Google Drive iframe embed directly — no proxy or deferred injection needed
+        // Use Google Drive iframe embed directly — absolute fill so it matches card width
         const drivePreviewUrl = `https://drive.google.com/file/d/${fileId}/preview`;
-        media = `<div class="video-container" style="position:relative;height:340px;background:#000" data-file-id="${fileId}">
-          <iframe id="vid-${fileId}" src="${drivePreviewUrl}" width="100%" height="340" frameborder="0" allow="autoplay" allowfullscreen style="display:block;border:none"></iframe>
+        media = `<div class="video-container" style="position:relative;width:100%;height:340px;background:#000" data-file-id="${fileId}">
+          <iframe id="vid-${fileId}" src="${drivePreviewUrl}" style="position:absolute;top:0;left:0;width:100%;height:100%;border:none" frameborder="0" allow="autoplay" allowfullscreen></iframe>
         </div>`;
       } else {
         media = `<img src="${item.url}" alt="Account media ${i + 1}" onclick="openLightbox('${item.url}','img')" style="cursor:zoom-in;width:100%;height:340px;object-fit:contain;display:block;background:var(--bg3)" />`;
@@ -654,6 +654,8 @@
   function openDetail(id) {
     const a = accounts.find(x => x.id === id); if (!a) return;
     if (id === _lastDetailId && _lastDetailHTML) {
+      // Re-render so iframes get their Drive src back (closeDetail resets them to about:blank)
+      document.getElementById('detail-content').innerHTML = _lastDetailHTML;
       document.getElementById('detail-overlay').classList.add('open');
       return;
     }
