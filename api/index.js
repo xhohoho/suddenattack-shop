@@ -143,6 +143,7 @@ async function uploadToDrive(auth, base64, mimeType, fileName, folderId) {
   const { Readable } = await import('stream');
   const stream = Readable.from(buffer);
   const r = await drive.files.create({
+    supportsAllDrives: true,
     requestBody: { name: fileName, parents: [folderId] },
     media: { mimeType, body: stream },
     fields: 'id',
@@ -366,12 +367,15 @@ async function handleUploadAccountImage(auth, body, res) {
     q: `name='${body.folder_id}' and '${process.env.DRIVE_FOLDER_ACCOUNTS}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,
     fields: 'files(id)',
     spaces: 'drive',
+    supportsAllDrives: true,
+    includeItemsFromAllDrives: true,
   });
   if (search.data.files.length > 0) {
     folderId = search.data.files[0].id;
     console.log(`📁 found existing folder: ${folderId}`);
   } else {
     const folder = await drive.files.create({
+      supportsAllDrives: true,
       requestBody: {
         name: body.folder_id,
         mimeType: 'application/vnd.google-apps.folder',
@@ -401,11 +405,14 @@ async function handleUploadPublicAccountImage(auth, body, res) {
     q: `name='${body.folder_id}' and '${process.env.DRIVE_FOLDER_ACCOUNTS}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,
     fields: 'files(id)',
     spaces: 'drive',
+    supportsAllDrives: true,
+    includeItemsFromAllDrives: true,
   });
   if (search.data.files.length > 0) {
     folderId = search.data.files[0].id;
   } else {
     const folder = await drive.files.create({
+      supportsAllDrives: true,
       requestBody: {
         name: body.folder_id,
         mimeType: 'application/vnd.google-apps.folder',
@@ -486,9 +493,11 @@ async function handleDeleteAccount(auth, body, res) {
   const search = await drive.files.list({
     q: `name='${body.acc_id}' and '${process.env.DRIVE_FOLDER_ACCOUNTS}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,
     fields: 'files(id)',
+    supportsAllDrives: true,
+    includeItemsFromAllDrives: true,
   });
   if (search.data.files.length > 0) {
-    await drive.files.delete({ fileId: search.data.files[0].id });
+    await drive.files.delete({ fileId: search.data.files[0].id, supportsAllDrives: true });
     console.log(`🗑 Drive folder deleted`);
   }
   console.log(`✅ account ${body.acc_id} deleted`);
