@@ -1094,13 +1094,6 @@
 	  }
 	}
 
-      document.getElementById('slideshow-area')?.classList.remove('loading');
-      slideshowIdx = 0;
-      startSlideshow();
-      initImgFadeIn();
-    } catch(e) {}
-  }
-
   async function uploadSlide(input, idx) {
     const file = input.files[0]; if (!file) return;
     const prog = document.getElementById('ss-prog-'+idx);
