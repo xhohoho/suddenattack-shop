@@ -288,7 +288,7 @@ async function handleExtractItems(auth, body, res) {
     auth, body.base64, body.mimeType,
     body.fileName, process.env.DRIVE_FOLDER_SA
   );
-  const url = driveUrl(fileId, body.mimeType); // ← consistent
+  const url = driveUrl(fileId, body.mimeType);
   console.log(`✅ uploaded: ${fileId}`);
 
   console.log('🤖 calling Gemini for item extraction...');
@@ -347,25 +347,58 @@ async function handleUploadAccountImage(auth, body, res) {
   const fileId = await uploadToDrive(
     auth, body.base64, body.mimeType, body.fileName, folderId
   );
-  const url = driveUrl(fileId, body.mimeType); // ← consistent
+  const url = driveUrl(fileId, body.mimeType);
   console.log(`✅ uploaded: ${fileId} → ${url}`);
   return res.json({ url });
 }
 
+// Public version — no admin token required (for seller listings)
+async function handleUploadPublicAccountImage(auth, body, res) {
+  console.log(`📤 uploadPublicAccountImage: ${body.fileName}`);
+  const drive = google.drive({ version: 'v3', auth });
+
+  let folderId;
+  const search = await drive.files.list({
+    q: `name='${body.folder_id}' and '${process.env.DRIVE_FOLDER_ACCOUNTS}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,
+    fields: 'files(id)',
+    spaces: 'drive',
+  });
+  if (search.data.files.length > 0) {
+    folderId = search.data.files[0].id;
+  } else {
+    const folder = await drive.files.create({
+      requestBody: {
+        name: body.folder_id,
+        mimeType: 'application/vnd.google-apps.folder',
+        parents: [process.env.DRIVE_FOLDER_ACCOUNTS],
+      },
+      fields: 'id',
+    });
+    folderId = folder.data.id;
+  }
+
+  const fileId = await uploadToDrive(
+    auth, body.base64, body.mimeType, body.fileName, folderId
+  );
+  const url = driveUrl(fileId, body.mimeType);
+  console.log(`✅ public upload: ${fileId} → ${url}`);
+  return res.json({ url });
+}
+
 async function handleSaveAccount(auth, body, res) {
-  checkToken(body);
+  // public sell submissions (isNew=true, no token) are allowed
+  if (!body.isNew) checkToken(body);
   const acc = body.account;
   console.log(`💾 saveAccount: ${acc.id} ${acc.rank}`);
 
   const { data } = await getSheetData(auth, 'AccountList');
   const rowIdx = data.findIndex(r => r.id === acc.id);
-  // handleSaveAccount — add seller fields to the row
   const row = [
     acc.id, acc.rank, acc.price, acc.ign, acc.accId,
     acc.kda, acc.winRate, acc.exp, acc.ach, acc.notes,
     acc.status, acc.createdAt,
     acc.img1 || '', acc.img2 || '', acc.img3 || '', acc.img4 || '',
-    acc.sellerName || '', acc.sellerPhone || '', acc.sellerIgn || ''  // ✅ add these
+    acc.sellerName || '', acc.sellerPhone || '', acc.sellerIgn || ''
   ];
   if (rowIdx >= 0) {
     const rowNum = rowIdx + 2;
@@ -450,18 +483,29 @@ async function handleUploadSlideImg(auth, body, res) {
   return res.json({ result: 'ok' });
 }
 
-// Inside index.js
 async function handleGetSettings(auth, res) {
   try {
     const { data } = await getSheetData(auth, 'Settings');
     const slideshowRow = data.find(r => r.key === 'slideshow');
-    
-    // Ensure we return the exact keys from your sheet
     const urls = slideshowRow ? [slideshowRow.slide1, slideshowRow.slide2] : ['', ''];
     return res.json({ slides: urls });
   } catch (err) {
-    return res.status(500).json({ error: "Settings fetch failed" });
+    return res.status(500).json({ error: 'Settings fetch failed' });
   }
+}
+
+// ── initData — fetch everything at once ────
+async function handleInitData(auth, res) {
+  const [ordersResult, itemsResult, settingsRaw] = await Promise.all([
+    getSheetData(auth, 'Orders'),
+    getSheetData(auth, 'CurrentShop'),
+    sheetsRead(auth, 'Settings!B2:C2'),
+  ]);
+  return res.json({
+    orders: ordersResult.data,
+    items:  itemsResult.data,
+    slides: settingsRaw[0] || ['', ''],
+  });
 }
 
 // ══════════════════════════════════════════
@@ -473,46 +517,30 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
-  // Add this inside handler (req, res) logic
 
-  const body     = req.body;
+  const body = req.body;
   const { action } = body;
   console.log(`\n▶ action: ${action} — ${new Date().toISOString()}`);
 
   try {
-	 
-	const auth = await getAuth().getClient();
-	  
-	if (action === 'initData') {
-	  const auth = await getAuth().getClient();
-	  
-	  // Fetch everything in parallel for speed
-	  const [orders, items, settings] = await Promise.all([
-		getSheetData(auth, 'Orders'),
-		getSheetData(auth, 'CurrentShop'),
-		sheetsRead(auth, 'Settings!B2:C2')
-	  ]);
+    // Get auth once, reuse everywhere
+    const auth = await getAuth().getClient();
 
-	  return res.json({
-		orders: orders.data,
-		items: items.data,
-		slides: settings[0] || ['', '']
-	  });
-	}
-    // ── Public actions (no Google auth needed) ──
+    // ── Public actions ──────────────────────
     if (action === 'adminAuth')    return await handleAdminAuth(body, res);
     if (action === 'getOrders')    return await handleGetOrders(auth, res);
     if (action === 'getShopItems') return await handleGetShopItems(auth, res);
     if (action === 'getAccounts')  return await handleGetAccounts(auth, res);
-	if (action === 'getSettings')  return await handleGetSettings(auth, res);
+    if (action === 'getSettings')  return await handleGetSettings(auth, res);
+    if (action === 'initData')     return await handleInitData(auth, res);
+    if (action === 'newOrder')     return await handleNewOrder(auth, body, res);
+    if (action === 'accountPurchase') return await handleAccountPurchase(auth, body, res);
+    if (action === 'saveAccount' && body.isNew) return await handleSaveAccount(auth, body, res);
+    if (action === 'uploadPublicAccountImage')  return await handleUploadPublicAccountImage(auth, body, res);
 
-    // ── Protected actions (Google auth required) ──
-    const auth = await getAuth().getClient();
-
+    // ── Admin-only actions ──────────────────
     if (action === 'updateOrderStatus')   return await handleUpdateOrderStatus(auth, body, res);
-    if (action === 'newOrder')            return await handleNewOrder(auth, body, res);
     if (action === 'uploadProofItem')     return await handleUploadProofItem(auth, body, res);
-    if (action === 'accountPurchase')     return await handleAccountPurchase(auth, body, res);
     if (action === 'saveItems')           return await handleSaveItems(auth, body, res);
     if (action === 'extractItems')        return await handleExtractItems(auth, body, res);
     if (action === 'extractAccountStats') return await handleExtractAccountStats(body, res);
