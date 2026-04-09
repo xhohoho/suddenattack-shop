@@ -2,7 +2,30 @@ import { google } from 'googleapis';
 
 // ── Auth ───────────────────────────────────
 function getAuth() {
-  const creds = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_JSON);
+  const raw = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
+  if (!raw) throw new Error('GOOGLE_SERVICE_ACCOUNT_JSON env var is not set');
+
+  let creds;
+  try {
+    creds = JSON.parse(raw);
+  } catch (e) {
+    // Common Vercel issue: private_key newlines stored as literal \n (two chars)
+    // instead of JSON escape sequence — fix by re-escaping them inside string values
+    try {
+      // Replace actual newlines inside the JSON string with \n escape sequences
+      const fixed = raw.replace(/\r?\n/g, '\\n');
+      creds = JSON.parse(fixed);
+    } catch (e2) {
+      throw new Error(`Invalid GOOGLE_SERVICE_ACCOUNT_JSON: ${e.message}. Make sure the env var contains the full JSON object from your service account key file.`);
+    }
+  }
+
+  // Additional safety: ensure private_key newlines are proper escape sequences
+  // (some paste methods turn \\n into actual newlines inside the already-parsed object)
+  if (creds.private_key && creds.private_key.includes('\\n')) {
+    creds.private_key = creds.private_key.replace(/\\n/g, '\n');
+  }
+
   return new google.auth.GoogleAuth({
     credentials: creds,
     scopes: [
