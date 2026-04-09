@@ -358,6 +358,23 @@
     delete _videoBlobCache[fileId];
     delete _blobRefCount[url];
   }
+  function _blobRetain(url) {
+    if (!url || !url.startsWith('blob:')) return;
+    _blobRefCount[url] = (_blobRefCount[url] || 0) + 1;
+  }
+  function _blobRelease(url) {
+    if (!url || !url.startsWith('blob:')) return;
+    _blobRefCount[url] = Math.max(0, (_blobRefCount[url] || 1) - 1);
+  }
+  // Videos use Google Drive's /preview embed — no proxy needed
+  // We return the Drive preview URL directly and let the carousel render an iframe
+  function getVideoDriveUrl(fileId) {
+    return `https://drive.google.com/file/d/${fileId}/preview`;
+  }
+  // Keep getVideoBlobUrl as alias for compatibility but return drive preview URL
+  async function getVideoBlobUrl(fileId) {
+    return getVideoDriveUrl(fileId);
+  }
   function isVideoUrl(url) {
     if (!url) return false;
     if (/\.gif(\?|$)/i.test(url)) return false;
@@ -388,63 +405,54 @@
 
   // ── Fetch accounts ─────────────────────────
   let _lastAccountData = '';
-	async function fetchAccounts() {
-	  if (!accounts.length) showGridSkeleton();
-	  try {
-		// 1. Call your Vercel API
-		const r = await fetch(WEBHOOK_URL, { 
-		  method: 'POST', 
-		  headers: { 'Content-Type': 'application/json' }, 
-		  body: JSON.stringify({ action: 'getAccounts' }) 
-		});
-		
-		const d = await r.json();
-		
-		// 2. index.js returns { values: [ {rank: "...", price: "100", ...}, ... ] }
-		if (!d.values || !Array.isArray(d.values)) {
-		  console.warn("No account data received from API");
-		  return;
-		}
+  async function fetchAccounts() {
+    if (!accounts.length) showGridSkeleton();
+    try {
+      const r = await fetch(API_URL, { 
+        method: 'POST', 
+        headers: { 'Content-Type': 'application/json' }, 
+        body: JSON.stringify({ action: 'getAccounts' }) 
+      });
+      
+      const d = await r.json();
+      // API returns { values: [ {id, rank, price, ...}, ... ] } — already mapped objects
+      const rows = d.values || [];
+      if (!rows.length) return;
 
-		// 3. Map the properties. 
-		// Note: getSheetData converts headers to lowercase and removes spaces.
-		// e.g., "Account ID" becomes "accid"
-		const newData = d.values.map(acc => ({
-		  id: acc.id || '',
-		  rank: acc.rank || '',
-		  price: parseFloat(String(acc.price || 0).replace(/[^\d.-]/g, '')) || 0,
-		  ign: acc.ign || '',
-		  accId: acc.accid || acc.accountid || '', // support common variations
-		  kda: acc.kda || '',
-		  winRate: acc.winrate || '',
-		  exp: acc.exp || '',
-		  ach: acc.ach || acc.achievement || '',
-		  notes: acc.notes || '',
-		  status: (acc.status || 'pending').toLowerCase().trim(),
-		  createdAt: parseInt(acc.createdat) || Date.now(),
-		  img1: acc.img1 || '',
-		  img2: acc.img2 || '',
-		  img3: acc.img3 || '',
-		  img4: acc.img4 || '',
-		  sellerName: acc.sellername || '',
-		  sellerPhone: acc.sellerphone || acc.sellercontact || '',
-		  sellerIgn: acc.sellerign || ''
-		})).filter(a => a.id && a.rank);
+      const newData = rows.map(item => ({
+        id: item['id'] || '',
+        rank: item['rank'] || '',
+        price: parseFloat(item['price']) || 0,
+        ign: item['ign'] || '',
+        accId: item['accid'] || item['accountid'] || '',
+        kda: item['kda'] || '',
+        winRate: item['winrate'] || '',
+        exp: item['exp'] || '',
+        ach: item['achievement'] || '',
+        notes: item['notes'] || '',
+        status: (item['status'] || 'pending').toLowerCase().trim(),
+        createdAt: parseInt(item['createdat']) || Date.now(),
+        img1: item['img1'] || '',
+        img2: item['img2'] || '',
+        img3: item['img3'] || '',
+        img4: item['img4'] || '',
+        sellerName: item['sellername'] || '',
+        sellerPhone: item['sellercontact'] || item['sellerphone'] || '',
+        sellerIgn: item['sellerign'] || ''
+      })).filter(a => a.id && a.rank);
 
-		const hash = JSON.stringify(newData);
-		if (hash === _lastAccountData) return;
-		
-		_lastAccountData = hash;
-		accounts = newData;
+      const hash = JSON.stringify(newData);
+      if (hash === _lastAccountData) return;
+      
+      _lastAccountData = hash;
+      accounts = newData;
 
-		renderGrid();
-		if (adminUnlocked) renderManageList();
-	  } catch (e) {
-		console.error("Fetch error:", e);
-		// Remove skeleton if fetch fails
-		document.getElementById('acc-grid').innerHTML = '<div class="empty-feed">Failed to load accounts</div>';
-	  }
-	}
+      renderGrid();
+      if (adminUnlocked) renderManageList();
+    } catch (e) {
+      console.error('Fetch error:', e);
+    }
+  }
 
   async function deleteAccount(id) {
     if (!confirm('Are you absolutely sure you want to delete this account?')) return;
@@ -573,18 +581,11 @@
       if (isVid && !fileId) return `<div class="carousel-slide">${statsTag}${counter}<div style="color:var(--red);text-align:center;padding:20px;font-size:12px">Invalid video URL</div></div>`;
       let media;
       if (isVid && fileId) {
-		media = `
-		  <div style="position:relative;width:100%;height:340px;background:#000">
-			<iframe 
-			  src="https://drive.google.com/file/d/${fileId}/preview"
-			  width="100%" 
-			  height="340"
-			  frameborder="0"
-			  allowfullscreen
-			  allow="autoplay"
-			  style="display:block">
-			</iframe>
-		  </div>`;
+        // Use Google Drive iframe embed — works without any proxy
+        media = `<div class="video-container" style="position:relative;height:340px;background:#000" data-file-id="${fileId}">
+          <iframe id="vid-${fileId}" src="" width="100%" height="340" frameborder="0" allow="autoplay" allowfullscreen style="display:block;border:none"></iframe>
+          <div class="video-loader" id="loader-${fileId}" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:#fff;text-align:center;z-index:10"><div class="spinner"></div><p style="font-size:12px;margin-top:8px">Loading...</p></div>
+        </div>`;
       } else {
         media = `<img src="${item.url}" alt="Account media ${i + 1}" onclick="openLightbox('${item.url}','img')" style="cursor:zoom-in;width:100%;height:340px;object-fit:contain;display:block;background:var(--bg3)" />`;
       }
@@ -629,11 +630,33 @@
   function scrubStart(e,id){ e.preventDefault(); _scrubbing=true; _scrubId=id; scrubAt(e,id); const onMove=ev=>{if(_scrubbing)scrubAt(ev,_scrubId);}; const onUp=()=>{_scrubbing=false;_scrubId=null;document.removeEventListener('mousemove',onMove);document.removeEventListener('mouseup',onUp);}; document.addEventListener('mousemove',onMove); document.addEventListener('mouseup',onUp); }
   function scrubTouchStart(e,id){ e.stopPropagation(); const onMove=ev=>{if(ev.touches[0])scrubAt(ev.touches[0],id);}; const onEnd=()=>{document.removeEventListener('touchmove',onMove);document.removeEventListener('touchend',onEnd);}; document.addEventListener('touchmove',onMove,{passive:true}); document.addEventListener('touchend',onEnd); if(e.touches[0])scrubAt(e.touches[0],id); }
 
+  // Inject Drive /preview URL into carousel iframes (lazy load — only when modal opens)
+  async function injectCarouselBlobUrls() {
+    const containers = document.querySelectorAll('#det-carousel .video-container[data-file-id]');
+    for (const container of containers) {
+      const fileId = container.dataset.fileId; if (!fileId) continue;
+      const iframe = container.querySelector('iframe'); if (!iframe) continue;
+      if (iframe.src && iframe.src !== 'about:blank' && iframe.src !== '') continue; // already loaded
+      const loader = container.querySelector('.video-loader');
+      try {
+        const previewUrl = getVideoDriveUrl(fileId);
+        iframe.src = previewUrl;
+        iframe.onload = () => { if (loader) loader.style.display = 'none'; };
+      } catch(e) {}
+    }
+  }
+
   function carouselGoTo(idx) {
     _carouselIdx = Math.max(0, Math.min(idx, _carouselItems.length-1));
     const track = document.getElementById('det-track'); if(track)track.style.transform=`translateX(-${_carouselIdx*100}%)`;
     document.querySelectorAll('#det-dots .carousel-dot').forEach((d,i)=>d.classList.toggle('active',i===_carouselIdx));
-    document.querySelectorAll('#det-carousel video').forEach((v,i)=>{if(i!==_carouselIdx)v.pause();});
+    // Pause iframes (Drive embed) when not active by resetting src temporarily
+    document.querySelectorAll('#det-carousel .video-container').forEach((c,i)=>{
+      if(i !== _carouselIdx) {
+        const ifr = c.querySelector('iframe');
+        // Don't reset src — Drive iframe will auto-pause when hidden
+      }
+    });
   }
   function carouselTouchStart(e) { _touchStartX = e.changedTouches[0].clientX; }
   function carouselTouchEnd(e) { const dx=e.changedTouches[0].clientX-_touchStartX; if(Math.abs(dx)<40)return; dx<0?carouselGoTo(_carouselIdx+1):carouselGoTo(_carouselIdx-1); }
@@ -646,6 +669,7 @@
     const a = accounts.find(x => x.id === id); if (!a) return;
     if (id === _lastDetailId && _lastDetailHTML) {
       document.getElementById('detail-overlay').classList.add('open');
+      injectCarouselBlobUrls();
       return;
     }
     const rankColor = getRankColor(a.rank);
@@ -695,10 +719,12 @@
     document.querySelectorAll('#det-carousel video').forEach(v => _blobRelease(v.src));
     document.getElementById('detail-content').innerHTML = _lastDetailHTML;
     document.getElementById('detail-overlay').classList.add('open');
+    injectCarouselBlobUrls();
   }
 
   function closeDetail() {
-    document.querySelectorAll('#det-carousel video').forEach(v => { v.pause(); _blobRelease(v.src); });
+    // Unload iframes to stop Drive video playback
+    document.querySelectorAll('#det-carousel .video-container iframe').forEach(ifr => { ifr.src = ''; });
     document.getElementById('detail-overlay').classList.remove('open');
   }
 
@@ -763,7 +789,7 @@
         email: '', items: details, total: acc?.price||0, note: '', status: 'Paid'
       });
       status.textContent='Logging order...';
-      await fetch(WEBHOOK_URL, {
+      await fetch(API_URL, {
         method:'POST', headers:{'Content-Type':'application/json'},
         body: JSON.stringify({
           action:'newOrder', order_id:orderId, timestamp,
@@ -844,34 +870,34 @@
     const uploadedUrls = ['','','',''];
 
     try {
-      // Upload media files
+      // Upload media files — always use base64 JSON (API doesn't support FormData)
       const filesToUpload = sellTempFiles.map((f,i)=>({file:f,idx:i})).filter(x=>x.file);
       for (const {file,idx} of filesToUpload) {
         status.textContent = `Uploading media ${idx+1}...`;
         const isVid = file.type.startsWith('video/') || file.type === 'image/gif';
+        let base64, mimeType, fileName;
         if (isVid) {
-          const formData = new FormData();
-          formData.append('action','uploadAccountImage');
-          formData.append('folder_id', accId);
-          formData.append('fileName', `acc_${idx}_${Date.now()}.${file.name.split('.').pop()}`);
-          formData.append('mimeType', file.type);
-          formData.append('file', file);
-          // No admin token — public upload uses a separate action
-          formData.append('_public', '1');
-          const resp = await fetch(WEBHOOK_URL, { method:'POST', body:formData });
-          const res = await resp.json();
-          if (res.error) throw new Error(res.error);
-          uploadedUrls[idx] = res.url || '';
-        } else {
-          const base64 = await compressImage(file, 1200, 0.8);
-          const resp = await fetch(WEBHOOK_URL, {
-            method:'POST', headers:{'Content-Type':'application/json'},
-            body: JSON.stringify({ action:'uploadPublicAccountImage', folder_id:accId, fileName:`acc_${idx}_${Date.now()}.jpg`, mimeType:file.type, base64 })
+          // Read video/gif as raw base64
+          base64 = await new Promise((res, rej) => {
+            const reader = new FileReader();
+            reader.onload = e => res(e.target.result.split(',')[1]);
+            reader.onerror = () => rej(new Error('Failed to read file'));
+            reader.readAsDataURL(file);
           });
-          const res = await resp.json();
-          if (res.error) throw new Error(res.error);
-          uploadedUrls[idx] = res.url || '';
+          mimeType = file.type;
+          fileName = `acc_${idx}_${Date.now()}.${file.name.split('.').pop()}`;
+        } else {
+          base64 = await compressImage(file, 1200, 0.8);
+          mimeType = 'image/jpeg';
+          fileName = `acc_${idx}_${Date.now()}.jpg`;
         }
+        const resp = await fetch(API_URL, {
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ action:'uploadPublicAccountImage', folder_id:accId, fileName, mimeType, base64 })
+        });
+        const res = await resp.json();
+        if (res.error) throw new Error(res.error);
+        uploadedUrls[idx] = res.url || '';
       }
 
       status.textContent='Saving listing...';
@@ -886,7 +912,7 @@
         img1: uploadedUrls[0], img2: uploadedUrls[1], img3: uploadedUrls[2], img4: uploadedUrls[3],
         sellerName, sellerPhone, sellerIgn
       };
-      const resp = await fetch(WEBHOOK_URL, {
+      const resp = await fetch(API_URL, {
         method:'POST', headers:{'Content-Type':'application/json'},
         body: JSON.stringify({ action:'saveAccount', account: acc, isNew: true })
       });
@@ -1085,20 +1111,23 @@
     async function uploadSlot(i){
       if(!tempFiles[i])return;
       const file=tempFiles[i], fileName=`acc_${i}_${Date.now()}.${file.name.split('.').pop()}`;
+      // Always use base64 JSON — API doesn't support FormData
+      let base64, mimeType;
       if(file.type.startsWith('video/')||file.type==='image/gif'){
-        const formData=new FormData();
-        formData.append('action','uploadAccountImage'); formData.append('folder_id',accId);
-        formData.append('fileName',fileName); formData.append('mimeType',file.type);
-        formData.append('_token',adminToken); formData.append('file',file);
-        const resp=await fetch(WEBHOOK_URL,{method:'POST',body:formData});
-        const res=await resp.json(); if(res.error)throw new Error('Upload error: '+res.error);
-        slotUrls[i]=res.url;
+        base64 = await new Promise((res,rej)=>{
+          const reader=new FileReader();
+          reader.onload=e=>res(e.target.result.split(',')[1]);
+          reader.onerror=()=>rej(new Error('Failed to read file'));
+          reader.readAsDataURL(file);
+        });
+        mimeType=file.type;
       }else{
-        const base64=await compressImage(file,1200,0.8);
-        const resp=await adminFetch({action:'uploadAccountImage',folder_id:accId,fileName,mimeType:file.type,base64});
-        const res=await resp.json(); if(res.error)throw new Error('Upload error: '+res.error);
-        slotUrls[i]=res.url;
+        base64=await compressImage(file,1200,0.8);
+        mimeType='image/jpeg';
       }
+      const resp=await adminFetch({action:'uploadAccountImage',folder_id:accId,fileName,mimeType,base64});
+      const res=await resp.json(); if(res.error)throw new Error('Upload error: '+res.error);
+      slotUrls[i]=res.url;
     }
 
     try{
