@@ -1,6 +1,6 @@
 import { google } from 'googleapis';
 
-// ── Auth ───────────────────────────────────
+// ── Auth (Service Account — used for Sheets) ───────────────────────────────────
 function getAuth() {
   const raw = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
   if (!raw) throw new Error('GOOGLE_SERVICE_ACCOUNT_JSON env var is not set');
@@ -35,6 +35,23 @@ function getAuth() {
   });
 }
 
+// ── OAuth2 Auth (Personal Account — used for Drive uploads) ────────────────────
+// Files uploaded via OAuth are owned by YOUR Google account → uses your quota.
+// Service accounts have no quota, so Drive uploads must go through OAuth instead.
+function getDriveAuth() {
+  const clientId     = process.env.GOOGLE_OAUTH_CLIENT_ID;
+  const clientSecret = process.env.GOOGLE_OAUTH_CLIENT_SECRET;
+  const refreshToken = process.env.GOOGLE_OAUTH_REFRESH_TOKEN;
+
+  if (!clientId || !clientSecret || !refreshToken) {
+    throw new Error('Missing OAuth env vars: GOOGLE_OAUTH_CLIENT_ID, GOOGLE_OAUTH_CLIENT_SECRET, GOOGLE_OAUTH_REFRESH_TOKEN');
+  }
+
+  const oauth2 = new google.auth.OAuth2(clientId, clientSecret);
+  oauth2.setCredentials({ refresh_token: refreshToken });
+  return oauth2;
+}
+
 function checkToken(body) {
   if (!body._token || body._token !== process.env.ADMIN_TOKEN) {
     throw new Error('Unauthorized');
@@ -47,10 +64,10 @@ const SHEET_ID = process.env.SHEET_ID;
 async function getSheetData(auth, sheetName) {
   try {
     const sheets = google.sheets({ version: 'v4', auth });
-    
+
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: SHEET_ID,
-      range: `${sheetName}!A1:Z1000`, 
+      range: `${sheetName}!A1:Z1000`,
     });
 
     const rows = response.data.values;
@@ -58,7 +75,7 @@ async function getSheetData(auth, sheetName) {
 
     // Process headers: "Item Name" -> "itemname"
     const headers = rows[0].map(h => h.toLowerCase().trim().replace(/\s+/g, ''));
-    
+
     const data = rows.slice(1)
       .filter(row => row.some(cell => cell !== ''))
       .map(row =>
@@ -88,7 +105,7 @@ function colLetter(idx) {
 // one function for all Drive URLs — consistent across entire codebase
 function driveUrl(fileId, mimeType = '') {
   const isVideo = mimeType.includes('video');
-  const isGif   = mimeType.includes('gif');
+  const isGif = mimeType.includes('gif');
 
   if (isVideo) {
     // videos → Google's iframe embed player (no CORS issues)
@@ -137,7 +154,10 @@ async function sheetsAppend(auth, range, values) {
 }
 
 // ── Drive Upload Helper ────────────────────
-async function uploadToDrive(auth, base64, mimeType, fileName, folderId) {
+// Uses OAuth (personal account) so uploads count against your own Drive quota,
+// not the service account (which has none).
+async function uploadToDrive(base64, mimeType, fileName, folderId) {
+  const auth = getDriveAuth();
   const drive = google.drive({ version: 'v3', auth });
   const buffer = Buffer.from(base64, 'base64');
   const { Readable } = await import('stream');
@@ -147,6 +167,11 @@ async function uploadToDrive(auth, base64, mimeType, fileName, folderId) {
     requestBody: { name: fileName, parents: [folderId] },
     media: { mimeType, body: stream },
     fields: 'id',
+  });
+  // Make the file publicly readable so thumbnail/embed URLs work
+  await drive.permissions.create({
+    fileId: r.data.id,
+    requestBody: { role: 'reader', type: 'anyone' },
   });
   return r.data.id;
 }
@@ -196,12 +221,12 @@ async function handleGetShopItems(auth, res) {
   const data = rows.slice(1)
     .filter(row => row.some(cell => cell !== ''))
     .map((row, i) => ({
-      id:   row[0] || String(i + 1),
+      id: row[0] || String(i + 1),
       name: row[1] || '',
       desc: row[2] || '',
-      p7:   row[3] || '',
-      p15:  row[4] || '',
-      p30:  row[5] || '',
+      p7: row[3] || '',
+      p15: row[4] || '',
+      p30: row[5] || '',
     }))
     .filter(it => it.name);
 
@@ -222,7 +247,7 @@ async function handleUpdateOrderStatus(auth, body, res) {
   const rowIdx = data.findIndex(r => r.order_id === body.order_id);
   if (rowIdx === -1) throw new Error('Order not found');
 
-  const rowNum    = rowIdx + 2;
+  const rowNum = rowIdx + 2;
   const statusCol = colLetter(headers.indexOf('status'));
   await sheetsWrite(auth, `Orders!${statusCol}${rowNum}`, [[body.status]]);
   console.log(`✅ order ${body.order_id} updated to ${body.status}`);
@@ -234,7 +259,7 @@ async function handleNewOrder(auth, body, res) {
   let proofFormula = '';
   if (body.base64) {
     const fileId = await uploadToDrive(
-      auth, body.base64, body.mimeType,
+      body.base64, body.mimeType,
       body.fileName, process.env.DRIVE_FOLDER_RECEIPT
     );
     proofFormula = body.mimeType === 'application/pdf'
@@ -243,7 +268,7 @@ async function handleNewOrder(auth, body, res) {
     console.log(`📎 proof uploaded: ${fileId}`);
   }
 
-  const kl  = new Date(body.timestamp).toLocaleString('en-US', { timeZone: 'Asia/Kuala_Lumpur' });
+  const kl = new Date(body.timestamp).toLocaleString('en-US', { timeZone: 'Asia/Kuala_Lumpur' });
   const row = [
     body.order_id, kl, body.name, body.phone || '',
     body.email || '', body.items, body.total,
@@ -265,7 +290,7 @@ async function handleNewOrder(auth, body, res) {
 async function handleUploadProofItem(auth, body, res) {
   console.log(`📤 uploadProofItem: ${body.order_id}`);
   const fileId = await uploadToDrive(
-    auth, body.base64, body.mimeType,
+    body.base64, body.mimeType,
     body.fileName, process.env.DRIVE_FOLDER_RECEIPT
   );
   const proofFormula = body.mimeType === 'application/pdf'
@@ -275,9 +300,9 @@ async function handleUploadProofItem(auth, body, res) {
   const { headers, data } = await getSheetData(auth, 'Orders');
   const rowIdx = data.findIndex(r => r.order_id === body.order_id);
   if (rowIdx === -1) throw new Error('Order not found');
-  const rowNum    = rowIdx + 2;
+  const rowNum = rowIdx + 2;
   const statusCol = colLetter(headers.indexOf('status'));
-  const proofCol  = colLetter(headers.indexOf('proof'));
+  const proofCol = colLetter(headers.indexOf('proof'));
   await sheetsWrite(auth, `Orders!${statusCol}${rowNum}:${proofCol}${rowNum}`, [['Paid', proofFormula]]);
   console.log(`✅ proof uploaded for ${body.order_id}`);
   return res.json({ result: 'ok' });
@@ -286,13 +311,13 @@ async function handleUploadProofItem(auth, body, res) {
 async function handleAccountPurchase(auth, body, res) {
   console.log(`💰 accountPurchase: ${body.order_id}`);
   const fileId = await uploadToDrive(
-    auth, body.base64, body.mimeType,
+    body.base64, body.mimeType,
     body.fileName, process.env.DRIVE_FOLDER_PAYMENT
   );
   const proofFormula = body.mimeType === 'application/pdf'
     ? `=HYPERLINK("https://drive.google.com/file/d/${fileId}/view","📄 View PDF")`
     : `=IMAGE("${driveUrl(fileId, body.mimeType)}")`;
-  const kl  = new Date(body.timestamp).toLocaleString('en-US', { timeZone: 'Asia/Kuala_Lumpur' });
+  const kl = new Date(body.timestamp).toLocaleString('en-US', { timeZone: 'Asia/Kuala_Lumpur' });
   const row = [
     body.order_id, kl, body.name, body.phone || '',
     body.email || '', body.items, body.total,
@@ -325,7 +350,7 @@ async function handleExtractItems(auth, body, res) {
   checkToken(body);
   console.log('🖼 extractItems: uploading image to Drive...');
   const fileId = await uploadToDrive(
-    auth, body.base64, body.mimeType,
+    body.base64, body.mimeType,
     body.fileName, process.env.DRIVE_FOLDER_SA
   );
   const url = driveUrl(fileId, body.mimeType);
@@ -333,7 +358,7 @@ async function handleExtractItems(auth, body, res) {
 
   console.log('🤖 calling Gemini for item extraction...');
   const prompt = `Extract all game item names from this shop image. Return ONLY a JSON array of strings like: ['Item Name 1', 'Item Name 2']. No descriptions, no prices, no markdown, no explanation.`;
-  const text  = await callGemini(body.base64, prompt);
+  const text = await callGemini(body.base64, prompt);
   const clean = text.replace(/```json|```/g, '').trim();
   const names = JSON.parse(clean);
   const items = names.map((name, i) => ({
@@ -348,10 +373,10 @@ async function handleExtractAccountStats(body, res) {
   checkToken(body);
   console.log('🤖 extractAccountStats: calling Gemini...');
   const prompt = `Extract player stats from this Sudden Attack game profile screenshot. Return ONLY a valid JSON object with these exact keys: ign, accId, kda, winRate, exp. If a field is not visible return empty string. No markdown, no explanation, only JSON.`;
-  const text  = await callGemini(body.base64, prompt);
+  const text = await callGemini(body.base64, prompt);
   const clean = text.replace(/```json|```/g, '').trim();
   let stats = {};
-  try { stats = JSON.parse(clean); } catch (e) {}
+  try { stats = JSON.parse(clean); } catch (e) { }
   console.log(`✅ stats extracted: ${JSON.stringify(stats)}`);
   return res.json(stats);
 }
@@ -359,7 +384,8 @@ async function handleExtractAccountStats(body, res) {
 async function handleUploadAccountImage(auth, body, res) {
   checkToken(body);
   console.log(`📤 uploadAccountImage: ${body.fileName}`);
-  const drive = google.drive({ version: 'v3', auth });
+  // Use OAuth drive client so folder creation is owned by your personal account
+  const drive = google.drive({ version: 'v3', auth: getDriveAuth() });
 
   // find or create account subfolder
   let folderId;
@@ -388,7 +414,7 @@ async function handleUploadAccountImage(auth, body, res) {
   }
 
   const fileId = await uploadToDrive(
-    auth, body.base64, body.mimeType, body.fileName, folderId
+    body.base64, body.mimeType, body.fileName, folderId
   );
   const url = driveUrl(fileId, body.mimeType);
   console.log(`✅ uploaded: ${fileId} → ${url}`);
@@ -398,7 +424,8 @@ async function handleUploadAccountImage(auth, body, res) {
 // Public version — no admin token required (for seller listings)
 async function handleUploadPublicAccountImage(auth, body, res) {
   console.log(`📤 uploadPublicAccountImage: ${body.fileName}`);
-  const drive = google.drive({ version: 'v3', auth });
+  // Use OAuth drive client so folder/file is owned by your personal account
+  const drive = google.drive({ version: 'v3', auth: getDriveAuth() });
 
   let folderId;
   const search = await drive.files.list({
@@ -424,7 +451,7 @@ async function handleUploadPublicAccountImage(auth, body, res) {
   }
 
   const fileId = await uploadToDrive(
-    auth, body.base64, body.mimeType, body.fileName, folderId
+    body.base64, body.mimeType, body.fileName, folderId
   );
   const url = driveUrl(fileId, body.mimeType);
   console.log(`✅ public upload: ${fileId} → ${url}`);
@@ -468,8 +495,8 @@ async function handleDeleteAccount(auth, body, res) {
 
   // get sheetId dynamically — no hardcoded gid
   const sheets = google.sheets({ version: 'v4', auth });
-  const meta   = await sheets.spreadsheets.get({ spreadsheetId: SHEET_ID });
-  const sheet  = meta.data.sheets.find(s => s.properties.title === 'AccountList');
+  const meta = await sheets.spreadsheets.get({ spreadsheetId: SHEET_ID });
+  const sheet = meta.data.sheets.find(s => s.properties.title === 'AccountList');
   const sheetGid = sheet.properties.sheetId;
 
   await sheets.spreadsheets.batchUpdate({
@@ -489,7 +516,7 @@ async function handleDeleteAccount(auth, body, res) {
   });
 
   // delete Drive folder for this account
-  const drive  = google.drive({ version: 'v3', auth });
+  const drive = google.drive({ version: 'v3', auth });
   const search = await drive.files.list({
     q: `name='${body.acc_id}' and '${process.env.DRIVE_FOLDER_ACCOUNTS}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,
     fields: 'files(id)',
@@ -511,7 +538,7 @@ async function handleUpdateAccountStatus(auth, body, res) {
   const { headers, data } = await getSheetData(auth, 'AccountList');
   const rowIdx = data.findIndex(r => r.id === body.account.id);
   if (rowIdx === -1) throw new Error('Account not found');
-  const rowNum    = rowIdx + 2;
+  const rowNum = rowIdx + 2;
   const statusCol = colLetter(headers.indexOf('status'));
   await sheetsWrite(auth, `AccountList!${statusCol}${rowNum}`, [[body.account.status]]);
   console.log(`✅ status updated`);
@@ -522,7 +549,7 @@ async function handleUpdateAccountStatus(auth, body, res) {
 async function handleUploadSlideImg(auth, body, res) {
   checkToken(body);
   console.log(`🖼 uploadSlideImg: slide ${body.slideIndex}`);
-  const existing   = await sheetsRead(auth, 'Settings!A2:C2');
+  const existing = await sheetsRead(auth, 'Settings!A2:C2');
   const currentRow = existing[0] || ['slideshow', '', ''];
   if (body.slideIndex === 0) currentRow[1] = body.url || '';
   if (body.slideIndex === 1) currentRow[2] = body.url || '';
@@ -551,7 +578,7 @@ async function handleInitData(auth, res) {
   ]);
   return res.json({
     orders: ordersResult.data,
-    items:  itemsResult.data,
+    items: itemsResult.data,
     slides: settingsRaw[0] || ['', ''],
   });
 }
@@ -575,28 +602,28 @@ export default async function handler(req, res) {
     const auth = await getAuth().getClient();
 
     // ── Public actions ──────────────────────
-    if (action === 'adminAuth')    return await handleAdminAuth(body, res);
-    if (action === 'getOrders')    return await handleGetOrders(auth, res);
+    if (action === 'adminAuth') return await handleAdminAuth(body, res);
+    if (action === 'getOrders') return await handleGetOrders(auth, res);
     if (action === 'getShopItems') return await handleGetShopItems(auth, res);
-    if (action === 'getAccounts')  return await handleGetAccounts(auth, res);
-    if (action === 'getSettings')  return await handleGetSettings(auth, res);
-    if (action === 'initData')     return await handleInitData(auth, res);
-    if (action === 'newOrder')     return await handleNewOrder(auth, body, res);
+    if (action === 'getAccounts') return await handleGetAccounts(auth, res);
+    if (action === 'getSettings') return await handleGetSettings(auth, res);
+    if (action === 'initData') return await handleInitData(auth, res);
+    if (action === 'newOrder') return await handleNewOrder(auth, body, res);
     if (action === 'accountPurchase') return await handleAccountPurchase(auth, body, res);
     if (action === 'saveAccount' && body.isNew) return await handleSaveAccount(auth, body, res);
-    if (action === 'uploadPublicAccountImage')  return await handleUploadPublicAccountImage(auth, body, res);
+    if (action === 'uploadPublicAccountImage') return await handleUploadPublicAccountImage(auth, body, res);
 
     // ── Admin-only actions ──────────────────
-    if (action === 'updateOrderStatus')   return await handleUpdateOrderStatus(auth, body, res);
-    if (action === 'uploadProofItem')     return await handleUploadProofItem(auth, body, res);
-    if (action === 'saveItems')           return await handleSaveItems(auth, body, res);
-    if (action === 'extractItems')        return await handleExtractItems(auth, body, res);
+    if (action === 'updateOrderStatus') return await handleUpdateOrderStatus(auth, body, res);
+    if (action === 'uploadProofItem') return await handleUploadProofItem(auth, body, res);
+    if (action === 'saveItems') return await handleSaveItems(auth, body, res);
+    if (action === 'extractItems') return await handleExtractItems(auth, body, res);
     if (action === 'extractAccountStats') return await handleExtractAccountStats(body, res);
-    if (action === 'uploadAccountImage')  return await handleUploadAccountImage(auth, body, res);
-    if (action === 'saveAccount')         return await handleSaveAccount(auth, body, res);
-    if (action === 'deleteAccount')       return await handleDeleteAccount(auth, body, res);
+    if (action === 'uploadAccountImage') return await handleUploadAccountImage(auth, body, res);
+    if (action === 'saveAccount') return await handleSaveAccount(auth, body, res);
+    if (action === 'deleteAccount') return await handleDeleteAccount(auth, body, res);
     if (action === 'updateAccountStatus') return await handleUpdateAccountStatus(auth, body, res);
-    if (action === 'uploadSlideImg')      return await handleUploadSlideImg(auth, body, res);
+    if (action === 'uploadSlideImg') return await handleUploadSlideImg(auth, body, res);
 
     return res.status(400).json({ error: `Unknown action: ${action}` });
 
