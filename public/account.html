@@ -388,71 +388,47 @@
 
   // ── Fetch accounts ─────────────────────────
   let _lastAccountData = '';
-  async function fetchAccounts() {
-    if (!accounts.length) showGridSkeleton();
-    try {
-      const r = await fetch(WEBHOOK_URL, { 
-        method: 'POST', 
-        headers: { 'Content-Type': 'application/json' }, 
-        body: JSON.stringify({ action: 'getAccounts' }) 
-      });
-      
-      const responseData = await r.json();
-      const data = Array.isArray(responseData) ? responseData[0] : responseData;
-      const rows = data.values || [];
+	async function fetchAccounts() {
+	  try {
+		const r = await fetch(WEBHOOK_URL, {
+		  method: 'POST',
+		  headers: { 'Content-Type': 'application/json' },
+		  body: JSON.stringify({ action: 'getAccounts' })
+		});
+		const d = await r.json();
+		
+		// d.values is now an array of objects: [{id: '1', rank: 'Gold'}, ...]
+		if (!d.values) return;
 
-      if (rows.length < 2) {
-        console.warn("No data found or headers missing. Ensure n8n fetches from A1.");
-        return;
-      }
+		// Use the object keys directly
+		accounts = d.values.map(acc => ({
+		  id: acc.id,
+		  rank: acc.rank,
+		  price: acc.price,
+		  ign: acc.ign,
+		  accId: acc.accid, // Note: getSheetData lowercase/strips spaces
+		  kda: acc.kda,
+		  winRate: acc.winrate,
+		  exp: acc.exp,
+		  ach: acc.ach,
+		  notes: acc.notes,
+		  status: acc.status,
+		  createdAt: acc.createdat,
+		  img1: acc.img1,
+		  img2: acc.img2,
+		  img3: acc.img3,
+		  img4: acc.img4,
+		  sellerName: acc.sellername,
+		  sellerPhone: acc.sellerphone,
+		  sellerIgn: acc.sellerign
+		}));
 
-      // 1. Capture headers from the very first row
-      const headers = rows[0].map(h => h.toLowerCase().trim().replace(/\s+/g, ''));
-      
-      // 2. Map data rows
-      const newData = rows.slice(1).map(row => {
-        const item = {};
-        headers.forEach((header, index) => {
-          item[header] = row[index] || '';
-        });
-        
-        // 3. Extract values using the dynamic keys
-        // We use .includes() or multiple keys to make it even more flexible
-        return {
-          id: item['id'] || '',
-          rank: item['rank'] || '',
-          price: parseFloat(item['price']) || 0,
-          ign: item['ign'] || '',
-          accId: item['accid'] || item['accountid'] || '',
-          kda: item['kda'] || '',
-          winRate: item['winrate'] || '',
-          exp: item['exp'] || '',
-          ach: item['achievement'] || '',
-          notes: item['notes'] || '',
-          status: (item['status'] || 'pending').toLowerCase().trim(),
-          createdAt: parseInt(item['createdat']) || Date.now(),
-          img1: item['img1'] || '',
-          img2: item['img2'] || '',
-          img3: item['img3'] || '',
-          img4: item['img4'] || '',
-          sellerName: item['sellername'] || '',
-          sellerPhone: item['sellercontact'] || '',
-          sellerIgn: item['sellerign'] || ''
-        };
-      }).filter(a => a.id && a.rank);
-
-      const hash = JSON.stringify(newData);
-      if (hash === _lastAccountData) return;
-      
-      _lastAccountData = hash;
-      accounts = newData;
-
-      renderGrid();
-      if (adminUnlocked) renderManageList();
-    } catch (e) {
-      console.error("Fetch error:", e);
-    }
-  }
+		renderManageList(); // Refresh admin view
+		renderAccountCards(); // Refresh public view
+	  } catch (e) {
+		console.error("Fetch error:", e);
+	  }
+	}
 
   async function deleteAccount(id) {
     if (!confirm('Are you absolutely sure you want to delete this account?')) return;
