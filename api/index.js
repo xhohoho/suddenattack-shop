@@ -439,18 +439,15 @@ async function handleUploadSlideImg(auth, body, res) {
   return res.json({ result: 'ok' });
 }
 
-// In index.js
+// Inside index.js
 async function handleGetSettings(res) {
   try {
     const auth = await getAuth().getClient();
-    // Use sheetsRead because Settings doesn't have standard headers
-    const rows = await sheetsRead(auth, 'Settings!B2:C2'); 
-    
-    // rows[0] will be [url1, url2]
-    const settings = rows[0] || ['', ''];
+    // Use sheetsRead (raw) because Settings!B2:C2 has no headers
+    const rows = await sheetsRead(auth, 'Settings!B2:C2');
+    const settings = (rows && rows.length > 0) ? rows[0] : ['', ''];
     return res.json({ slides: settings });
   } catch (err) {
-    console.error("handleGetSettings failed:", err);
     return res.status(500).json({ error: err.message });
   }
 }
