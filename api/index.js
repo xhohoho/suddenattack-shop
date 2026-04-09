@@ -461,41 +461,34 @@ async function handleUploadPublicAccountImage(auth, body, res) {
 async function handleSaveAccount(auth, body, res) {
   if (!body.isNew) checkToken(body);
   const acc = body.account;
-  
-  // Ensure we are pulling the right keys from the frontend object
-  // Note: frontend uses 'accId' and 'winRate', but let's be safe
-  const row = [
-    acc.id, 
-    acc.rank, 
-    acc.price, 
-    acc.ign || '', 
-    acc.accId || acc.accid || '', // Support both casings
-    acc.kda || '', 
-    acc.winRate || acc.winrate || '', 
-    acc.exp || '', 
-    acc.ach || '', 
-    acc.notes || '',
-    acc.status || 'available', 
-    acc.createdAt || Date.now(),
-    acc.img1 || '', 
-    acc.img2 || '', 
-    acc.img3 || '', 
-    acc.img4 || '',
-    acc.sellerName || '', 
-    acc.sellerPhone || '', 
-    acc.sellerIgn || ''
-  ];
 
-  const { data } = await getSheetData(auth, 'AccountList');
-  // Use lowercase 'id' for comparison as per getSheetData's processing
+  // 1. Get the current headers from the sheet to know the correct order
+  const { headers, data } = await getSheetData(auth, 'AccountList');
+
+  // 2. Map the frontend object to the sheet's column order automatically
+  const row = headers.map(header => {
+    // Standardize key names to match the backend's lowercase headers
+    // Example: 'sellercontact' in sheet will match 'sellerPhone' or 'sellercontact' in acc object
+    const val = acc[header] 
+             || acc[header === 'sellercontact' ? 'sellerPhone' : ''] 
+             || acc[header === 'accid' ? 'accId' : '']
+             || acc[header === 'winrate' ? 'winRate' : '']
+             || '';
+    return val;
+  });
+
+  // 3. Find if the ID already exists to Update, otherwise Append
   const rowIdx = data.findIndex(r => String(r.id) === String(acc.id));
   
   if (rowIdx >= 0) {
     const rowNum = rowIdx + 2;
-    await sheetsWrite(auth, `AccountList!A${rowNum}:Z${rowNum}`, [row]);
+    // Dynamically calculate the range based on number of headers
+    const lastCol = colLetter(headers.length - 1);
+    await sheetsWrite(auth, `AccountList!A${rowNum}:${lastCol}${rowNum}`, [row]);
   } else {
     await sheetsAppend(auth, 'AccountList!A1', [row]);
   }
+  
   return res.json({ result: 'ok' });
 }
 
