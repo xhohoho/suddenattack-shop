@@ -439,6 +439,14 @@ async function handleUploadSlideImg(auth, body, res) {
   return res.json({ result: 'ok' });
 }
 
+async function handleGetSettings(res) {
+  // We use SheetsRead (which uses auth) to get the slide URLs
+  const auth = await getAuth().getClient();
+  const rows = await sheetsRead(auth, 'Settings!B2:C2');
+  const settings = rows[0] || ['', ''];
+  return res.json({ slides: settings });
+}
+
 // ══════════════════════════════════════════
 // MAIN HANDLER
 // ══════════════════════════════════════════
