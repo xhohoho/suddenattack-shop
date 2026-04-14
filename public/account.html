@@ -424,9 +424,9 @@
         rank: item['rank'] || '',
         price: parseFloat(item['price']) || 0,
         ign: item['ign'] || '',
-        accid: item['accid'] || item['accountid'] || '',
+        accId: item['accid'] || item['accountid'] || '',
         kda: item['kda'] || '',
-        winrate: item['winrate'] || '',
+        winRate: item['winrate'] || '',
         exp: item['exp'] || '',
         ach: item['achievement'] || '',
         notes: item['notes'] || '',
@@ -436,9 +436,9 @@
         img2: item['img2'] || '',
         img3: item['img3'] || '',
         img4: item['img4'] || '',
-        sellername: item['sellername'] || '',
-        sellerphone: item['sellercontact'] || item['sellerphone'] || '',
-        sellerign: item['sellerign'] || ''
+        sellerName: item['sellername'] || '',
+        sellerPhone: item['sellercontact'] || item['sellerphone'] || '',
+        sellerIgn: item['sellerign'] || ''
       })).filter(a => a.id && a.rank);
 
       const hash = JSON.stringify(newData);
@@ -834,15 +834,15 @@
 
   async function submitSellAccount() {
     const g = id => document.getElementById(id)?.value.trim()||'';
-    const sellername  = g('sell-seller-name');
-    const sellerphone = g('sell-seller-phone');
-    const sellerign   = g('sell-seller-ign');
+    const sellerName  = g('sell-seller-name');
+    const sellerPhone = g('sell-seller-phone');
+    const sellerIgn   = g('sell-seller-ign');
     const rank        = g('sell-rank');
     const price       = parseFloat(g('sell-price'));
 
-    if (!sellername)  { showToast('Please enter your full name.'); return; }
-    if (!sellerphone) { showToast('Please enter your phone number.'); return; }
-    if (!sellerign)   { showToast('Please enter your in-game name.'); return; }
+    if (!sellerName)  { showToast('Please enter your full name.'); return; }
+    if (!sellerPhone) { showToast('Please enter your phone number.'); return; }
+    if (!sellerIgn)   { showToast('Please enter your in-game name.'); return; }
     if (!rank)        { showToast('Please enter the account rank.'); return; }
     if (!price || price <= 0) { showToast('Please enter a valid asking price.'); return; }
 
@@ -892,9 +892,9 @@
         price: price,
         ign: g('sell-ign'),
         accid: g('sell-accid'),         // Standardized
-        sellername: sellername,         // Standardized
-        sellercontact: sellerphone,     // Standardized
-        sellerign: sellerign,           // Standardized
+        sellername: sellerName,         // Standardized
+        sellercontact: sellerPhone,     // Standardized
+        sellerign: sellerIgn,           // Standardized
         kda: g('sell-kda'),
         winrate: g('sell-wr'),          // Standardized
         exp: g('sell-exp'),
@@ -935,7 +935,7 @@
     const sortedAccounts = [...accounts].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
 
     el.innerHTML = sortedAccounts.map(a => {
-      const sellerInfo = a.sellername ? `<div style="font-size:11px;color:var(--text3);margin-top:2px">Seller: ${a.sellername}${a.sellerphone?' · '+a.sellerphone:''}</div>` : '';
+      const sellerInfo = a.sellerName ? `<div style="font-size:11px;color:var(--text3);margin-top:2px">Seller: ${a.sellerName}${a.sellerPhone?' · '+a.sellerPhone:''}</div>` : '';
       
       // Calculate the 110% price just for admin reference if needed
       const publicPrice = a.price * 1.10;
@@ -1094,7 +1094,6 @@
 
   async function saveAccount() {
     const rank=document.getElementById('f-rank').value.trim();
-    const ignValue = document.getElementById('f-ign').value.trim();
     const price=parseFloat(document.getElementById('f-price').value);
     const st=document.getElementById('save-acc-status'), btn=document.getElementById('save-acc-btn');
     if(!rank){showToast('⚠️ Rank is required!');return;}
@@ -1121,7 +1120,7 @@
         base64=await compressImage(file,1200,0.8);
         mimeType='image/jpeg';
       }
-      const resp=await adminFetch({action:'uploadAccountImage',folder_id:ignValue,fileName,mimeType,base64});
+      const resp=await adminFetch({action:'uploadAccountImage',folder_id:accId,fileName,mimeType,base64});
       const res=await resp.json(); if(res.error)throw new Error('Upload error: '+res.error);
       slotUrls[i]=res.url;
     }
