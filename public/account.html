@@ -455,9 +455,11 @@
   }
 
   async function deleteAccount(id) {
+    const a = accounts.find(x => x.id === id);
+    if (!a) return;
     if (!confirm('Are you absolutely sure you want to delete this account?')) return;
     try {
-      const resp = await adminFetch({ action: 'deleteAccount', acc_ign: ign });
+      const resp = await adminFetch({ action: 'deleteAccount', acc_id: id, ign:a.ign });
       const result = await resp.json();
       if (result.error) throw new Error(result.error);
       _lastDetailId   = null;
@@ -838,6 +840,7 @@
     const sellerPhone = g('sell-seller-phone');
     const sellerIgn   = g('sell-seller-ign');
     const rank        = g('sell-rank');
+    const ign        = g('sell-ign');
     const price       = parseFloat(g('sell-price'));
 
     if (!sellerName)  { showToast('Please enter your full name.'); return; }
@@ -878,7 +881,7 @@
         }
         const resp = await fetch(API_URL, {
           method:'POST', headers:{'Content-Type':'application/json'},
-          body: JSON.stringify({ action:'uploadPublicAccountImage', folder_id:accId, fileName, mimeType, base64 })
+          body: JSON.stringify({ action:'uploadPublicAccountImage', ign:ign, fileName, mimeType, base64 })
         });
         const res = await resp.json();
         if (res.error) throw new Error(res.error);
@@ -1094,7 +1097,7 @@
 
   async function saveAccount() {
     const rank=document.getElementById('f-rank').value.trim();
-    const ign=document.getElementById('f-ign');
+    const ign=document.getElementById('f-ign').value.trim();
     const price=parseFloat(document.getElementById('f-price').value);
     const st=document.getElementById('save-acc-status'), btn=document.getElementById('save-acc-btn');
     if(!rank){showToast('⚠️ Rank is required!');return;}
@@ -1121,7 +1124,7 @@
         base64=await compressImage(file,1200,0.8);
         mimeType='image/jpeg';
       }
-      const resp=await adminFetch({action:'uploadAccountImage',folder_id:ign,fileName,mimeType,base64});
+      const resp=await adminFetch({action:'uploadAccountImage',ign:ign,fileName,mimeType,base64});
       const res=await resp.json(); if(res.error)throw new Error('Upload error: '+res.error);
       slotUrls[i]=res.url;
     }
