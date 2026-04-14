@@ -351,15 +351,15 @@ async function handleExtractAccountStats(body, res) {
 // Standardization: Directly uses body.folder_id
 async function handleUploadAccountImage(auth, body, res) {
   checkToken(body);
-  console.log(`📤 uploadAccountImage: ${body.fileName}`);
+  const accountIGN = body.ign;
+  console.log(`📤 uploadAccountImage: ${accountIGN}`);
   // Use OAuth drive client so folder creation is owned by your personal account
-  const cleanFolderId = body.folder_id.split('-').slice(0, 2).join('-');
   const drive = google.drive({ version: 'v3', auth: getDriveAuth() });
 
   // find or create account subfolder
   let folderId;
   const search = await drive.files.list({
-    q: `name='${cleanFolderId}' and '${process.env.DRIVE_FOLDER_ACCOUNTS}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,
+    q: `name='${accountIGN}' and '${process.env.DRIVE_FOLDER_ACCOUNTS}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,
     fields: 'files(id)',
     spaces: 'drive',
     supportsAllDrives: true,
@@ -372,7 +372,7 @@ async function handleUploadAccountImage(auth, body, res) {
     const folder = await drive.files.create({
       supportsAllDrives: true,
       requestBody: {
-        name: cleanFolderId,
+        name: accountIGN,
         mimeType: 'application/vnd.google-apps.folder',
         parents: [process.env.DRIVE_FOLDER_ACCOUNTS],
       },
@@ -391,13 +391,14 @@ async function handleUploadAccountImage(auth, body, res) {
 
 // Public version — no admin token required (for seller listings)
 async function handleUploadPublicAccountImage(auth, body, res) {
-  console.log(`📤 uploadPublicAccountImage: ${body.fileName}`);
+  const accountIGN = body.ign;
+  console.log(`📤 uploadPublicAccountImage: ${accountIGN}`);
   // Use OAuth drive client so folder/file is owned by your personal account
   const drive = google.drive({ version: 'v3', auth: getDriveAuth() });
 
   let folderId;
   const search = await drive.files.list({
-    q: `name='${body.folder_id}' and '${process.env.DRIVE_FOLDER_ACCOUNTS}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,
+    q: `name='${accountIGN}' and '${process.env.DRIVE_FOLDER_ACCOUNTS}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,
     fields: 'files(id)',
     spaces: 'drive',
     supportsAllDrives: true,
@@ -409,7 +410,7 @@ async function handleUploadPublicAccountImage(auth, body, res) {
     const folder = await drive.files.create({
       supportsAllDrives: true,
       requestBody: {
-        name: body.folder_id,
+        name: accountIGN,
         mimeType: 'application/vnd.google-apps.folder',
         parents: [process.env.DRIVE_FOLDER_ACCOUNTS],
       },
@@ -459,7 +460,8 @@ async function handleSaveAccount(auth, body, res) {
 // Standardization: Uses body.acc_id directly for both Sheet and Drive deletion
 async function handleDeleteAccount(auth, body, res) {
   checkToken(body);
-  console.log(`🗑 deleteAccount: ${body.acc_id}`);
+  const accountIGN = body.ign;
+  console.log(`🗑 deleteAccount: ${accountIGN}`);
 
   const { data } = await getSheetData(auth, 'AccountList');
   const rowIdx = data.findIndex(r => r.id === body.acc_id);
@@ -480,14 +482,14 @@ async function handleDeleteAccount(auth, body, res) {
   // delete Drive folder for this account
   const drive = google.drive({ version: 'v3', auth });
   const search = await drive.files.list({
-    q: `name='${body.acc_id}' and '${process.env.DRIVE_FOLDER_ACCOUNTS}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,
+    q: `name='${accountIGN}' and '${process.env.DRIVE_FOLDER_ACCOUNTS}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,
     fields: 'files(id)',
     supportsAllDrives: true,
     includeItemsFromAllDrives: true,
   });
   if (search.data.files.length > 0) {
     await drive.files.delete({ fileId: search.data.files[0].id, supportsAllDrives: true });
-    console.log(`🗑 Drive folder deleted`);
+    console.log(`🗑 Drive folder deleted: ${accountIGN}`);
   }
   return res.json({ result: 'ok' });
 }
