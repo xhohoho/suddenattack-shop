@@ -353,7 +353,7 @@ async function handleUploadAccountImage(auth, body, res) {
   checkToken(body);
   console.log(`📤 uploadAccountImage: ${body.fileName}`);
   // Use OAuth drive client so folder creation is owned by your personal account
-  const cleanFolderId = body.ign || body.folder_id;
+  const cleanFolderId = body.folder_id.split('-').slice(0, 2).join('-');
   const drive = google.drive({ version: 'v3', auth: getDriveAuth() });
 
   // find or create account subfolder
@@ -391,14 +391,13 @@ async function handleUploadAccountImage(auth, body, res) {
 
 // Public version — no admin token required (for seller listings)
 async function handleUploadPublicAccountImage(auth, body, res) {
-  const folderSearchName = account.ign;
-  console.log(`📤 uploadPublicAccountImage: ${folderSearchName}`);
+  console.log(`📤 uploadPublicAccountImage: ${body.fileName}`);
   // Use OAuth drive client so folder/file is owned by your personal account
   const drive = google.drive({ version: 'v3', auth: getDriveAuth() });
 
   let folderId;
   const search = await drive.files.list({
-    q: `name='${folderSearchName}' and '${process.env.DRIVE_FOLDER_ACCOUNTS}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,
+    q: `name='${body.folder_id}' and '${process.env.DRIVE_FOLDER_ACCOUNTS}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,
     fields: 'files(id)',
     spaces: 'drive',
     supportsAllDrives: true,
@@ -480,9 +479,8 @@ async function handleDeleteAccount(auth, body, res) {
 
   // delete Drive folder for this account
   const drive = google.drive({ version: 'v3', auth });
-  const folderSearchName = account.ign;
   const search = await drive.files.list({
-    q: `name='${folderSearchName}' and '${process.env.DRIVE_FOLDER_ACCOUNTS}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,
+    q: `name='${body.acc_id}' and '${process.env.DRIVE_FOLDER_ACCOUNTS}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,
     fields: 'files(id)',
     supportsAllDrives: true,
     includeItemsFromAllDrives: true,
