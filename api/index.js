@@ -391,10 +391,10 @@ async function handleUploadAccountImage(auth, body, res) {
 
 // Public version — no admin token required (for seller listings)
 async function handleUploadPublicAccountImage(auth, body, res) {
-  console.log(`📤 uploadPublicAccountImage: ${body.fileName}`);
+  const folderSearchName = account.ign;
+  console.log(`📤 uploadPublicAccountImage: ${folderSearchName}`);
   // Use OAuth drive client so folder/file is owned by your personal account
   const drive = google.drive({ version: 'v3', auth: getDriveAuth() });
-  const folderSearchName = account.ign;
 
   let folderId;
   const search = await drive.files.list({
