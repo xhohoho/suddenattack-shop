@@ -460,37 +460,55 @@ async function handleSaveAccount(auth, body, res) {
 // Standardization: Uses body.acc_id directly for both Sheet and Drive deletion
 async function handleDeleteAccount(auth, body, res) {
   checkToken(body);
-  const accountIGN = body.ign;
+  const accountIGN = body.ign; 
   console.log(`🗑 deleteAccount: ${accountIGN}`);
 
+  // 1. Find the row in Sheets
   const { data } = await getSheetData(auth, 'AccountList');
-  const rowIdx = data.findIndex(r => r.id === body.acc_id);
+  // Use String() to ensure IDs match even if one is a number in the sheet
+  const rowIdx = data.findIndex(r => String(r.id) === String(body.acc_id));
   if (rowIdx === -1) throw new Error('Account not found');
 
+  // 2. Delete from Sheets (Uses Service Account 'auth')
   const sheets = google.sheets({ version: 'v4', auth });
   const meta = await sheets.spreadsheets.get({ spreadsheetId: SHEET_ID });
   const sheet = meta.data.sheets.find(s => s.properties.title === 'AccountList');
-  const sheetGid = sheet.properties.sheetId;
 
   await sheets.spreadsheets.batchUpdate({
     spreadsheetId: SHEET_ID,
     requestBody: {
-      requests: [{ deleteDimension: { range: { sheetId: sheet.properties.sheetId, dimension: 'ROWS', startIndex: rowIdx + 1, endIndex: rowIdx + 2 } } }]
+      requests: [{ 
+        deleteDimension: { 
+          range: { 
+            sheetId: sheet.properties.sheetId, 
+            dimension: 'ROWS', 
+            startIndex: rowIdx + 1, 
+            endIndex: rowIdx + 2 
+          } 
+        } 
+      }]
     }
   });
 
-  // delete Drive folder for this account
-  const drive = google.drive({ version: 'v3', auth });
+  // 3. Delete from Drive (Uses OAuth 'getDriveAuth()')
+  // Root Fix: You must use the same auth used to CREATE the folder to DELETE it
+  const drive = google.drive({ version: 'v3', auth: getDriveAuth() });
+  
   const search = await drive.files.list({
     q: `name='${accountIGN}' and '${process.env.DRIVE_FOLDER_ACCOUNTS}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,
     fields: 'files(id)',
     supportsAllDrives: true,
     includeItemsFromAllDrives: true,
   });
-  if (search.data.files.length > 0) {
-    await drive.files.delete({ fileId: search.data.files[0].id, supportsAllDrives: true });
+
+  if (search.data.files && search.data.files.length > 0) {
+    await drive.files.delete({ 
+      fileId: search.data.files[0].id, 
+      supportsAllDrives: true 
+    });
     console.log(`🗑 Drive folder deleted: ${accountIGN}`);
   }
+  
   return res.json({ result: 'ok' });
 }
 
