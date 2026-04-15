@@ -2146,39 +2146,64 @@
       }
 
       async function uploadSlide(input, idx) {
-        const file = input.files[0]; if (!file) return;
+        const file = input.files[0]; 
+        if (!file) return;
+
         const prog = document.getElementById('ss-prog-' + idx);
         const overlay = document.getElementById('ss-overlay-' + idx);
         const ssImg = document.getElementById('ss-img-' + idx);
         const ssLbl = document.getElementById('ss-lbl-' + idx);
+
+        // Local Preview
         const reader = new FileReader();
         reader.onload = e => { ssImg.src = e.target.result; ssImg.style.display = 'block'; ssLbl.style.display = 'none'; };
         reader.readAsDataURL(file);
-        prog.style.width = '15%'; overlay.style.display = 'flex';
+
+        prog.style.width = '20%'; 
+        overlay.style.display = 'flex';
         showSlideStatus('Uploading slide ' + (idx + 1) + '...', true);
+
         try {
           const base64 = await compressImage(file, 1400, 0.82);
-          prog.style.width = '40%';
-          const r1 = await adminFetch({ action: 'uploadSlideImg', fileName: `shop_${idx}_${Date.now()}.jpg`, mimeType: 'image/jpeg', base64 });
-          const d1 = await r1.json();
-          if (d1.error) throw new Error(d1.error);
-          const url = d1.url || '';
-          prog.style.width = '75%';
-          if (!url) throw new Error('No URL returned from Drive upload');
-          await adminFetch({ action: 'uploadSlideImg', slideIndex: idx, url });
+          prog.style.width = '50%';
+
+          // One single call: Uploads to Drive AND updates Sheets
+          const resp = await adminFetch({ 
+            action: 'uploadSlideImg', 
+            slideIndex: idx, 
+            fileName: `shop_${idx}_${Date.now()}.jpg`, 
+            mimeType: 'image/jpeg', 
+            base64 
+          });
+
+          const result = await resp.json();
+          if (result.error) throw new Error(result.error);
+
+          const finalUrl = result.url;
           prog.style.width = '100%';
+
+          // Update the UI and Global State
           const slides = document.querySelectorAll('#slideshow img');
           if (slides[idx]) {
-            slides[idx].src = url;
-            slideUrls[idx] = url;
+            slides[idx].src = finalUrl;
+            slideUrls[idx] = finalUrl;
           }
-          ssImg.src = url;
-          showSlideStatus('Slide ' + (idx + 1) + ' updated ✓ — saved to sheet', true);
+          ssImg.src = finalUrl;
+
+          showSlideStatus('Slide ' + (idx + 1) + ' updated ✓', true);
+          
+          // Refresh Slideshow
           slideshowIdx = 0;
           startSlideshow();
-        } catch (e) { showSlideStatus('Upload failed: ' + e.message, false); }
-        setTimeout(() => { prog.style.width = '0%'; }, 800);
-        overlay.style.display = 'none';
+
+        } catch (e) { 
+          showSlideStatus('Upload failed: ' + e.message, false); 
+        } finally {
+          setTimeout(() => { 
+            prog.style.width = '0%'; 
+            overlay.style.display = 'none';
+          }, 1000);
+        }
       }
 
       function clearSlideUpload(idx) {
