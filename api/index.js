@@ -534,13 +534,29 @@ async function handleUpdateAccountStatus(auth, body, res) {
 
 async function handleUploadSlideImg(auth, body, res) {
   checkToken(body);
-  console.log(`🖼 uploadSlideImg: slide ${body.slideIndex}`);
-  const existing = await sheetsRead(auth, 'Settings!A2:C2');
-  const currentRow = existing[0] || ['slideshow', '', ''];
-  if (body.slideIndex === 0) currentRow[1] = body.url || '';
-  if (body.slideIndex === 1) currentRow[2] = body.url || '';
-  await sheetsWrite(auth, 'Settings!A2:C2', [currentRow]);
-  return res.json({ result: 'ok' });
+  let url = body.url;
+
+  // If a base64 string is provided, upload it to Drive first
+  if (body.base64) {
+    console.log(`📤 uploadSlideImg: Uploading file to Drive for slide ${body.slideIndex}`);
+    const fileId = await uploadToDrive(
+      body.base64, 
+      body.mimeType || 'image/jpeg', 
+      body.fileName || `slide_${body.slideIndex}.jpg`, 
+      process.env.DRIVE_FOLDER_SA // Using same folder as shop assets
+    );
+    url = driveUrl(fileId, body.mimeType);
+  }
+
+  if (!url) throw new Error("No URL or Base64 provided");
+
+  console.log(`📝 uploadSlideImg: Updating Sheet for slide ${body.slideIndex}`);
+  
+  // Use the safe single-cell update method
+  const col = body.slideIndex === 0 ? 'B' : 'C';
+  await sheetsWrite(auth, `Settings!${col}2`, [[url]]);
+
+  return res.json({ result: 'ok', url });
 }
 
 async function handleGetSettings(auth, res) {
