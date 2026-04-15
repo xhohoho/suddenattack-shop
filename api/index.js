@@ -549,7 +549,7 @@ async function handleUploadSlideImg(auth, body, res) {
     const fileId = await uploadToDrive(
       body.base64, 
       body.mimeType || 'image/jpeg', 
-      body.fileName || `slide_${idx}.jpg`, 
+      body.fileName || `shop_${idx}.jpg`, 
       process.env.DRIVE_FOLDER_SA
     );
     url = driveUrl(fileId, body.mimeType);
