@@ -2214,19 +2214,41 @@
         }
       }
 
-      function clearSlideUpload(idx) {
-        if (!slideUrls[idx]) return; // nothing to clear
+      async function clearSlideUpload(idx) {
+        if (!slideUrls[idx]) return; 
         if (!confirm(`Clear slide ${idx + 1}? This cannot be undone.`)) return;
 
-        slideUrls[idx] = '';
-        const slides = document.querySelectorAll('#slideshow img');
-        if (slides[idx]) { slides[idx].src = ''; slides[idx].classList.remove('active'); }
-        const ssImg = document.getElementById('ss-img-' + idx); if (ssImg) { ssImg.src = ''; ssImg.style.display = 'none'; }
-        const ssLbl = document.getElementById('ss-lbl-' + idx); if (ssLbl) ssLbl.style.display = '';
-        const inp = document.getElementById('ss-slot-' + idx)?.querySelector('input'); if (inp) inp.value = '';
-        adminFetch({ action: 'uploadSlideImg', slideIndex: idx, url: '' }).catch(() => { });
-        startSlideshow();
-        showSlideStatus('Slide ' + (idx + 1) + ' cleared.', true);
+        try {
+          // 1. Tell the server to clear it
+          showSlideStatus('Clearing slide...', true);
+          const resp = await adminFetch({ action: 'uploadSlideImg', slideIndex: idx, url: '' });
+          const result = await resp.json();
+          if (result.error) throw new Error(result.error);
+
+          // 2. ONLY update UI if the server succeeded
+          slideUrls[idx] = '';
+          
+          const slides = document.querySelectorAll('#slideshow img');
+          if (slides[idx]) { 
+            slides[idx].src = ''; 
+            slides[idx].classList.remove('active'); 
+          }
+          
+          const ssImg = document.getElementById('ss-img-' + idx); 
+          if (ssImg) { ssImg.src = ''; ssImg.style.display = 'none'; }
+          
+          const ssLbl = document.getElementById('ss-lbl-' + idx); 
+          if (ssLbl) ssLbl.style.display = '';
+          
+          const inp = document.getElementById('ss-slot-' + idx)?.querySelector('input'); 
+          if (inp) inp.value = '';
+
+          startSlideshow();
+          showSlideStatus('Slide ' + (idx + 1) + ' cleared.', true);
+
+        } catch (e) {
+          showSlideStatus('Failed to clear: ' + e.message, false);
+        }
       }
 
       function showSlideStatus(msg, ok) {
