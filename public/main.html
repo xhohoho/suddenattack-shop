@@ -2422,6 +2422,9 @@
 
         // 2. Load Orders
         if (d.orders) {
+          // Safety: Check if allOrders is defined, if not, define it
+          if (typeof allOrders === 'undefined') window.allOrders = [];
+          
           allOrders = d.orders.map(o => ({
             order_id: o.order_id, timestamp: o.timestamp, name: o.name,
             items: o.items, total: o.total, status: o.status
@@ -2432,28 +2435,29 @@
         // 3. Load Game Items
         if (d.items) {
           const loadedItems = d.items.map((row, i) => ({
-            // Use fallbacks for key names created by getSheetData
-            id: row.id || row.itemid || String(i + 1),
+            // FIX: Match the exact ID logic from your working original
+            id: parseInt(row.id || row.itemid) || (i + 1),
             name: row.name || row.itemname || '',
             desc: row.desc || row.description || '',
             p: { 
-              7:  parseFloat(String(row['7d']  || row.p7  || '0').replace(/[^0-9.]/g, '')) || 0, 
-              15: parseFloat(String(row['15d'] || row.p15 || '0').replace(/[^0-9.]/g, '')) || 0, 
-              30: parseFloat(String(row['30d'] || row.p30 || '0').replace(/[^0-9.]/g, '')) || 0 
+              // FIX: Use your original .replace(/,/g, '') logic
+              7:  parseFloat((row['7d']  || row.p7  || '0').toString().replace(/,/g, '')) || 0, 
+              15: parseFloat((row['15d'] || row.p15 || '0').toString().replace(/,/g, '')) || 0, 
+              30: parseFloat((row['30d'] || row.p30 || '0').toString().replace(/,/g, '')) || 0 
             }
           })).filter(it => it.name);
 
+          // Update Global ITEMS
           ITEMS.length = 0;
           loadedItems.forEach(it => ITEMS.push(it));
 
-          // --- CRITICAL ADDITION: RESET QTYS OBJECT ---
+          // --- RESET QTYS TO MATCH ORIGINAL LOGIC ---
           qtys = {}; 
           ITEMS.forEach(it => {
             DAYS.forEach(d => {
               qtys[`${it.id}_${d}`] = 0; 
             });
           });
-          // --------------------------------------------
 
           if (typeof buildTable === 'function') {
             buildTable();
@@ -2465,14 +2469,11 @@
         if (typeof fetchAccounts === 'function') fetchAccounts();
 
       } catch (e) {
-        console.error("Boot failed", e);
+        console.error("Critical Boot Error:", e);
       }
     }
 
-    // Start the boot sequence
     unifiedBoot();
-
-    // Background syncs: keep data fresh without reloading the page
     setInterval(fetchSheet, 30000); 
     setInterval(fetchAccounts, 60000);
   </script>
