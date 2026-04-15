@@ -534,26 +534,36 @@ async function handleUpdateAccountStatus(auth, body, res) {
 
 async function handleUploadSlideImg(auth, body, res) {
   checkToken(body);
+  
+  // 1. Explicitly check if the index exists (could be 0)
+  const idx = body.slideIndex;
+  if (idx === undefined || idx === null) {
+    throw new Error("Missing slideIndex");
+  }
+
   let url = body.url;
 
-  // If a base64 string is provided, upload it to Drive first
+  // 2. Handle Upload to Drive
   if (body.base64) {
-    console.log(`📤 uploadSlideImg: Uploading file to Drive for slide ${body.slideIndex}`);
+    console.log(`📤 uploadSlideImg: Uploading file to Drive for slide ${idx}`);
     const fileId = await uploadToDrive(
       body.base64, 
       body.mimeType || 'image/jpeg', 
-      body.fileName || `slide_${body.slideIndex}.jpg`, 
-      process.env.DRIVE_FOLDER_SA // Using same folder as shop assets
+      body.fileName || `slide_${idx}.jpg`, 
+      process.env.DRIVE_FOLDER_SA
     );
     url = driveUrl(fileId, body.mimeType);
   }
 
-  if (!url) throw new Error("No URL or Base64 provided");
+  // 3. CHANGE: Allow empty strings (clearing) but block 'undefined' or 'null'
+  if (url === undefined || url === null) {
+    throw new Error("No URL or Base64 provided");
+  }
 
-  console.log(`📝 uploadSlideImg: Updating Sheet for slide ${body.slideIndex}`);
+  console.log(`📝 uploadSlideImg: Updating Sheet for slide ${idx} with value: "${url}"`);
   
-  // Use the safe single-cell update method
-  const col = body.slideIndex === 0 ? 'B' : 'C';
+  // 4. Determine column (ensure idx is treated as a number)
+  const col = parseInt(idx) === 0 ? 'B' : 'C';
   await sheetsWrite(auth, `Settings!${col}2`, [[url]]);
 
   return res.json({ result: 'ok', url });
