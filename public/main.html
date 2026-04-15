@@ -1883,15 +1883,23 @@
         try {
           const filesToUpload = shopExtractFiles.filter(Boolean);
           const allItems = []; let uploadedUrls = [];
-          for (let i = 0; i < filesToUpload.length; i++) {
-            status.textContent = `Processing image ${i + 1} of ${filesToUpload.length}...`;
-            const file = filesToUpload[i];
+          for (let i = 0; i < shopExtractFiles.length; i++) {
+            const file = shopExtractFiles[i];
+            if (!file) continue; // Skip empty slots
+
             const base64 = await compressImage(file, 1200, 0.8);
-            const resp = await adminFetch({ action: 'extractItems', fileName: `shop_img_${Date.now()}_${i}.jpg`, mimeType: 'image/jpeg', base64 });
+            const resp = await adminFetch({ 
+              action: 'extractItems', 
+              fileName: `shop_${i}_${Date.now()}.jpg`, 
+              base64 
+            });
+            
             const result = await resp.json();
-            if (result.error) throw new Error(result.error);
-            (result.items || []).forEach(it => allItems.push(it));
-            if (result.url) uploadedUrls.push(result.url);
+            if (result.url) {
+              // Now 'i' matches exactly with the slot 0 or 1
+              await adminFetch({ action: 'uploadSlideImg', slideIndex: i, url: result.url });
+              if (slides[i]) slides[i].src = result.url;
+            }
           }
           const slides = document.querySelectorAll('#slideshow img');
           for (let i = 0; i < uploadedUrls.length; i++) {
