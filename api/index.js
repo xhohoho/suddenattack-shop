@@ -626,6 +626,10 @@ export default async function handler(req, res) {
 
     return res.status(400).json({ error: `Unknown action: ${action}` });
   } catch (err) {
-    return res.status(500).json({ error: err.message });
+    console.error("❌ CRITICAL ERROR:", err); // This will show up in Vercel logs
+    return res.status(500).json({ 
+      error: "Internal Server Error", 
+      details: err.message 
+    });
   }
 }
