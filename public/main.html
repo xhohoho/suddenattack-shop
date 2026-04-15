@@ -2159,7 +2159,7 @@
         try {
           const base64 = await compressImage(file, 1400, 0.82);
           prog.style.width = '40%';
-          const r1 = await adminFetch({ action: 'uploadSlideImage', fileName: `shop_${idx}_${Date.now()}.jpg`, mimeType: 'image/jpeg', base64 });
+          const r1 = await adminFetch({ action: 'uploadSlideImg', fileName: `shop_${idx}_${Date.now()}.jpg`, mimeType: 'image/jpeg', base64 });
           const d1 = await r1.json();
           if (d1.error) throw new Error(d1.error);
           const url = d1.url || '';
