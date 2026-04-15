@@ -2400,12 +2400,69 @@
 
   <!-- ── Unified boot — runs last, after all scripts are defined ── -->
   <script>
-    fetchSlideUrls();
-    fetchSheet(); setInterval(fetchSheet, 30000);
-    // item.html boot
-    if (typeof fetchItems === 'function') fetchItems().then(() => { buildTable(); recalc(); });
-    // account.html boot
-    if (typeof fetchAccounts === 'function') { fetchAccounts(); setInterval(fetchAccounts, 60000); }
+    async function unifiedBoot() {
+      try {
+        // One trip to the server fetches Slides, Orders, and Items in parallel
+        const r = await fetch(API_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'initData' })
+        });
+        const d = await r.json();
+
+        // 1. Load Slideshow
+        if (d.slides) {
+          const slides = document.querySelectorAll('#slideshow img');
+          d.slides.forEach((url, i) => {
+            if (!url) return;
+            slideUrls[i] = url;
+            if (slides[i]) slides[i].src = url;
+          });
+          startSlideshow();
+        }
+
+        // 2. Load Orders
+        if (d.orders) {
+          // Sync allOrders so the Admin tab doesn't have to fetch again
+          allOrders = d.orders.map(o => ({
+            order_id: o.order_id, timestamp: o.timestamp, name: o.name,
+            items: o.items, total: o.total, status: o.status
+          }));
+          renderFeed(allOrders.reverse());
+        }
+
+        // 3. Load Game Items
+        if (d.items) {
+          const loadedItems = d.items.map((row, i) => ({
+            id: parseInt(row.id) || i + 1,
+            name: row.name,
+            desc: row.desc,
+            p: { 
+              7: parseFloat(row.p7) || 0, 
+              15: parseFloat(row.p15) || 0, 
+              30: parseFloat(row.p30) || 0 
+            }
+          }));
+          ITEMS.length = 0;
+          loadedItems.forEach(it => ITEMS.push(it));
+          buildTable();
+          recalc();
+        }
+
+        // 4. Load Accounts (Handled by account.html implementation)
+        if (typeof fetchAccounts === 'function') fetchAccounts();
+
+      } catch (e) {
+        console.error("Critical: Unified boot failed", e);
+      }
+    }
+
+    // Start the boot sequence
+    unifiedBoot();
+
+    // Background syncs: keep data fresh without reloading the page
+    setInterval(fetchSheet, 30000); 
+    setInterval(fetchAccounts, 60000);
   </script>
 </body>
 
