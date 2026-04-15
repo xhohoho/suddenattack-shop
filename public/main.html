@@ -1888,9 +1888,10 @@
             if (!file) continue; // Skip empty slots
 
             const base64 = await compressImage(file, 1200, 0.8);
+            const dateStr = new Date().toLocaleDateString('en-GB', {timeZone: 'Asia/Kuala_Lumpur'}).replace(/\//g, '');
             const resp = await adminFetch({ 
               action: 'extractItems', 
-              fileName: `shop_${i}_${Date.now()}.jpg`, 
+              fileName: `shop_${i}_${dateStr}.jpg`, 
               base64 
             });
             
@@ -2173,13 +2174,14 @@
 
         try {
           const base64 = await compressImage(file, 1400, 0.82);
+          const dateStr = new Date().toLocaleDateString('en-GB', {timeZone: 'Asia/Kuala_Lumpur'}).replace(/\//g, '');
           prog.style.width = '50%';
 
           // One single call: Uploads to Drive AND updates Sheets
           const resp = await adminFetch({ 
             action: 'uploadSlideImg', 
             slideIndex: idx, 
-            fileName: `shop_${idx}_${Date.now()}.jpg`, 
+            fileName: `shop_${idx}_${dateStr}.jpg`, 
             mimeType: 'image/jpeg', 
             base64 
           });
