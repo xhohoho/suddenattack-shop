@@ -2400,85 +2400,12 @@
 
   <!-- ── Unified boot — runs last, after all scripts are defined ── -->
   <script>
-    async function unifiedBoot() {
-      try {
-        const r = await fetch(API_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'initData' })
-        });
-        const d = await r.json();
-
-        // 1. Load Slideshow
-        if (d.slides) {
-          const slides = document.querySelectorAll('#slideshow img');
-          d.slides.forEach((url, i) => {
-            if (!url) return;
-            slideUrls[i] = url;
-            if (slides[i]) slides[i].src = url;
-          });
-          startSlideshow();
-        }
-
-        // 2. Load Orders
-        if (d.orders) {
-          allOrders = d.orders.map(o => ({
-            order_id: o.order_id, timestamp: o.timestamp, name: o.name,
-            items: o.items, total: o.total, status: o.status
-          }));
-          renderFeed(allOrders.reverse());
-        }
-
-        // 3. Load Game Items (FIXED MAPPING)
-        if (d.items) {
-          const loadedItems = d.items.map((row, i) => {
-            // Standardize IDs and Column Names
-            const id = row.id || row.itemid || String(i + 1);
-            return {
-              id: id,
-              name: row.name || row.itemname || '', 
-              desc: row.desc || row.description || '',
-              p: { 
-                7:  parseFloat((row['7d']  || row['p7']  || '0').toString().replace(/[^0-9.]/g, '')) || 0,
-                15: parseFloat((row['15d'] || row['p15'] || '0').toString().replace(/[^0-9.]/g, '')) || 0,
-                30: parseFloat((row['30d'] || row['p30'] || '0').toString().replace(/[^0-9.]/g, '')) || 0
-              }
-            };
-          }).filter(it => it.name);
-
-          // CRITICAL: Clear and re-populate the global ITEMS array
-          ITEMS.length = 0;
-          loadedItems.forEach(it => ITEMS.push(it));
-
-          // CRITICAL: Reset the qtys object to match NEW IDs
-          qtys = {}; 
-          ITEMS.forEach(it => {
-            DAYS.forEach(d => {
-              qtys[`${it.id}_${d}`] = 0; 
-            });
-          });
-
-          // Rebuild UI
-          if (typeof buildTable === 'function') {
-            buildTable();
-            recalc();
-          }
-        }
-
-        // 4. Load Accounts
-        if (typeof fetchAccounts === 'function') fetchAccounts();
-
-      } catch (e) {
-        console.error("Boot failed", e);
-      }
-    }
-
-    // Start the boot sequence
-    unifiedBoot();
-
-    // Background syncs: keep data fresh without reloading the page
-    setInterval(fetchSheet, 30000); 
-    setInterval(fetchAccounts, 60000);
+    fetchSlideUrls();
+    fetchSheet(); setInterval(fetchSheet, 30000);
+    // item.html boot
+    if (typeof fetchItems === 'function') fetchItems().then(() => { buildTable(); recalc(); });
+    // account.html boot
+    if (typeof fetchAccounts === 'function') { fetchAccounts(); setInterval(fetchAccounts, 60000); }
   </script>
 </body>
 
