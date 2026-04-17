@@ -424,7 +424,7 @@ async function handleExtractItems(auth, body, res) {
 async function handleExtractAccountStats(body, res) {
   checkToken(body);
   console.log('🤖 extractAccountStats: calling Gemini...');
-  const prompt = `Extract player stats from this Sudden Attack game profile screenshot. Return ONLY a valid JSON object with these exact keys: ign, accId, kda, winRate, exp. If a field is not visible return empty string. No markdown, no explanation, only JSON.`;
+  const prompt = `Extract player stats from this Sudden Attack game profile screenshot. Return ONLY a valid JSON object with these exact keys: ign, Id, kda(%), winRate(%), exp(%). If a field is not visible return empty string. No markdown, no explanation, only JSON.`;
   const text = await callGemini(body.base64, prompt);
   const clean = text.replace(/```json|```/g, '').trim();
   let stats = {};
