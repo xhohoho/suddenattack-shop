@@ -1304,8 +1304,11 @@
       font-size: 13px;
       letter-spacing: 1px;
       text-shadow: 1px 1px 0px #000;
-
       animation: scroll-left 8s linear infinite;
+    }
+
+    .ticker-track span:nth-child(2) {
+      animation-delay: -4s; /* Half the duration = perfectly interleaved */
     }
 
     @keyframes scroll-left {
