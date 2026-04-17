@@ -1252,6 +1252,21 @@
       box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
     }
 
+    .bottom-ticker span {
+      position: absolute;
+      white-space: nowrap;
+      padding-right: 100px;
+      font-family: 'Courier New', Courier, monospace;
+      color: #d4c59a;
+      font-weight: bold;
+      font-size: 13px;
+      letter-spacing: 1px;
+      text-shadow: 1px 1px 0px #000;
+      
+      /* Pushes the start point to the right edge of the bar */
+      left: 100%; 
+    }
+
     .ticker-btn-left, .ticker-btn-right {
       width: 16px;
       height: 20px;
@@ -1276,10 +1291,9 @@
     .ticker-track {
       display: flex;
       align-items: center;
-      width: max-content;
+      width: 100%; /* Changed from max-content to 100% */
       height: 100%;
-      /* This forces the text to start at the far right edge of the parent */
-      padding-left: 100%; 
+      position: relative;
     }
 
     .ticker-track span {
@@ -2556,45 +2570,27 @@
 
     // ── Ticker seamless loop ──────────────────────
     window.addEventListener('load', () => {
-      const track = document.querySelector('.ticker-track');
-      const span = track.querySelector('span');
-      if (!track || !span) return;
+      const span = document.querySelector('.bottom-ticker span');
+      if (!span) return;
 
-      // 1. Duplicate the text for a seamless chain
-      track.innerHTML += track.innerHTML;
+      // Measure the text width
+      const textWidth = span.offsetWidth;
+      const containerWidth = document.querySelector('.ticker-content').offsetWidth;
 
-      // 2. Measure and apply animation
-      const updateAnimation = () => {
-        // Measure the width of exactly ONE span (the sentence + its padding)
-        const singleWidth = span.getBoundingClientRect().width;
-        
-        // ADJUST SPEED HERE: 
-        // Higher number = Slower (e.g., 100 = fast, 50 = very fast)
-        // Lower number = Faster
-        const pixelsPerSecond = 100; 
-        const duration = singleWidth / pixelsPerSecond;
+      // SPEED CONTROL
+      // Lower number = Faster (Total seconds to cross the screen)
+      const scrollSpeed = 8; 
 
-        const ks = document.createElement('style');
-        ks.id = 'dynamic-ticker-ks';
-        ks.textContent = `
-          @keyframes scroll-left {
-            0%   { transform: translateX(0); }
-            100% { transform: translateX(-${singleWidth}px); }
-          }
-        `;
-        
-        // Remove old style if it exists to prevent stacking
-        const oldKs = document.getElementById('dynamic-ticker-ks');
-        if (oldKs) oldKs.remove();
-        
-        document.head.appendChild(ks);
+      const ks = document.createElement('style');
+      ks.textContent = `
+        @keyframes scroll-left {
+          0%   { transform: translateX(0); }
+          100% { transform: translateX(-${textWidth + containerWidth}px); }
+        }
+      `;
+      document.head.appendChild(ks);
 
-        // Apply the speed and animation
-        track.style.animation = `scroll-left ${duration}s linear infinite`;
-      };
-
-      // Run on load
-      updateAnimation();
+      span.style.animation = `scroll-left ${scrollSpeed}s linear infinite`;
     });
   </script>
 </body>
