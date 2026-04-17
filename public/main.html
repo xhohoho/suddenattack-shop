@@ -1255,7 +1255,8 @@
     .bottom-ticker span {
       display: inline-block;
       white-space: nowrap;
-      /* Adjust this for the gap between the end of text and start of next loop */
+      /* This is the GAP between the end of text and the start of the clone */
+      /* If you want them close together, lower this number (e.g., 50px) */
       padding-right: 100px; 
       font-family: 'Courier New', Courier, monospace;
       color: #d4c59a;
@@ -1291,7 +1292,7 @@
       align-items: center;
       width: max-content;
       height: 100%;
-      /* This pushes the first copy of the text to the right edge */
+      /* This pushes the very first start to the right edge */
       padding-left: 100%; 
     }
 
@@ -2571,33 +2572,45 @@
     window.addEventListener('load', () => {
       const track = document.querySelector('.ticker-track');
       const originalSpan = track.querySelector('span');
-      const container = document.querySelector('.ticker-content');
-      if (!track || !originalSpan || !container) return;
+      if (!track || !originalSpan) return;
 
-      // 1. Duplicate for seamless chain
+      // 1. Remove any existing clones to prevent triple-text if this runs twice
+      const existingSpans = track.querySelectorAll('span');
+      if (existingSpans.length > 1) {
+        for (let i = 1; i < existingSpans.length; i++) existingSpans[i].remove();
+      }
+
+      // 2. Clone the span for the seamless loop
       const clone = originalSpan.cloneNode(true);
       track.appendChild(clone);
 
-      // 2. Measure widths
-      const textWidth = originalSpan.offsetWidth; // Length of one text segment + its padding
-      const barWidth = container.offsetWidth;    // Length of the visible black bar
+      // 3. Calculate the width of ONE span (including its right padding)
+      const singleWidth = originalSpan.offsetWidth;
 
-      // 3. SPEED CONTROL
-      const speed = 120; // Pixels per second
-      const duration = (textWidth + barWidth) / speed;
+      // 4. SPEED CONTROL
+      // 100 is a good "medium-fast" Sudden Attack speed
+      const speed = 100; 
+      const duration = singleWidth / speed;
 
-      // 4. Create the "Sudden Attack" style animation
-      // It starts at 0 (far right) and moves left by (text width + bar width)
+      // 5. Create the Keyframe
       const ks = document.createElement('style');
+      ks.id = 'seamless-ticker-style';
+      // We only move by the width of the text segment. 
+      // Because it's cloned, the clone will be at the right edge 
+      // exactly when the first one finishes its cycle.
       ks.textContent = `
-        @keyframes sudden-attack-loop {
+        @keyframes sudden-attack-continuous {
           0%   { transform: translateX(0); }
-          100% { transform: translateX(-${textWidth + barWidth}px); }
+          100% { transform: translateX(-${singleWidth}px); }
         }
       `;
+      
+      const oldStyle = document.getElementById('seamless-ticker-style');
+      if (oldStyle) oldStyle.remove();
       document.head.appendChild(ks);
 
-      track.style.animation = `sudden-attack-loop ${duration}s linear infinite`;
+      // Apply animation to the track
+      track.style.animation = `sudden-attack-continuous ${duration}s linear infinite`;
     });
   </script>
 </body>
