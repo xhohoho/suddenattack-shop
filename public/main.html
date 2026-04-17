@@ -1277,26 +1277,25 @@
 
     .ticker-content {
       flex-grow: 1;
-      height: 100%;
+      height: 30px;
       overflow: hidden;
       background: #0d0d08;
-      border-left: 1px solid #333;
-      border-right: 1px solid #333;
-      position: relative;
-      display: flex; /* Ensure container is flex */
+      border: 1px solid #333;
+      display: flex;
       align-items: center;
     }
 
     .ticker-track {
-      display: flex; /* Flex allows spans to sit side-by-side */
+      display: flex;
       white-space: nowrap;
-      width: max-content; /* Crucial: track only as wide as content */
-      animation: scroll-infinite 15s linear infinite; /* Speed adjusted here */
+      width: max-content;
+      /* The animation moves the track left by the width of exactly ONE set of text */
+      animation: scroll-seamless linear infinite;
     }
 
     .ticker-track span {
       display: inline-block;
-      padding-right: 50px; /* This is the gap between loops */
+      padding-right: 500px; /* This is the gap between loops */
       font-family: 'Courier New', Courier, monospace;
       color: #d4c59a;
       font-weight: bold;
@@ -1305,10 +1304,9 @@
       text-shadow: 1px 1px 0px #000;
     }
 
-    /* The magic: move left by exactly half (one full set of text + gap) */
-    @keyframes scroll-infinite {
-      0% { transform: translateX(0); }
-      100% { transform: translateX(-50%); }
+    @keyframes scroll-seamless {
+      0%   { transform: translateX(0); }
+      100% { transform: translateX(-50%); } 
     }
   </style>
 </head>
@@ -2575,18 +2573,35 @@
 
     // ── Ticker seamless loop ──────────────────────
     window.addEventListener('load', () => {
-      const track = document.querySelector('.ticker-track');
-      const originalSpan = track.querySelector('span');
+      const track = document.getElementById('tickerTrack');
+      const container = document.querySelector('.ticker-content');
+      const span = track.querySelector('span');
       
-      // Clear and create 2 identical clones
-      const text = originalSpan.innerHTML;
-      track.innerHTML = `<span>${text}</span><span>${text}</span>`;
+      const text = span.innerHTML;
+      const singleWidth = span.offsetWidth;
       
-      // Optional: Adjust speed based on text length
-      const textWidth = track.querySelector('span').offsetWidth;
-      const speed = 50; // pixels per second
-      const duration = textWidth / speed;
-      track.style.animationDuration = `${duration}s`;
+      // 1. FILL THE TRACK
+      // We calculate how many copies are needed to fill the screen plus one extra
+      const copiesNeeded = Math.ceil(container.offsetWidth / singleWidth) + 1;
+      
+      // 2. CREATE THE CLONE SET
+      // We create TWO sets of the filled track. 
+      // When we move -50%, the second set perfectly replaces the first.
+      let content = "";
+      for(let i = 0; i < copiesNeeded; i++) {
+        content += `<span>${text}</span>`;
+      }
+      
+      // Duplicate the entire string for the seamless reset
+      track.innerHTML = content + content;
+      
+      // 3. SET DYNAMIC SPEED
+      const speed = 60; // Pixels per second
+      const duration = singleWidth / speed; 
+      
+      // We animate only the distance of one "Text + Gap"
+      // Since we move by -50%, the duration applies to that half
+      track.style.animationDuration = `${duration * copiesNeeded}s`;
     });
   </script>
 </body>
