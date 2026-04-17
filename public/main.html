@@ -1280,30 +1280,41 @@
       flex-grow: 1;
       height: 100%;
       overflow: hidden;
+      position: relative; /* Essential for containing the absolute track */
+      background: #0d0d08;
+      border-left: 1px solid #333;
+      border-right: 1px solid #333;
+    }
+
+    .ticker-track {
       display: flex;
       align-items: center;
-      background: #0d0d08;
-      
-      /* Inner borders to separate the scroll area from the buttons */
-      border-left: 2px solid #222;
-      border-right: 2px solid #222;
+      width: 100%;
+      height: 100%;
     }
 
     .bottom-ticker span {
-      display: inline-block;
-      font-family: 'Courier New', Courier, monospace; /* Use a monospaced font for that tech look */
-      color: var(--sa-text);
+      position: absolute;
+      white-space: nowrap;
+      font-family: 'Courier New', Courier, monospace;
+      color: #d4c59a;
       font-weight: bold;
       font-size: 13px;
-      white-space: nowrap;
       letter-spacing: 1px;
+      text-shadow: 1px 1px 0px #000;
+      
+      /* The Animation */
+      /* Starts exactly at the right boundary of the ticker-content */
       animation: scroll-left 15s linear infinite;
-      text-shadow: 1px 1px 0px #000; /* Adds the "etched" look */
     }
 
     @keyframes scroll-left {
-      0% { transform: translateX(100%); }
-      100% { transform: translateX(-100%); }
+      0% {
+        transform: translateX(100%); /* 100% of the ticker-content width */
+      }
+      100% {
+        transform: translateX(-100%); /* Move until it is fully hidden on the left */
+      }
     }
   </style>
 </head>
@@ -1312,7 +1323,9 @@
   <div class="bottom-ticker">
     <div class="ticker-btn-left"></div>
     <div class="ticker-content">
-      <span>⚡ Joe Kontol • ⚡</span>
+      <div class="ticker-track">
+        <span>EST 1-1 (203.144.130.61-12000)-10</span>
+      </div>
     </div>
     <div class="ticker-btn-right"></div>
   </div>
