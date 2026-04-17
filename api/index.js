@@ -141,8 +141,9 @@ async function uploadToDrive(base64, mimeType, fileName, folderId) {
 
 // ── Find or create a named subfolder inside a parent Drive folder ──────────────
 async function findOrCreateFolder(drive, folderName, parentId) {
+  const escapedName = folderName.replace(/'/g, "\\'");
   const search = await drive.files.list({
-    q: `name='${folderName}' and '${parentId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,
+    q: `name='${escapedName}' and '${parentId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,
     fields: 'files(id)',
     spaces: 'drive',
     supportsAllDrives: true,
@@ -152,7 +153,7 @@ async function findOrCreateFolder(drive, folderName, parentId) {
   const folder = await drive.files.create({
     supportsAllDrives: true,
     requestBody: {
-      name: folderName,
+      name: escapedName,
       mimeType: 'application/vnd.google-apps.folder',
       parents: [parentId],
     },
@@ -256,12 +257,13 @@ async function handleFinalizeUpload(body, res) {
   if (!fileName || !folderId) throw new Error('fileName and folderId are required');
 
   const drive = google.drive({ version: 'v3', auth: getDriveAuth() });
+  const escapedFileName = fileName.replace(/'/g, "\\'");
 
   // Poll for the file — it should exist immediately after upload
   let fileId = null;
   for (let attempt = 0; attempt < 6; attempt++) {
     const search = await drive.files.list({
-      q: `name='${fileName}' and '${folderId}' in parents and trashed=false`,
+      q: `name='${escapedFileName}' and '${folderId}' in parents and trashed=false`,
       fields: 'files(id,createdTime)',
       orderBy: 'createdTime desc',
       pageSize: 5,
