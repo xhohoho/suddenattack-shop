@@ -466,7 +466,7 @@
         img3: item['img3'] || '',
         img4: item['img4'] || '',
         sellername: item['sellername'] || '',
-        sellerphone: item['sellercontact'] || item['sellerphone'] || '',
+        sellercontact: item['sellercontact'] || item['sellerphone'] || '',
         sellerign: item['sellerign'] || ''
       })).filter(a => a.id && a.rank);
 
@@ -546,7 +546,7 @@
         : '<span class="acc-status-pill s-available">Available</span>';
       const details = [];
       if (a.ign) details.push(`<div class="detail-row"><span class="detail-label">IGN</span><span class="detail-val hl">${a.ign}</span></div>`);
-      if (a.accid) details.push(`<div class="detail-row"><span class="detail-label">ID</span><span class="detail-val">${a.accId}</span></div>`);
+      if (a.accid) details.push(`<div class="detail-row"><span class="detail-label">ID</span><span class="detail-val">${a.accid}</span></div>`);
       if (a.kda) details.push(`<div class="detail-row"><span class="detail-label">KDA</span><span class="detail-val hl">${a.kda}</span></div>`);
       const tags = a.notes ? a.notes.split(',').filter(t => t.trim()).map(t => `<span class="tag">${t.trim()}</span>`).join('') : '';
       let actionHtml = '';
@@ -835,14 +835,14 @@
   async function submitSellAccount() {
     const g = id => document.getElementById(id)?.value.trim()||'';
     const sellername  = g('sell-seller-name');
-    const sellerphone = g('sell-seller-phone');
+    const sellercontact = g('sell-seller-contact');
     const sellerign   = g('sell-seller-ign');
     const rank        = g('sell-rank');
     const ign         = g('sell-ign');
     const price       = parseFloat(g('sell-price'));
 
     if (!sellername)  { showToast('Please enter your full name.'); return; }
-    if (!sellerphone) { showToast('Please enter your phone number.'); return; }
+    if (!sellercontact) { showToast('Please enter your phone number.'); return; }
     if (!sellerign)   { showToast('Please enter your in-game name.'); return; }
     if (!rank)        { showToast('Please enter the account rank.'); return; }
     if (!price || price <= 0) { showToast('Please enter a valid asking price.'); return; }
@@ -852,7 +852,7 @@
     btn.disabled=true; btn.textContent='Submitting...';
     status.textContent='Preparing listing...'; status.style.color='var(--text2)';
 
-    const accid = genId('ACC');
+    const systemid = genId('ACC');
     const uploadedUrls = ['','','',''];
 
     try {
@@ -881,13 +881,13 @@
 
       status.textContent='Saving listing...';
       const acc = {
-        id: accid,
+        id: systemid,
         rank,
         price,
         ign: g('sell-ign'),
         accid: g('sell-accid'),
         sellername: sellername,
-        sellercontact: sellerphone,
+        sellercontact: sellercontact,
         sellerign: sellerign,
         kda: g('sell-kda'),
         winrate: g('sell-wr'),
@@ -924,7 +924,7 @@
     }
     const sortedAccounts = [...accounts].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
     el.innerHTML = sortedAccounts.map(a => {
-      const sellerInfo = a.sellername ? `<div style="font-size:11px;color:var(--text3);margin-top:2px">Seller: ${a.sellername}${a.sellerphone?' · '+a.sellerphone:''}</div>` : '';
+      const sellerInfo = a.sellername ? `<div style="font-size:11px;color:var(--text3);margin-top:2px">Seller: ${a.sellername}${a.sellercontact?' · '+a.sellercontact:''}</div>` : '';
       const publicPrice = a.price * 1.10;
       return `
       <div class="acc-list-item" id="acc-row-${a.id}">
@@ -933,7 +933,7 @@
             <strong>${a.rank}</strong> 
             <span style="color:var(--text3); font-size:11px;">(Net: ${fmt(a.price)} → Sell: ${fmt(publicPrice)})</span>
           </div>
-          <div style="font-size:12px;color:var(--text2);margin-top:2px">${a.ign?a.ign:''}${a.accId?' · ID '+a.accId:''}</div>
+          <div style="font-size:12px;color:var(--text2);margin-top:2px">${a.ign?a.ign:''}${a.accid?' · ID '+a.accid:''}</div>
           ${sellerInfo}
           <div class="acc-mgmt-id" style="margin-top:3px">${a.id}</div>
         </div>
@@ -985,7 +985,7 @@
         document.getElementById('f-rank').value=a.rank||'';
         document.getElementById('f-price').value=a.price||'';
         document.getElementById('f-ign').value=a.ign||'';
-        document.getElementById('f-id').value=a.accId||'';
+        document.getElementById('f-id').value=a.accid||'';
         document.getElementById('f-kda').value=a.kda||'';
         document.getElementById('f-wr').value=a.winRate||'';
         document.getElementById('f-exp').value=a.exp||'';
@@ -1059,7 +1059,7 @@
         const resp=await adminFetch({action:'extractAccountStats',base64});
         const result=await resp.json();
         document.getElementById('rv-ign').value=result.ign||'';
-        document.getElementById('rv-accid').value=result.accId||'';
+        document.getElementById('rv-accid').value=result.accid||'';
         document.getElementById('rv-kda').value=result.kda||'';
         document.getElementById('rv-wr').value=result.winRate||'';
         document.getElementById('rv-exp').value=result.exp||'';
