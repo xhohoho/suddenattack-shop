@@ -220,6 +220,7 @@ async function handleGetDirectUploadUrl(body, res) {
         'Authorization': `Bearer ${accessToken}`,
         'Content-Type': 'application/json',
         'X-Upload-Content-Type': mimeType,
+        'Origin': 'https://suddenattack.safie.cc'
       },
       body: JSON.stringify({
         name: fileName,
