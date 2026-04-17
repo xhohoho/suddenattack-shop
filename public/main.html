@@ -1295,10 +1295,8 @@
 
     .bottom-ticker span {
       position: absolute;
-      left: 0;             /* <--- ADD THIS: Force the starting anchor to the left */
-      top: 50%;            /* Center vertically */
-      transform: translateY(-50%); /* Fine-tune vertical centering */
-      
+      left: 0;
+      top: 50%;
       white-space: nowrap;
       font-family: 'Courier New', Courier, monospace;
       color: #d4c59a;
@@ -1306,18 +1304,16 @@
       font-size: 13px;
       letter-spacing: 1px;
       text-shadow: 1px 1px 0px #000;
-      
-      animation: scroll-left 5s linear infinite;
+
+      animation: scroll-left 8s linear infinite;
     }
 
     @keyframes scroll-left {
       0% {
-        /* TranslateX(100%) of its parent (.ticker-content) */
-        transform: translate(100%, -50%); 
+        transform: translateX(100vw) translateY(-50%);   /* starts at far right */
       }
       100% {
-        /* Move until it is fully hidden off the left side */
-        transform: translate(-100%, -50%); 
+        transform: translateX(-100%)  translateY(-50%);  /* ends fully off left */
       }
     }
   </style>
