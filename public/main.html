@@ -1290,15 +1290,6 @@
       letter-spacing: 1px;
       text-shadow: 1px 1px 0px #000;
     }
-
-    @keyframes scroll-left {
-      0% {
-        transform: translateX(100vw) translateY(-50%);
-      }
-      100% {
-        transform: translateX(-100%) translateY(-50%);
-      }
-    }
   </style>
 </head>
 
@@ -1700,7 +1691,22 @@
     <script>
       // ── Config ─────────────────────────────────
       const track = document.querySelector('.ticker-track');
+      
+      // Duplicate the content
       track.innerHTML += track.innerHTML;
+      
+      // Measure one copy's width
+      const singleWidth = track.scrollWidth / 2;
+      
+      // Inject the keyframe dynamically using exact pixel value
+      const style = document.createElement('style');
+      style.textContent = `
+        @keyframes scroll-left {
+          0%   { transform: translateX(0); }
+          100% { transform: translateX(-${singleWidth}px); }
+        }
+      `;
+      document.head.appendChild(style);
       const API_URL = '/api/index';
 
       // ── Shared item state (used by main.html admin + item.html) ──
