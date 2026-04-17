@@ -1,619 +1,1164 @@
-import { google } from 'googleapis';
+<style>
+  /* ── Accounts-specific styles ── */
+  .acc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px,1fr)); gap: 16px }
+  .acc-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 10px; padding: 16px; position: relative; cursor: pointer; transition: all .2s; display: flex; flex-direction: column; gap: 12px; overflow: hidden }
+  .acc-card:hover { border-color: var(--accent); transform: translateY(-2px) }
+  .acc-card.sold { opacity: .6; filter: grayscale(1) }
+  .acc-card.pending { border-color: #ffffff18; opacity: .75 }
+  .card-header { display: flex; justify-content: space-between; align-items: center }
+  .acc-id { font-family: 'Rajdhani', sans-serif; font-size: 11px; font-weight: 600; color: var(--text3); letter-spacing: .06em }
+  .acc-status-pill { font-family: 'Rajdhani', sans-serif; font-size: 10px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; padding: 2px 8px; border-radius: 3px }
+  .s-available { background: #2ecc8a18; color: var(--green) }
+  .s-reserved { background: #e8b84b18; color: var(--accent) }
+  .s-sold { background: #ffffff0a; color: var(--text3) }
+  .s-pending { background: #4a9eff18; color: var(--blue) }
+  .card-rank { display: flex; align-items: center; gap: 12px; margin-bottom: 4px }
+  .rank-icon { font-size: 28px }
+  .rank-name { font-family: 'Rajdhani', sans-serif; font-size: 18px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase }
+  .rank-tier { font-size: 11px; color: var(--text3); margin-top: 2px }
+  .card-details { background: var(--bg3); border-radius: 6px; padding: 10px; display: flex; flex-direction: column; gap: 6px }
+  .detail-row { display: flex; justify-content: space-between; align-items: center; font-size: 12px }
+  .detail-label { color: var(--text2) }
+  .detail-val { color: var(--text); font-family: 'Rajdhani', sans-serif; font-weight: 600 }
+  .detail-val.hl { color: var(--accent) }
+  .progress-wrap { flex: 1; background: var(--bg2); border-radius: 4px; height: 6px; overflow: hidden; border: 1px solid var(--border) }
+  .progress-bar { width: 100%; height: 100% }
+  .progress-fill { height: 100%; background: var(--accent); border-radius: 4px }
+  .card-tags { display: flex; flex-wrap: wrap; gap: 6px }
+  .tag { font-size: 10px; font-family: 'Rajdhani', sans-serif; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; background: var(--bg3); color: var(--text2); padding: 2px 6px; border-radius: 4px; border: 1px solid var(--border) }
+  .card-divider { border: none; border-top: 1px solid var(--border2); margin: 0 }
+  .card-footer { display: flex; justify-content: space-between; align-items: center }
+  .acc-price { font-family: 'Rajdhani', sans-serif; font-size: 20px; font-weight: 700; color: var(--accent) }
+  .buy-btn { padding: 6px 14px; background: var(--accent); color: #0a0b0f; border: none; border-radius: 6px; font-family: 'Rajdhani', sans-serif; font-size: 12px; font-weight: 700; cursor: pointer; transition: all .15s; letter-spacing: .05em; text-transform: uppercase }
+  .buy-btn:hover { background: var(--accent2) }
+  .sold-overlay { position: absolute; inset: 0; background: rgba(10,11,15,.4); display: flex; align-items: center; justify-content: center; z-index: 10; pointer-events: none }
+  .sold-stamp { font-family: 'Rajdhani', sans-serif; font-size: 24px; font-weight: 700; color: var(--text); text-transform: uppercase; letter-spacing: .2em; padding: 8px 16px; border: 2px solid var(--text); border-radius: 8px; transform: rotate(-15deg); opacity: .8 }
+  .filter-bar { display: flex; gap: 10px; margin-bottom: 16px; align-items: center; flex-wrap: wrap }
+  .search-wrap { position: relative; flex: 1; min-width: 200px }
+  .search-wrap span { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--text3); font-size: 14px; pointer-events: none }
+  .search-wrap input { width: 100%; background: var(--bg2); border: 1px solid var(--border); border-radius: 6px; padding: 8px 12px 8px 32px; font-size: 13px; font-family: 'Inter', sans-serif; color: var(--text); outline: none; transition: border-color .2s }
+  .search-wrap input:focus { border-color: #e8b84b50 }
+  .filter-chip { background: var(--bg2); border: 1px solid var(--border); border-radius: 20px; padding: 6px 14px; font-size: 12px; font-family: 'Rajdhani', sans-serif; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--text2); cursor: pointer; transition: all .2s }
+  .filter-chip:hover { border-color: var(--border2); color: var(--text) }
+  .filter-chip.active { background: #e8b84b15; border-color: var(--accent); color: var(--accent) }
+  .sort-select { background: var(--bg2); border: 1px solid var(--border); border-radius: 6px; padding: 7px 12px; font-size: 12px; font-family: 'Rajdhani', sans-serif; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--text2); outline: none; cursor: pointer }
+  .results-count { font-size: 11px; color: var(--text3); font-family: 'Rajdhani', sans-serif; letter-spacing: .05em; text-transform: uppercase; margin-left: auto }
+  .carousel-wrap { position: relative; width: 100%; border-radius: 10px; overflow: hidden; background: var(--bg3); margin-bottom: 0;}
+  .carousel-track { display: flex; transition: transform .35s cubic-bezier(.4,0,.2,1); will-change: transform }
+  .carousel-slide { flex: 0 0 100%; width: 100%; position: relative; height: 340px; display: flex; align-items: center; justify-content: center; background: var(--bg3);}
+  .carousel-slide img { max-width: 100%; max-height: 100%; width: auto; height: auto; object-fit: contain; display: block; background: var(--bg3);}
+  .carousel-slide video { width: 100%; max-height: 340px; display: block; background: #000 }
+  .carousel-dots { display: flex; justify-content: center; gap: 6px; padding: 10px 0 8px }
+  .carousel-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--border2); cursor: pointer; transition: all .2s; border: none; padding: 0 }
+  .carousel-dot.active { background: var(--accent); width: 18px; border-radius: 3px }
+  .carousel-badge { position: absolute; top: 8px; left: 8px; background: rgba(10,11,15,.8); backdrop-filter: blur(4px); border: 1px solid #e8b84b40; border-radius: 4px; font-family: 'Rajdhani', sans-serif; font-size: 10px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--accent); padding: 2px 7px; pointer-events: none; z-index: 2 }
+  .carousel-counter { position: absolute; top: 8px; right: 8px; background: rgba(10,11,15,.7); border-radius: 4px; font-family: 'Rajdhani', sans-serif; font-size: 11px; color: var(--text2); padding: 2px 7px; pointer-events: none; z-index: 2 }
+  .carousel-arrow { position: absolute; top: 50%; transform: translateY(-50%); z-index: 10; background: rgba(10,11,15,.65); border: 1px solid var(--border2); border-radius: 50%; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text); font-size: 14px; transition: all .15s; backdrop-filter: blur(4px) }
+  .carousel-arrow:hover { background: rgba(10,11,15,.9); border-color: var(--accent); color: var(--accent) }
+  .carousel-arrow.prev { left: 8px }
+  .carousel-arrow.next { right: 8px }
+  .carousel-no-media { display: flex; align-items: center; justify-content: center; height: 180px; color: var(--text3); font-family: 'Rajdhani', sans-serif; font-size: 13px; letter-spacing: .06em; text-transform: uppercase; border: 1px dashed var(--border); border-radius: 10px; background: var(--bg3) }
+  .detail-modal-media { margin: -20px -18px 0; border-radius: 10px 10px 0 0; overflow: hidden }
+  .detail-modal-body { padding-top: 16px }
+  .detail-modal-rank-row { display: flex; align-items: center; gap: 12px; margin-bottom: 12px }
+  .detail-modal-rank-icon { font-size: 30px; flex-shrink: 0 }
+  .detail-modal-rank-name { font-family: 'Rajdhani', sans-serif; font-size: 21px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; line-height: 1.1 }
+  .detail-modal-rank-sub { font-size: 11px; color: var(--text3); margin-top: 2px }
+  .pay-modal-title { font-family: 'Rajdhani', sans-serif; font-size: 18px; font-weight: 700; color: var(--text); letter-spacing: .05em; text-transform: uppercase; margin-bottom: 4px }
+  .modal-sub-info { font-size: 12px; color: var(--text2); margin-bottom: 12px }
+  .modal-label { font-family: 'Rajdhani', sans-serif; font-size: 12px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--text3); margin-bottom: 10px }
+  .buyer-field { margin-bottom: 12px }
+  .buyer-field label { display: block; font-family: 'Rajdhani', sans-serif; font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--text3); margin-bottom: 6px }
+  .buyer-field input { width: 100%; background: var(--bg3); border: 1px solid var(--border); border-radius: 6px; padding: 8px 12px; font-size: 13px; font-family: 'Inter', sans-serif; color: var(--text); outline: none; transition: border-color .2s }
+  .buyer-field input:focus { border-color: #e8b84b50 }
+  .modal-rank-row { display: flex; align-items: center; gap: 14px; margin-bottom: 16px }
+  .modal-rank-icon { font-size: 32px; flex-shrink: 0 }
+  .modal-rank-name { font-family: 'Rajdhani', sans-serif; font-size: 22px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase }
+  .modal-rank-sub { font-size: 12px; color: var(--text3); margin-top: 2px }
+  .modal-details { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px }
+  .modal-detail-row { display: flex; justify-content: space-between; align-items: center; background: var(--bg3); padding: 10px 14px; border-radius: 6px; border: 1px solid var(--border) }
+  .modal-detail-label { font-size: 12px; color: var(--text2) }
+  .modal-detail-val { font-size: 14px; font-weight: 500; color: var(--text) }
+  .modal-tags { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px }
+  .modal-price-row { display: flex; justify-content: space-between; align-items: center; padding-top: 16px; border-top: 1px solid var(--border2) }
+  .modal-price { font-family: 'Rajdhani', sans-serif; font-size: 28px; font-weight: 700; color: var(--accent) }
+  .stats-review { background: var(--bg3); border: 1px solid #e8b84b30; border-radius: 8px; padding: 14px; margin-top: 10px; display: none }
+  .stats-review-title { font-family: 'Rajdhani', sans-serif; font-size: 11px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--accent); margin-bottom: 10px }
+  .stats-review-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px }
+  .stats-field { display: flex; flex-direction: column; gap: 3px }
+  .stats-field label { font-family: 'Rajdhani', sans-serif; font-size: 10px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--text3) }
+  .stats-field input { background: var(--bg2); border: 1px solid var(--border); border-radius: 5px; padding: 6px 9px; font-size: 12px; font-family: 'Inter', sans-serif; color: var(--text); outline: none; transition: border-color .2s; width: 100% }
+  .stats-field input:focus { border-color: #e8b84b50 }
+  .stats-review-actions { display: flex; gap: 8px; margin-top: 10px }
+  .lightbox { position: fixed; inset: 0; background: rgba(0,0,0,.92); z-index: 2000; display: none; align-items: center; justify-content: center; padding: 24px }
+  .lightbox.open { display: flex }
+  .lightbox img { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 8px }
+  .lightbox video { max-width: 100%; max-height: 90vh; border-radius: 8px }
+  .lightbox-close { position: absolute; top: 20px; right: 24px; background: none; border: none; color: #fff; font-size: 32px; cursor: pointer; opacity: .7; transition: opacity .2s }
+  .lightbox-close:hover { opacity: 1 }
+  .spinner { width: 30px; height: 30px; border: 3px solid rgba(255,255,255,.3); border-radius: 50%; border-top-color: #fff; animation: spin 1s ease-in-out infinite; margin: 0 auto; }
+  .skeleton { background: var(--bg2); border: 1px solid var(--border); border-radius: 10px; padding: 16px; display: flex; flex-direction: column; gap: 12px }
+  .skel-line { background: var(--bg3); border-radius: 4px; height: 12px; animation: shimmer 1.5s infinite }
+  .skel-line.short { width: 40% }
+  .skel-line.med { width: 65% }
+  .skel-line.full { width: 100% }
+  @keyframes shimmer { 0%,100% { opacity: .4 } 50% { opacity: .9 } }
+  @keyframes spin { to { transform: rotate(360deg); }}
+  .video-container:fullscreen { width: 100vw !important; height: 100vh !important; display: flex !important; justify-content: center !important; align-items: center !important; background: #000 !important; }
+  .video-container:fullscreen video { width: 100vw !important; height: 100vh !important; object-fit: contain !important; background: #000 !important; max-width: none !important; max-height: none !important; }
+  .modal-overlay { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 1000; display: none; align-items: center; justify-content: center; background: rgba(0,0,0,.8) }
+  .modal-overlay.open { display: flex }
+  .modal { position: relative; max-width: 500px; width: 90%; max-height: 90vh; overflow-y: auto }
+  #detail-modal { padding: 20px 18px; cursor: default }
+  #detail-content { cursor: default }
+  .modal-close { z-index: 20; position: absolute; top: 14px; right: 16px }
 
-// ── Auth (Service Account — used for Sheets) ───────────────────────────────────
-function getAuth() {
-  const raw = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
-  if (!raw) throw new Error('GOOGLE_SERVICE_ACCOUNT_JSON env var is not set');
+  /* ── Sell Account Form (public) ── */
+  .sell-banner { background: linear-gradient(135deg, #1a1c24, #111318); border: 1px solid var(--border2); border-radius: 10px; padding: 16px 18px; margin-bottom: 18px; display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; flex-wrap: wrap }
+  .sell-banner-text { flex: 1 }
+  .sell-banner-title { font-family: 'Rajdhani', sans-serif; font-size: 15px; font-weight: 700; color: var(--text); letter-spacing: .04em; margin-bottom: 3px }
+  .sell-banner-sub { font-size: 12px; color: var(--text2); line-height: 1.5 }
+  .sell-banner-sub strong { color: var(--accent) }
+  .sell-open-btn { padding: 8px 18px; background: var(--accent); color: #0a0b0f; border: none; border-radius: 6px; font-family: 'Rajdhani', sans-serif; font-size: 13px; font-weight: 700; cursor: pointer; letter-spacing: .05em; text-transform: uppercase; white-space: nowrap; transition: all .15s; flex-shrink: 0 }
+  .sell-open-btn:hover { background: var(--accent2) }
 
-  let creds;
-  try {
-    creds = JSON.parse(raw);
-  } catch (e) {
-    try {
-      const fixed = raw.replace(/\r?\n/g, '\\n');
-      creds = JSON.parse(fixed);
-    } catch (e2) {
-      throw new Error(`Invalid GOOGLE_SERVICE_ACCOUNT_JSON: ${e.message}.`);
-    }
+  /* Pending notice on card */
+  .pending-notice { background: #4a9eff12; border: 1px solid #4a9eff25; border-radius: 5px; padding: 6px 10px; font-family: 'Rajdhani', sans-serif; font-size: 10px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--blue); text-align: center }
+
+  /* Admin accounts list — status select row */
+  .acc-mgmt-item { background: var(--bg3); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap }
+  .acc-mgmt-info { flex: 1; min-width: 0 }
+  .acc-mgmt-id { font-family: 'Rajdhani', sans-serif; font-size: 10px; color: var(--text3); letter-spacing: .06em }
+  .acc-mgmt-name { font-size: 13px; font-weight: 500; color: var(--text); margin-top: 1px }
+  .acc-mgmt-sub { font-size: 11px; color: var(--text2); margin-top: 2px }
+  .acc-mgmt-price { font-family: 'Rajdhani', sans-serif; font-size: 13px; font-weight: 600; color: var(--accent); white-space: nowrap; flex-shrink: 0 }
+</style>
+
+<!-- ══════════════════════════════════════════
+     VIEW: ACCOUNTS
+══════════════════════════════════════════ -->
+<div id="view-accounts" class="view-section">
+
+  <!-- Sell your account banner -->
+  <div class="sell-banner">
+    <div class="sell-banner-text">
+      <div class="sell-banner-title">💰 Sell Your Account</div>
+      <div class="sell-banner-sub">List your account here — we act as middleman. A <strong>10% service charge</strong> will be added to your asking price. You receive your full asking price once the buyer confirms.</div>
+    </div>
+    <button class="sell-open-btn" onclick="openSellModal()">List account</button>
+  </div>
+
+  <!-- Filter bar -->
+  <div class="filter-bar">
+    <div class="search-wrap">
+      <span>⌕</span>
+      <input type="text" id="acc-search" placeholder="Search rank, IGN..." />
+    </div>
+    <button class="filter-chip active" onclick="setFilter('all',this)">All</button>
+    <button class="filter-chip" onclick="setFilter('available',this)">Available</button>
+    <button class="filter-chip" onclick="setFilter('reserved',this)">Reserved</button>
+    <select class="sort-select" id="sort-select" onchange="renderGrid()">
+      <option value="newest">Newest first</option>
+      <option value="price-asc">Price: low→high</option>
+      <option value="price-desc">Price: high→low</option>
+    </select>
+    <span class="results-count" id="results-count"></span>
+  </div>
+
+  <div class="acc-grid" id="acc-grid"></div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     MODAL: Account Detail
+══════════════════════════════════════════ -->
+<div class="modal-overlay" id="detail-overlay" onclick="if(event.target===this)closeDetail()">
+  <div class="modal" id="detail-modal" onclick="event.stopPropagation()">
+    <button class="modal-close" onclick="closeDetail()">✕</button>
+    <div id="detail-content"></div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     MODAL: Buy Account (payment + buyer info)
+══════════════════════════════════════════ -->
+<div class="modal-overlay" id="pay-overlay">
+  <div class="modal" style="background:var(--bg2);border:1px solid var(--border2);border-radius:14px;padding:28px 24px">
+    <button class="modal-close" onclick="closePay()">✕</button>
+    <div class="pay-modal-title">Purchase Account</div>
+    <div class="modal-sub-info" id="modal-acc-info"></div>
+    <div class="modal-amt" id="modal-amt-acc">RM 0.00</div>
+    <img class="modal-qr" src="https://lh3.googleusercontent.com/d/1rJPbucJNmQaR1cHU4CvI2AOMnp102GsM=w600" alt="Payment QR" />
+    <hr class="modal-divider" />
+    <div style="font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--text3);margin-bottom:12px">Your details</div>
+    <div class="buyer-field">
+      <label>In-game name *</label>
+      <input id="buyer-ign" type="text" placeholder="Your IGN" />
+    </div>
+    <div class="buyer-field">
+      <label>Full name *</label>
+      <input id="buyer-name" type="text" placeholder="Your full name" />
+    </div>
+    <div class="buyer-field">
+      <label>Phone number *</label>
+      <input id="buyer-phone" type="tel" placeholder="e.g. 01112345678" />
+    </div>
+    <hr class="modal-divider" />
+    <div class="modal-label">Upload payment screenshot</div>
+    <div class="upload-area">
+      <input type="file" id="proof-file-acc" accept="image/*,application/pdf" onchange="previewFileAcc(this)" />
+      <div class="upload-lbl">Tap to select screenshot or PDF<br><span>JPG / PNG / PDF supported</span></div>
+      <img class="preview-img" id="preview-img-acc" />
+      <div id="preview-pdf-acc" style="display:none;margin-top:10px;padding:10px 14px;background:var(--bg3);border:1px solid var(--border2);border-radius:6px;font-family:'Rajdhani',sans-serif;font-size:12px;color:var(--accent);letter-spacing:.05em">📄 PDF selected — ready to upload</div>
+    </div>
+    <div class="upload-status" id="upload-status-acc"></div>
+    <button class="upload-btn" id="upload-btn-acc" onclick="submitPurchase()">Submit payment</button>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     MODAL: Sell Account (public listing form)
+══════════════════════════════════════════ -->
+<div class="modal-overlay" id="sell-overlay">
+  <div class="modal" style="background:var(--bg2);border:1px solid var(--border2);border-radius:14px;padding:28px 24px">
+    <button class="modal-close" onclick="closeSellModal()">✕</button>
+    <div style="font-family:'Rajdhani',sans-serif;font-size:17px;font-weight:700;color:var(--text);letter-spacing:.04em;margin-bottom:4px">List Your Account</div>
+    <div style="font-size:12px;color:var(--text2);margin-bottom:4px;line-height:1.5">Fill in your account details. We will review and list it for buyers.</div>
+    <!-- Service charge notice -->
+    <div style="background:#e8b84b0d;border:1px solid #e8b84b28;border-radius:6px;padding:10px 12px;margin-bottom:16px;font-size:12px;color:var(--text2);line-height:1.6">
+      ⚠️ <strong style="color:var(--accent)">10% service charge</strong> is added on top — e.g. if you want <strong style="color:var(--text)">RM 500</strong>, we list it for <strong style="color:var(--text)">RM 550</strong>. You get your RM 500.
+    </div>
+
+    <!-- Seller info -->
+    <div style="font-family:'Rajdhani',sans-serif;font-size:11px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--accent);margin-bottom:10px">Your details (seller)</div>
+    <div class="buyer-field">
+      <label>Full name *</label>
+      <input id="sell-seller-name" type="text" placeholder="Your full name" />
+    </div>
+    <div class="buyer-field">
+      <label>Phone number *</label>
+      <input id="sell-seller-phone" type="tel" placeholder="e.g. 01112345678" />
+    </div>
+    <div class="buyer-field">
+      <label>In-game name *</label>
+      <input id="sell-seller-ign" type="text" placeholder="Your in-game name" />
+    </div>
+
+    <hr class="modal-divider" />
+
+    <!-- Account details -->
+    <div style="font-family:'Rajdhani',sans-serif;font-size:11px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--text3);margin-bottom:10px">Account info</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="buyer-field">
+        <label>Rank *</label>
+        <input id="sell-rank" type="text" placeholder="e.g. Diamond 1" />
+      </div>
+      <div class="buyer-field">
+        <label>Asking price (RM) *</label>
+        <input id="sell-price" type="number" placeholder="e.g. 500" />
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="buyer-field">
+        <label>Account IGN</label>
+        <input id="sell-ign" type="text" placeholder="Account's IGN" />
+      </div>
+      <div class="buyer-field">
+        <label>Account ID</label>
+        <input id="sell-accid" type="text" placeholder="e.g. 47046" />
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
+      <div class="buyer-field">
+        <label>KDA</label>
+        <input id="sell-kda" type="text" placeholder="e.g. 2.5" />
+      </div>
+      <div class="buyer-field">
+        <label>Win Rate %</label>
+        <input id="sell-wr" type="text" placeholder="e.g. 64" />
+      </div>
+      <div class="buyer-field">
+        <label>EXP %</label>
+        <input id="sell-exp" type="number" placeholder="0–100" />
+      </div>
+    </div>
+    <div class="buyer-field">
+      <label>Features / Tags <span style="color:var(--text3);font-weight:400;text-transform:none;letter-spacing:0">(comma separated)</span></label>
+      <input id="sell-notes" type="text" placeholder="e.g. Full skin, Rare weapon, OG" />
+    </div>
+
+    <!-- Media upload -->
+    <div class="buyer-field">
+      <label>Screenshots / Videos <span style="color:var(--text3);font-weight:400;text-transform:none;letter-spacing:0">(up to 4 files)</span></label>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:4px" id="sell-slots">
+        <div class="img-slot" id="ss-slot-0" style="aspect-ratio:1;border:1px dashed var(--border2);border-radius:6px;position:relative;overflow:hidden;background:var(--bg3);display:flex;align-items:center;justify-content:center;cursor:pointer">
+          <input type="file" accept="image/*,video/*" onchange="handleSellSlot(this,0)" style="position:absolute;inset:0;opacity:0;cursor:pointer;z-index:5"/>
+          <img id="ss-slot-img-0" style="width:100%;height:100%;object-fit:cover;display:none;border-radius:5px"/>
+          <span style="font-size:9px;color:var(--accent);font-family:'Rajdhani',sans-serif;text-align:center;pointer-events:none;padding:2px" id="ss-slot-lbl-0">📊<br>Stats</span>
+          <button onclick="removeSellSlot(event,0)" id="ss-slot-rm-0" style="position:absolute;top:3px;right:3px;background:rgba(0,0,0,.7);border:none;border-radius:3px;color:var(--text2);font-size:10px;cursor:pointer;padding:1px 5px;display:none;z-index:6">✕</button>
+        </div>
+        <div class="img-slot" id="ss-slot-1" style="aspect-ratio:1;border:1px dashed var(--border2);border-radius:6px;position:relative;overflow:hidden;background:var(--bg3);display:flex;align-items:center;justify-content:center;cursor:pointer">
+          <input type="file" accept="image/*,video/*" onchange="handleSellSlot(this,1)" style="position:absolute;inset:0;opacity:0;cursor:pointer;z-index:5"/>
+          <img id="ss-slot-img-1" style="width:100%;height:100%;object-fit:cover;display:none;border-radius:5px"/>
+          <span style="font-size:9px;color:var(--text3);font-family:'Rajdhani',sans-serif;text-align:center;pointer-events:none" id="ss-slot-lbl-1">+ Media</span>
+          <button onclick="removeSellSlot(event,1)" id="ss-slot-rm-1" style="position:absolute;top:3px;right:3px;background:rgba(0,0,0,.7);border:none;border-radius:3px;color:var(--text2);font-size:10px;cursor:pointer;padding:1px 5px;display:none;z-index:6">✕</button>
+        </div>
+        <div class="img-slot" id="ss-slot-2" style="aspect-ratio:1;border:1px dashed var(--border2);border-radius:6px;position:relative;overflow:hidden;background:var(--bg3);display:flex;align-items:center;justify-content:center;cursor:pointer">
+          <input type="file" accept="image/*,video/*" onchange="handleSellSlot(this,2)" style="position:absolute;inset:0;opacity:0;cursor:pointer;z-index:5"/>
+          <img id="ss-slot-img-2" style="width:100%;height:100%;object-fit:cover;display:none;border-radius:5px"/>
+          <span style="font-size:9px;color:var(--text3);font-family:'Rajdhani',sans-serif;text-align:center;pointer-events:none" id="ss-slot-lbl-2">+ Media</span>
+          <button onclick="removeSellSlot(event,2)" id="ss-slot-rm-2" style="position:absolute;top:3px;right:3px;background:rgba(0,0,0,.7);border:none;border-radius:3px;color:var(--text2);font-size:10px;cursor:pointer;padding:1px 5px;display:none;z-index:6">✕</button>
+        </div>
+        <div class="img-slot" id="ss-slot-3" style="aspect-ratio:1;border:1px dashed var(--border2);border-radius:6px;position:relative;overflow:hidden;background:var(--bg3);display:flex;align-items:center;justify-content:center;cursor:pointer">
+          <input type="file" accept="image/*,video/*" onchange="handleSellSlot(this,3)" style="position:absolute;inset:0;opacity:0;cursor:pointer;z-index:5"/>
+          <img id="ss-slot-img-3" style="width:100%;height:100%;object-fit:cover;display:none;border-radius:5px"/>
+          <span style="font-size:9px;color:var(--text3);font-family:'Rajdhani',sans-serif;text-align:center;pointer-events:none" id="ss-slot-lbl-3">+ Media</span>
+          <button onclick="removeSellSlot(event,3)" id="ss-slot-rm-3" style="position:absolute;top:3px;right:3px;background:rgba(0,0,0,.7);border:none;border-radius:3px;color:var(--text2);font-size:10px;cursor:pointer;padding:1px 5px;display:none;z-index:6">✕</button>
+        </div>
+      </div>
+      <div style="font-size:11px;color:var(--text3);font-family:'Rajdhani',sans-serif;margin-top:5px">Slot 1 = stats screenshot (recommended). Other slots = gameplay photos or videos.</div>
+    </div>
+
+    <div id="sell-status" style="font-size:12px;color:var(--text2);font-family:'Rajdhani',sans-serif;min-height:18px;margin-bottom:8px;text-align:center"></div>
+    <button onclick="submitSellAccount()" id="sell-submit-btn" style="width:100%;padding:11px;background:var(--accent);color:#0a0b0f;border:none;border-radius:6px;font-family:'Rajdhani',sans-serif;font-size:15px;font-weight:700;cursor:pointer;letter-spacing:.06em;text-transform:uppercase;transition:all .15s">Submit listing</button>
+    <div style="font-size:11px;color:var(--text3);text-align:center;margin-top:10px;line-height:1.5;font-family:'Rajdhani',sans-serif">Your listing will be reviewed before going live. We'll contact you via phone once a buyer is found.</div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     LIGHTBOX
+══════════════════════════════════════════ -->
+<div class="lightbox" id="lightbox">
+  <button class="lightbox-close" onclick="closeLightbox()">✕</button>
+  <img id="lightbox-img" src="" alt="" style="display:none" />
+  <video id="lightbox-vid" controls playsinline style="display:none"></video>
+</div>
+
+<script>
+  // ── State ──────────────────────────────────
+  let currentFilter = 'all';
+  let editingId = null;
+  let newAccId = null;
+  let currentAccId = null;
+  let slotUrls = ['', '', '', ''];
+  let tempFiles = [null, null, null, null];
+  let sellTempFiles = [null, null, null, null];
+  let _carouselIdx = 0;
+  let _carouselItems = [];
+  let _touchStartX = 0;
+  const _videoBlobCache = {};
+  const _blobRefCount   = {};
+  const _blobCacheOrder = [];
+  const _BLOB_CACHE_MAX = 20;
+
+  function _tryRevoke(fileId) {
+    const url = _videoBlobCache[fileId];
+    if (!url) return;
+    if ((_blobRefCount[url] || 0) > 0) return;
+    URL.revokeObjectURL(url);
+    delete _videoBlobCache[fileId];
+    delete _blobRefCount[url];
+  }
+  function _blobRetain(url) {
+    if (!url || !url.startsWith('blob:')) return;
+    _blobRefCount[url] = (_blobRefCount[url] || 0) + 1;
+  }
+  function _blobRelease(url) {
+    if (!url || !url.startsWith('blob:')) return;
+    _blobRefCount[url] = Math.max(0, (_blobRefCount[url] || 1) - 1);
+  }
+  function getVideoDriveUrl(fileId) {
+    return `https://drive.google.com/file/d/${fileId}/preview`;
+  }
+  async function getVideoBlobUrl(fileId) {
+    return getVideoDriveUrl(fileId);
+  }
+  function isVideoUrl(url) {
+    if (!url) return false;
+    if (/\.gif(\?|$)/i.test(url)) return false;
+    if (url.includes('drive.google.com')) return true;
+    return /\.(mp4|mov|webm|avi|mkv)(\?|$)/i.test(url);
   }
 
-  if (creds.private_key && creds.private_key.includes('\\n')) {
-    creds.private_key = creds.private_key.replace(/\\n/g, '\n');
-  }
-
-  return new google.auth.GoogleAuth({
-    credentials: creds,
-    scopes: [
-      'https://www.googleapis.com/auth/spreadsheets',
-      'https://www.googleapis.com/auth/drive',
-    ],
-  });
-}
-
-// ── OAuth2 Auth (Personal Account — used for Drive uploads) ────────────────────
-function getDriveAuth() {
-  const clientId = process.env.GOOGLE_OAUTH_CLIENT_ID;
-  const clientSecret = process.env.GOOGLE_OAUTH_CLIENT_SECRET;
-  const refreshToken = process.env.GOOGLE_OAUTH_REFRESH_TOKEN;
-
-  if (!clientId || !clientSecret || !refreshToken) {
-    throw new Error('Missing OAuth env vars: GOOGLE_OAUTH_CLIENT_ID, GOOGLE_OAUTH_CLIENT_SECRET, GOOGLE_OAUTH_REFRESH_TOKEN');
-  }
-
-  const oauth2 = new google.auth.OAuth2(clientId, clientSecret);
-  oauth2.setCredentials({ refresh_token: refreshToken });
-  return oauth2;
-}
-
-function checkToken(body) {
-  if (!body._token || body._token !== process.env.ADMIN_TOKEN) {
-    throw new Error('Unauthorized');
-  }
-}
-
-const SHEET_ID = process.env.SHEET_ID;
-
-// ── Sheet Helpers ──────────────────────────
-async function getSheetData(auth, sheetName) {
-  try {
-    const sheets = google.sheets({ version: 'v4', auth });
-    const response = await sheets.spreadsheets.values.get({
-      spreadsheetId: SHEET_ID,
-      range: `${sheetName}!A1:Z1000`,
-    });
-    const rows = response.data.values;
-    if (!rows || rows.length < 2) return { headers: [], data: [] };
-    const headers = rows[0].map(h => h.toLowerCase().trim().replace(/\s+/g, ''));
-    const data = rows.slice(1)
-      .filter(row => row.some(cell => cell !== ''))
-      .map(row => Object.fromEntries(headers.map((key, i) => [key, row[i] || ''])));
-    return { headers, data };
-  } catch (err) {
-    console.error(`❌ getSheetData fail (${sheetName}):`, err.message);
-    throw err;
-  }
-}
-
-function colLetter(idx) {
-  let letter = '';
-  let n = idx;
-  while (n >= 0) {
-    letter = String.fromCharCode((n % 26) + 65) + letter;
-    n = Math.floor(n / 26) - 1;
-  }
-  return letter;
-}
-
-function driveUrl(fileId, mimeType = '') {
-  const isVideo = mimeType.includes('video');
-  const isGif = mimeType.includes('gif');
-  if (isVideo) return `https://drive.google.com/file/d/${fileId}/preview`;
-  if (isGif) return `https://lh3.googleusercontent.com/d/${fileId}`;
-  return `https://lh3.googleusercontent.com/d/${fileId}`;
-}
-
-async function sheetsRead(auth, range) {
-  const sheets = google.sheets({ version: 'v4', auth });
-  const r = await sheets.spreadsheets.values.get({ spreadsheetId: SHEET_ID, range });
-  return r.data.values || [];
-}
-
-async function sheetsWrite(auth, range, values) {
-  const sheets = google.sheets({ version: 'v4', auth });
-  await sheets.spreadsheets.values.update({
-    spreadsheetId: SHEET_ID,
-    range,
-    valueInputOption: 'USER_ENTERED',
-    requestBody: { values },
-  });
-}
-
-async function sheetsAppend(auth, range, values) {
-  const sheets = google.sheets({ version: 'v4', auth });
-  await sheets.spreadsheets.values.append({
-    spreadsheetId: SHEET_ID,
-    range,
-    valueInputOption: 'USER_ENTERED',
-    insertDataOption: 'INSERT_ROWS',
-    requestBody: { values },
-  });
-}
-
-// ── Drive Upload Helper (base64 — for small files / images) ───────────────────
-async function uploadToDrive(base64, mimeType, fileName, folderId) {
-  const auth = getDriveAuth();
-  const drive = google.drive({ version: 'v3', auth });
-  const buffer = Buffer.from(base64, 'base64');
-  const { Readable } = await import('stream');
-  const stream = Readable.from(buffer);
-  const r = await drive.files.create({
-    supportsAllDrives: true,
-    requestBody: { name: fileName, parents: [folderId] },
-    media: { mimeType, body: stream },
-    fields: 'id',
-  });
-  await drive.permissions.create({
-    fileId: r.data.id,
-    requestBody: { role: 'reader', type: 'anyone' },
-  });
-  return r.data.id;
-}
-
-// ── Find or create a named subfolder inside a parent Drive folder ──────────────
-async function findOrCreateFolder(drive, folderName, parentId) {
-  const escapedName = folderName.replace(/'/g, "\\'");
-  const search = await drive.files.list({
-    q: `name='${escapedName}' and '${parentId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,
-    fields: 'files(id)',
-    spaces: 'drive',
-    supportsAllDrives: true,
-    includeItemsFromAllDrives: true,
-  });
-  if (search.data.files.length > 0) return search.data.files[0].id;
-  const folder = await drive.files.create({
-    supportsAllDrives: true,
-    requestBody: {
-      name: folderName,
-      mimeType: 'application/vnd.google-apps.folder',
-      parents: [parentId],
-    },
-    fields: 'id',
-  });
-  return folder.data.id;
-}
-
-async function callGemini(base64, prompt) {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`;
-  const r = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      contents: [{ parts: [{ text: prompt }, { inline_data: { mime_type: 'image/jpeg', data: base64 } }] }]
-    })
-  });
-  const d = await r.json();
-  return d.candidates[0].content.parts[0].text;
-}
-
-// ══════════════════════════════════════════
-// DIRECT UPLOAD HANDLERS
-// Browser uploads file straight to Google Drive — bypasses Vercel's 4.5MB body limit.
-// Flow:
-//   1. Frontend calls getDirectUploadUrl  → gets { uploadUrl, fileId }
-//   2. Frontend PUTs the raw file blob to uploadUrl (direct to Google Drive)
-//   3. Frontend calls finalizeUpload(fileId) → sets public permission, returns display URL
-// ══════════════════════════════════════════
-
-async function handleGetDirectUploadUrl(body, res) {
-  // Allowed for both admin and public (no token check needed — the returned URL
-  // is a single-use resumable session URL that expires in 24h and only allows
-  // uploading one specific file).
-  const { fileName, mimeType, folderContext, ign } = body;
-  if (!fileName || !mimeType) throw new Error('fileName and mimeType are required');
-
-  const oauthClient = getDriveAuth();
-  const { credentials } = await oauthClient.refreshAccessToken();
-  const accessToken = credentials.access_token;
-
-  // Determine target folder
-  let folderId;
-  const drive = google.drive({ version: 'v3', auth: oauthClient });
-
-  if (folderContext === 'account' || folderContext === 'account_public') {
-    const subfolderName = ign || 'unknown';
-    folderId = await findOrCreateFolder(drive, subfolderName, process.env.DRIVE_FOLDER_ACCOUNTS);
-  } else if (folderContext === 'receipt') {
-    folderId = process.env.DRIVE_FOLDER_RECEIPT;
-  } else if (folderContext === 'payment') {
-    folderId = process.env.DRIVE_FOLDER_PAYMENT;
-  } else {
-    folderId = process.env.DRIVE_FOLDER_SA;
-  }
-
-  // Create a resumable upload session on Google Drive
-  // This returns a session URI — the browser uploads the file directly to it.
-  const initResp = await fetch(
-    'https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable&fields=id',
-    {
+  // ── Direct-to-Drive upload helper (bypasses Vercel 4.5MB limit) ─────────────
+  // Used for videos and GIFs. Flow:
+  //   1. Ask backend for a resumable Drive upload URL (backend auth → Drive session)
+  //   2. PUT the raw file blob directly to Google Drive from the browser
+  //   3. Ask backend to make the file public and return the embed URL
+  async function uploadDirectToDrive(file, fileName, folderContext, ign) {
+    // Step 1: Get resumable upload URL from backend
+    const urlResp = await fetch(API_URL, {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${accessToken}`,
-        'Content-Type': 'application/json',
-        'X-Upload-Content-Type': mimeType,
-      },
-      body: JSON.stringify({
-        name: fileName,
-        parents: [folderId],
-      }),
-    }
-  );
-
-  if (!initResp.ok) {
-    const err = await initResp.text();
-    throw new Error(`Drive resumable init failed: ${err}`);
-  }
-
-  const uploadUrl = initResp.headers.get('location');
-  if (!uploadUrl) throw new Error('No upload URL returned from Drive');
-
-  // We also need the fileId — Drive doesn't return it until after upload.
-  // Instead, we return the uploadUrl and the folder context so finalizeUpload
-  // can list recent files in the folder. Actually, a cleaner approach:
-  // create the file metadata first (0 bytes), then return its ID + an update URL.
-
-  // Better: use the files.create with uploadType=resumable to get both the fileId
-  // and the resumable upload URL in one step via the Location header.
-  // The fileId is embedded in the Location URL after ?upload_id=... is gone —
-  // it's not directly exposed. So we return the uploadUrl and let finalizeUpload
-  // find the file by its unique name.
-
-  return res.json({ uploadUrl, folderId, fileName, mimeType });
-}
-
-async function handleFinalizeUpload(body, res) {
-  // Called after the browser finishes a direct Drive upload.
-  // Finds the newly uploaded file by name in the folder, sets it public, returns URL.
-  const { fileName, mimeType, folderId } = body;
-  if (!fileName || !folderId) throw new Error('fileName and folderId are required');
-
-  const drive = google.drive({ version: 'v3', auth: getDriveAuth() });
-  const escapedFileName = fileName.replace(/'/g, "\\'");
-
-  // Poll for the file — it should exist immediately after upload
-  let fileId = null;
-  for (let attempt = 0; attempt < 6; attempt++) {
-    const search = await drive.files.list({
-      q: `name='${escapedFileName}' and '${folderId}' in parents and trashed=false`,
-      fields: 'files(id,createdTime)',
-      orderBy: 'createdTime desc',
-      pageSize: 5,
-      supportsAllDrives: true,
-      includeItemsFromAllDrives: true,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'getDirectUploadUrl', fileName, mimeType: file.type, folderContext, ign })
     });
-    if (search.data.files.length > 0) {
-      fileId = search.data.files[0].id;
-      break;
+    const urlResult = await urlResp.json();
+    if (urlResult.error) throw new Error('Upload init failed: ' + urlResult.error);
+
+    // Step 2: Upload file blob directly to Google Drive (no Vercel in between)
+    const uploadResp = await fetch(urlResult.uploadUrl, {
+      method: 'PUT',
+      headers: { 'Content-Type': file.type },
+      body: file
+    });
+    if (!uploadResp.ok) throw new Error(`Direct upload to Drive failed: ${uploadResp.status}`);
+
+    // Step 3: Finalize — set public permission, get URL
+    const finalResp = await fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'finalizeUpload', fileName, mimeType: file.type, folderId: urlResult.folderId })
+    });
+    const finalResult = await finalResp.json();
+    if (finalResult.error) throw new Error('Finalize failed: ' + finalResult.error);
+    return finalResult.url;
+  }
+
+  // ── Rank helpers ───────────────────────────
+  const RANK_ICONS = { bronze: '🥉', silver: '🥈', gold: '🥇', platinum: '💎', diamond: '💎', master: '👑', grandmaster: '👑', challenger: '🏆', default: '🎮' };
+  function getRankIcon(rank) {
+    if (!rank) return RANK_ICONS.default;
+    const r = rank.toLowerCase();
+    for (const [k, v] of Object.entries(RANK_ICONS)) { if (r.includes(k)) return v; }
+    return RANK_ICONS.default;
+  }
+  function getRankColor(rank) {
+    if (!rank) return 'var(--text2)';
+    const r = rank.toLowerCase();
+    if (r.includes('challenger') || r.includes('grandmaster')) return '#e8b84b';
+    if (r.includes('master')) return '#9b7fe8';
+    if (r.includes('diamond')) return '#4a9eff';
+    if (r.includes('platinum')) return '#2ecc8a';
+    if (r.includes('gold')) return '#f0c040';
+    if (r.includes('silver')) return '#9099a8';
+    if (r.includes('bronze')) return '#cd7f32';
+    return 'var(--text2)';
+  }
+
+  // ── Fetch accounts ─────────────────────────
+  let _lastAccountData = '';
+  async function fetchAccounts() {
+    if (!accounts.length) showGridSkeleton();
+    try {
+      const r = await fetch(API_URL, { 
+        method: 'POST', 
+        headers: { 'Content-Type': 'application/json' }, 
+        body: JSON.stringify({ action: 'getAccounts' }) 
+      });
+      const d = await r.json();
+      const rows = d.values || [];
+      if (!rows.length) return;
+
+      const newData = rows.map(item => ({
+        id: item['id'] || '',
+        rank: item['rank'] || '',
+        price: parseFloat(item['price']) || 0,
+        ign: item['ign'] || '',
+        accid: item['accid'] || item['accountid'] || '',
+        kda: item['kda'] || '',
+        winRate: item['winrate'] || '',
+        exp: item['exp'] || '',
+        ach: item['achievement'] || '',
+        notes: item['notes'] || '',
+        status: (item['status'] || 'pending').toLowerCase().trim(),
+        createdat: parseInt(item['createdat']) || Date.now(),
+        img1: item['img1'] || '',
+        img2: item['img2'] || '',
+        img3: item['img3'] || '',
+        img4: item['img4'] || '',
+        sellername: item['sellername'] || '',
+        sellerphone: item['sellercontact'] || item['sellerphone'] || '',
+        sellerign: item['sellerign'] || ''
+      })).filter(a => a.id && a.rank);
+
+      const hash = JSON.stringify(newData);
+      if (hash === _lastAccountData) return;
+      _lastAccountData = hash;
+      accounts = newData;
+      renderGrid();
+      if (adminUnlocked) renderManageList();
+    } catch (e) {
+      console.error('Fetch error:', e);
     }
-    // Wait 500ms before retry
-    await new Promise(r => setTimeout(r, 500));
   }
 
-  if (!fileId) throw new Error('Uploaded file not found in Drive after polling');
-
-  // Make public
-  await drive.permissions.create({
-    fileId,
-    requestBody: { role: 'reader', type: 'anyone' },
-  });
-
-  const url = driveUrl(fileId, mimeType);
-  console.log(`✅ finalizeUpload: ${fileName} → ${fileId} → ${url}`);
-  return res.json({ url, fileId });
-}
-
-// ══════════════════════════════════════════
-// ACTION HANDLERS
-// ══════════════════════════════════════════
-
-async function handleAdminAuth(body, res) {
-  if (body.password !== process.env.ADMIN_PASSWORD) return res.status(200).json({ error: 'unauthorized' });
-  return res.json({ token: process.env.ADMIN_TOKEN });
-}
-
-async function handleGetOrders(auth, res) {
-  const { data } = await getSheetData(auth, 'Orders');
-  return res.json({ values: data });
-}
-
-async function handleGetShopItems(auth, res) {
-  const rows = await sheetsRead(auth, 'CurrentShop!A1:F1000');
-  if (!rows || rows.length < 2) return res.json({ values: [] });
-  const data = rows.slice(1)
-    .filter(row => row.some(cell => cell !== ''))
-    .map((row, i) => ({
-      id: row[0] || String(i + 1),
-      name: row[1] || '',
-      desc: row[2] || '',
-      p7: row[3] || '',
-      p15: row[4] || '',
-      p30: row[5] || '',
-    }))
-    .filter(it => it.name);
-  return res.json({ values: data });
-}
-
-async function handleGetAccounts(auth, res) {
-  const { data } = await getSheetData(auth, 'AccountList');
-  return res.json({ values: data });
-}
-
-async function handleUpdateOrderStatus(auth, body, res) {
-  checkToken(body);
-  console.log(`📝 updateOrderStatus: ${body.order_id} → ${body.status}`);
-  const { headers, data } = await getSheetData(auth, 'Orders');
-  const rowIdx = data.findIndex(r => r.order_id === body.order_id);
-  if (rowIdx === -1) throw new Error('Order not found');
-  const rowNum = rowIdx + 2;
-  const statusCol = colLetter(headers.indexOf('status'));
-  await sheetsWrite(auth, `Orders!${statusCol}${rowNum}`, [[body.status]]);
-  return res.json({ result: 'ok' });
-}
-
-async function handleNewOrder(auth, body, res) {
-  let proofFormula = '';
-  if (body.base64) {
-    const fileId = await uploadToDrive(body.base64, body.mimeType, body.fileName, process.env.DRIVE_FOLDER_RECEIPT);
-    proofFormula = body.mimeType === 'application/pdf'
-      ? `=HYPERLINK("https://drive.google.com/file/d/${fileId}/view","📄 View PDF")`
-      : `=IMAGE("${driveUrl(fileId, body.mimeType)}")`;
-  }
-  const kl = new Date(body.timestamp).toLocaleString('en-US', { timeZone: 'Asia/Kuala_Lumpur' });
-  const row = [
-    body.order_id, kl, body.name, body.phone || '',
-    body.email || '', body.items, body.total,
-    body.note || '', body.status || 'New', proofFormula
-  ];
-  const { data } = await getSheetData(auth, 'Orders');
-  const rowIdx = data.findIndex(r => r.order_id === body.order_id);
-  if (rowIdx >= 0) {
-    await sheetsWrite(auth, `Orders!A${rowIdx + 2}:Z${rowIdx + 2}`, [row]);
-  } else {
-    await sheetsAppend(auth, 'Orders!A1', [row]);
-  }
-  return res.json({ result: 'ok' });
-}
-
-async function handleUploadProofItem(auth, body, res) {
-  console.log(`📤 uploadProofItem: ${body.order_id}`);
-  const fileId = await uploadToDrive(body.base64, body.mimeType, body.fileName, process.env.DRIVE_FOLDER_RECEIPT);
-  const proofFormula = body.mimeType === 'application/pdf'
-    ? `=HYPERLINK("https://drive.google.com/file/d/${fileId}/view","📄 View PDF")`
-    : `=IMAGE("${driveUrl(fileId, body.mimeType)}")`;
-  const { headers, data } = await getSheetData(auth, 'Orders');
-  const rowIdx = data.findIndex(r => r.order_id === body.order_id);
-  if (rowIdx === -1) throw new Error('Order not found');
-  const rowNum = rowIdx + 2;
-  const statusCol = colLetter(headers.indexOf('status'));
-  const proofCol = colLetter(headers.indexOf('proof'));
-  await sheetsWrite(auth, `Orders!${statusCol}${rowNum}:${proofCol}${rowNum}`, [['Paid', proofFormula]]);
-  console.log(`✅ proof uploaded for ${body.order_id}`);
-  return res.json({ result: 'ok' });
-}
-
-async function handleAccountPurchase(auth, body, res) {
-  console.log(`💰 accountPurchase: ${body.order_id}`);
-  const fileId = await uploadToDrive(body.base64, body.mimeType, body.fileName, process.env.DRIVE_FOLDER_PAYMENT);
-  const proofFormula = body.mimeType === 'application/pdf'
-    ? `=HYPERLINK("https://drive.google.com/file/d/${fileId}/view","📄 View PDF")`
-    : `=IMAGE("${driveUrl(fileId, body.mimeType)}")`;
-  const kl = new Date(body.timestamp).toLocaleString('en-US', { timeZone: 'Asia/Kuala_Lumpur' });
-  const row = [
-    body.order_id, kl, body.name, body.phone || '',
-    body.email || '', body.items, body.total,
-    body.note || '', 'Paid', proofFormula
-  ];
-  await sheetsAppend(auth, 'Orders!A1', [row]);
-  return res.json({ result: 'ok' });
-}
-
-async function handleSaveItems(auth, body, res) {
-  checkToken(body);
-  const sheets = google.sheets({ version: 'v4', auth });
-  await sheets.spreadsheets.values.clear({ spreadsheetId: SHEET_ID, range: 'CurrentShop!A2:Z1000' });
-  const rows = body.items.map(it => [it.id, it.name, it.desc || '', it.p[7] || '', it.p[15] || '', it.p[30] || '']);
-  await sheetsAppend(auth, 'CurrentShop!A2', rows);
-  return res.json({ result: 'ok' });
-}
-
-async function handleExtractItems(auth, body, res) {
-  checkToken(body);
-  console.log('🖼 extractItems: uploading image to Drive...');
-  const fileId = await uploadToDrive(body.base64, body.mimeType, body.fileName, process.env.DRIVE_FOLDER_SA);
-  const url = driveUrl(fileId, body.mimeType);
-  console.log(`✅ uploaded: ${fileId}`);
-  console.log('🤖 calling Gemini for item extraction...');
-  const prompt = `Extract all game item names from this shop image. Return ONLY a JSON array of strings like: ['Item Name 1', 'Item Name 2']. No descriptions, no prices, no markdown, no explanation.`;
-  const text = await callGemini(body.base64, prompt);
-  const clean = text.replace(/```json|```/g, '').trim();
-  const names = JSON.parse(clean);
-  const items = names.map((name, i) => ({ id: i + 1, name, desc: '', p7: 0, p15: 0, p30: 0 }));
-  console.log(`✅ Gemini extracted ${items.length} items`);
-  return res.json({ items, url });
-}
-
-async function handleExtractAccountStats(body, res) {
-  checkToken(body);
-  console.log('🤖 extractAccountStats: calling Gemini...');
-  const prompt = `Extract player stats from this Sudden Attack game profile screenshot. Return ONLY a valid JSON object with these exact keys: ign, accId, kda, winRate, exp. If a field is not visible return empty string. No markdown, no explanation, only JSON.`;
-  const text = await callGemini(body.base64, prompt);
-  const clean = text.replace(/```json|```/g, '').trim();
-  let stats = {};
-  try { stats = JSON.parse(clean); } catch (e) { }
-  console.log(`✅ stats extracted: ${JSON.stringify(stats)}`);
-  return res.json(stats);
-}
-
-async function handleUploadAccountImage(auth, body, res) {
-  checkToken(body);
-  const accountIGN = body.ign;
-  console.log(`📤 uploadAccountImage: ${accountIGN}`);
-  const drive = google.drive({ version: 'v3', auth: getDriveAuth() });
-  const folderId = await findOrCreateFolder(drive, accountIGN, process.env.DRIVE_FOLDER_ACCOUNTS);
-  const fileId = await uploadToDrive(body.base64, body.mimeType, body.fileName, folderId);
-  const url = driveUrl(fileId, body.mimeType);
-  console.log(`✅ uploaded: ${fileId} → ${url}`);
-  return res.json({ url });
-}
-
-async function handleUploadPublicAccountImage(auth, body, res) {
-  const accountIGN = body.ign;
-  console.log(`📤 uploadPublicAccountImage: ${accountIGN}`);
-  const drive = google.drive({ version: 'v3', auth: getDriveAuth() });
-  const folderId = await findOrCreateFolder(drive, accountIGN, process.env.DRIVE_FOLDER_ACCOUNTS);
-  const fileId = await uploadToDrive(body.base64, body.mimeType, body.fileName, folderId);
-  const url = driveUrl(fileId, body.mimeType);
-  console.log(`✅ public upload: ${fileId} → ${url}`);
-  return res.json({ url });
-}
-
-async function handleSaveAccount(auth, body, res) {
-  if (!body.isNew) checkToken(body);
-  const acc = body.account;
-  const { headers, data } = await getSheetData(auth, 'AccountList');
-  const row = headers.map(h => {
-    const key = h.toLowerCase().trim();
-    return acc[key] !== undefined ? acc[key] : '';
-  });
-  const rowIdx = data.findIndex(r => String(r.id) === String(acc.id));
-  if (rowIdx >= 0) {
-    const rowNum = rowIdx + 2;
-    const lastCol = colLetter(headers.length - 1);
-    await sheetsWrite(auth, `AccountList!A${rowNum}:${lastCol}${rowNum}`, [row]);
-  } else {
-    await sheetsAppend(auth, 'AccountList!A1', [row]);
-  }
-  console.log(`✅ Account ${acc.id} saved via Auto-Mapping`);
-  return res.json({ result: 'ok' });
-}
-
-async function handleDeleteAccount(auth, body, res) {
-  checkToken(body);
-  const accountIGN = body.ign;
-  console.log(`🗑 deleteAccount: ${accountIGN}`);
-  const { data } = await getSheetData(auth, 'AccountList');
-  const rowIdx = data.findIndex(r => String(r.id) === String(body.acc_id));
-  if (rowIdx === -1) throw new Error('Account not found');
-  const sheets = google.sheets({ version: 'v4', auth });
-  const meta = await sheets.spreadsheets.get({ spreadsheetId: SHEET_ID });
-  const sheet = meta.data.sheets.find(s => s.properties.title === 'AccountList');
-  await sheets.spreadsheets.batchUpdate({
-    spreadsheetId: SHEET_ID,
-    requestBody: {
-      requests: [{ deleteDimension: { range: { sheetId: sheet.properties.sheetId, dimension: 'ROWS', startIndex: rowIdx + 1, endIndex: rowIdx + 2 } } }]
+  async function deleteAccount(id) {
+    const a = accounts.find(x => x.id === id);
+    if (!a) return;
+    if (!confirm('Are you absolutely sure you want to delete this account?')) return;
+    try {
+      const resp = await adminFetch({ action: 'deleteAccount', acc_id: id, ign:a.ign });
+      const result = await resp.json();
+      if (result.error) throw new Error(result.error);
+      _lastDetailId   = null;
+      _lastDetailHTML = '';
+      const detailEl = document.getElementById('detail-content');
+      if (detailEl) detailEl.innerHTML = '';
+      _lastAccountData = '';
+      showToast('Account deleted successfully.');
+      await fetchAccounts();
+    } catch(e) {
+      showToast('Delete failed: ' + e.message);
     }
-  });
-  const drive = google.drive({ version: 'v3', auth: getDriveAuth() });
-  const search = await drive.files.list({
-    q: `name='${accountIGN}' and '${process.env.DRIVE_FOLDER_ACCOUNTS}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,
-    fields: 'files(id)',
-    supportsAllDrives: true,
-    includeItemsFromAllDrives: true,
-  });
-  if (search.data.files && search.data.files.length > 0) {
-    await drive.files.delete({ fileId: search.data.files[0].id, supportsAllDrives: true });
-    console.log(`🗑 Drive folder deleted: ${accountIGN}`);
   }
-  return res.json({ result: 'ok' });
-}
 
-async function handleUpdateAccountStatus(auth, body, res) {
-  checkToken(body);
-  const accId = body.id || (body.account && body.account.id);
-  const newStatus = body.status || (body.account && body.account.status);
-  const { headers, data } = await getSheetData(auth, 'AccountList');
-  const rowIdx = data.findIndex(r => String(r.id) === String(accId));
-  if (rowIdx === -1) throw new Error('Account not found');
-  const rowNum = rowIdx + 2;
-  const statusCol = colLetter(headers.indexOf('status'));
-  await sheetsWrite(auth, `AccountList!${statusCol}${rowNum}`, [[newStatus]]);
-  return res.json({ result: 'ok' });
-}
-
-async function handleUploadSlideImg(auth, body, res) {
-  checkToken(body);
-  const idx = body.slideIndex;
-  if (idx === undefined || idx === null) throw new Error('Missing slideIndex');
-  let url = body.url;
-  if (body.base64) {
-    console.log(`📤 uploadSlideImg: Uploading file to Drive for slide ${idx}`);
-    const fileId = await uploadToDrive(
-      body.base64,
-      body.mimeType || 'image/jpeg',
-      body.fileName || `shop_${idx}.jpg`,
-      process.env.DRIVE_FOLDER_SA
-    );
-    url = driveUrl(fileId, body.mimeType);
+  function setFilter(f, btn) {
+    currentFilter = f;
+    document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+    btn.classList.add('active');
+    renderGrid();
   }
-  if (url === undefined || url === null) throw new Error('No URL or Base64 provided');
-  console.log(`📝 uploadSlideImg: Updating Sheet for slide ${idx} with value: "${url}"`);
-  const col = parseInt(idx) === 0 ? 'B' : 'C';
-  await sheetsWrite(auth, `Settings!${col}2`, [[url]]);
-  return res.json({ result: 'ok', url });
-}
 
-async function handleGetSettings(auth, res) {
-  try {
-    const { data } = await getSheetData(auth, 'Settings');
-    const slideshowRow = data.find(r => r.key === 'slideshow');
-    const urls = slideshowRow ? [slideshowRow.slide1, slideshowRow.slide2] : ['', ''];
-    return res.json({ slides: urls });
-  } catch (err) {
-    return res.status(500).json({ error: 'Settings fetch failed' });
+  function renderGrid() {
+    const q = document.getElementById('acc-search').value.toLowerCase();
+    const sort = document.getElementById('sort-select').value;
+    let list = [...accounts];
+    if (currentFilter !== 'all') {
+      list = list.filter(a => (a.status || '').toLowerCase().trim() === currentFilter.toLowerCase());
+    }
+    if (q) {
+      list = list.filter(a => {
+        const searchStr = (a.rank + (a.ign || '') + (a.accid || '') + (a.notes || '')).toLowerCase();
+        return searchStr.includes(q);
+      });
+    }
+    if (sort === 'price-asc') list.sort((a, b) => a.price - b.price);
+    else if (sort === 'price-desc') list.sort((a, b) => b.price - a.price);
+    else list.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+
+    document.getElementById('results-count').textContent = list.length + ' account' + (list.length !== 1 ? 's' : '');
+    const el = document.getElementById('acc-grid');
+    if (!list.length) { 
+      el.innerHTML = '<div style="text-align:center;padding:24px;font-size:12px;color:var(--text3);font-family:Rajdhani,sans-serif">No accounts found</div>'; 
+      return; 
+    }
+
+    el.innerHTML = list.map(a => {
+      const rankColor = getRankColor(a.rank);
+      const rankIcon = getRankIcon(a.rank);
+      const status = (a.status || 'pending').toLowerCase().trim();
+      const isSold = status === 'sold';
+      const isReserved = status === 'reserved';
+      const isPending = status === 'pending';
+      const displayPrice = a.price * 1.10;
+      const statusPill = isSold ? '<span class="acc-status-pill s-sold">Sold</span>'
+        : isReserved ? '<span class="acc-status-pill s-reserved">Reserved</span>'
+        : isPending ? '<span class="acc-status-pill s-pending">Pending Review</span>'
+        : '<span class="acc-status-pill s-available">Available</span>';
+      const details = [];
+      if (a.ign) details.push(`<div class="detail-row"><span class="detail-label">IGN</span><span class="detail-val hl">${a.ign}</span></div>`);
+      if (a.accid) details.push(`<div class="detail-row"><span class="detail-label">ID</span><span class="detail-val">${a.accId}</span></div>`);
+      if (a.kda) details.push(`<div class="detail-row"><span class="detail-label">KDA</span><span class="detail-val hl">${a.kda}</span></div>`);
+      const tags = a.notes ? a.notes.split(',').filter(t => t.trim()).map(t => `<span class="tag">${t.trim()}</span>`).join('') : '';
+      let actionHtml = '';
+      if (isPending) {
+        actionHtml = `<span style="font-size:10px;color:var(--blue);font-family:Rajdhani,sans-serif;letter-spacing:.05em;text-transform:uppercase;opacity:0.7">Awaiting Verification</span>`;
+      } else if (isSold || isReserved) {
+        actionHtml = `<span style="font-size:11px;color:var(--text3);font-family:Rajdhani,sans-serif;letter-spacing:.05em;text-transform:uppercase">${isSold ? 'Sold out' : 'Reserved'}</span>`;
+      } else {
+        actionHtml = `<button class="buy-btn" onclick="event.stopPropagation();openPay('${a.id}')">Buy now</button>`;
+      }
+      return `<div class="acc-card${isSold ? ' sold' : ''}${isPending ? ' pending' : ''}" onclick="openDetail('${a.id}')">
+        <div class="card-header"><span class="acc-id">${a.id}</span>${statusPill}</div>
+        <div class="card-rank">
+          <div class="rank-icon">${rankIcon}</div>
+          <div><div class="rank-name" style="color:${rankColor}">${a.rank}</div><div class="rank-tier">Sudden Attack</div></div>
+        </div>
+        ${details.length ? `<div class="card-details">${details.join('')}</div>` : ''}
+        ${tags ? `<div class="card-tags">${tags}</div>` : ''}
+        <hr class="card-divider"/>
+        <div class="card-footer">
+          <span class="acc-price">${fmt(displayPrice)}</span>
+          ${actionHtml}
+        </div>
+        ${isSold ? '<div class="sold-overlay"><span class="sold-stamp">Sold</span></div>' : ''}
+      </div>`;
+    }).join('');
   }
-}
 
-async function handleInitData(auth, res) {
-  const [ordersResult, itemsResult, settingsRaw] = await Promise.all([
-    getSheetData(auth, 'Orders'),
-    getSheetData(auth, 'CurrentShop'),
-    sheetsRead(auth, 'Settings!B2:C2'),
-  ]);
-  return res.json({
-    orders: ordersResult.data,
-    items: itemsResult.data,
-    slides: settingsRaw[0] || ['', ''],
-  });
-}
-
-// ══════════════════════════════════════════
-// MAIN HANDLER
-// ══════════════════════════════════════════
-export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-  if (req.method === 'OPTIONS') return res.status(200).end();
-  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
-
-  const body = req.body;
-  const { action } = body;
-  try {
-    const auth = await getAuth().getClient();
-
-    // ── Public actions ──────────────────────
-    if (action === 'adminAuth')               return await handleAdminAuth(body, res);
-    if (action === 'getOrders')               return await handleGetOrders(auth, res);
-    if (action === 'getShopItems')            return await handleGetShopItems(auth, res);
-    if (action === 'getAccounts')             return await handleGetAccounts(auth, res);
-    if (action === 'getSettings')             return await handleGetSettings(auth, res);
-    if (action === 'initData')                return await handleInitData(auth, res);
-    if (action === 'newOrder')                return await handleNewOrder(auth, body, res);
-    if (action === 'accountPurchase')         return await handleAccountPurchase(auth, body, res);
-    if (action === 'saveAccount' && body.isNew) return await handleSaveAccount(auth, body, res);
-    if (action === 'uploadPublicAccountImage') return await handleUploadPublicAccountImage(auth, body, res);
-
-    // ── Direct upload (browser → Drive) ────
-    // These two are called for large video/file uploads to bypass Vercel's 4.5MB limit.
-    // getDirectUploadUrl is public (no token needed — session URL is single-use, 24h TTL).
-    // finalizeUpload is also public (just sets permissions + resolves URL).
-    if (action === 'getDirectUploadUrl')      return await handleGetDirectUploadUrl(body, res);
-    if (action === 'finalizeUpload')          return await handleFinalizeUpload(body, res);
-
-    // ── Admin-only actions ──────────────────
-    if (action === 'updateOrderStatus')       return await handleUpdateOrderStatus(auth, body, res);
-    if (action === 'uploadProofItem')         return await handleUploadProofItem(auth, body, res);
-    if (action === 'saveItems')               return await handleSaveItems(auth, body, res);
-    if (action === 'extractItems')            return await handleExtractItems(auth, body, res);
-    if (action === 'extractAccountStats')     return await handleExtractAccountStats(body, res);
-    if (action === 'uploadAccountImage')      return await handleUploadAccountImage(auth, body, res);
-    if (action === 'saveAccount')             return await handleSaveAccount(auth, body, res);
-    if (action === 'deleteAccount')           return await handleDeleteAccount(auth, body, res);
-    if (action === 'updateAccountStatus')     return await handleUpdateAccountStatus(auth, body, res);
-    if (action === 'uploadSlideImg')          return await handleUploadSlideImg(auth, body, res);
-
-    return res.status(400).json({ error: `Unknown action: ${action}` });
-  } catch (err) {
-    console.error('❌ CRITICAL ERROR:', err);
-    return res.status(500).json({ error: 'Internal Server Error', details: err.message });
+  // ── Carousel ───────────────────────────────
+  function _buildCarouselItems(a) {
+    return [a.img1, a.img2, a.img3, a.img4]
+      .filter(Boolean)
+      .map((url, i) => ({ url, type: isVideoUrl(url) ? 'video' : 'img', isStats: i === 0 }));
   }
-}
+
+  function _renderCarousel(items) {
+    if (!items.length) return '<div class="carousel-no-media">No media uploaded</div>';
+    const total = items.length;
+    const slides = items.map((item, i) => {
+      const statsTag = item.isStats ? '<span class="carousel-badge">📊 Stats</span>' : '';
+      const counter = total > 1 ? `<span class="carousel-counter">${i + 1} / ${total}</span>` : '';
+      const isDrive = item.url.includes('drive.google.com');
+      const isVid = item.type === 'video' || isDrive;
+      const fileId = item.url.match(/\/d\/([^/?]+)/)?.[1] || item.url.match(/[?&]id=([^&]+)/)?.[1] || '';
+      if (isVid && !fileId) return `<div class="carousel-slide">${statsTag}${counter}<div style="color:var(--red);text-align:center;padding:20px;font-size:12px">Invalid video URL</div></div>`;
+      let media;
+      if (isVid && fileId) {
+        const drivePreviewUrl = `https://drive.google.com/file/d/${fileId}/preview`;
+        media = `<div class="video-container" style="position:relative;width:100%;height:340px;background:#000" data-file-id="${fileId}">
+          <iframe id="vid-${fileId}" src="${drivePreviewUrl}" style="position:absolute;top:0;left:0;width:100%;height:100%;border:none" frameborder="0" allow="autoplay" allowfullscreen></iframe>
+        </div>`;
+      } else {
+        media = `<img src="${item.url}" alt="Account media ${i + 1}" onclick="openLightbox('${item.url}','img')" style="cursor:zoom-in;width:100%;height:340px;object-fit:contain;display:block;background:var(--bg3)" />`;
+      }
+      return `<div class="carousel-slide">${statsTag}${counter}${media}</div>`;
+    }).join('');
+    const arrows = total > 1 ? `<button class="carousel-arrow prev" onclick="carouselGoTo(_carouselIdx-1)">‹</button><button class="carousel-arrow next" onclick="carouselGoTo(_carouselIdx+1)">›</button>` : '';
+    const dots = total > 1 ? `<div class="carousel-dots" id="det-dots">${items.map((_, i) => `<button class="carousel-dot${i === 0 ? ' active' : ''}" onclick="carouselGoTo(${i})"></button>`).join('')}</div>` : '';
+    return `<div class="carousel-wrap" id="det-carousel" ontouchstart="carouselTouchStart(event)" ontouchend="carouselTouchEnd(event)"><div class="carousel-track" id="det-track">${slides}</div>${arrows}${dots}</div>`;
+  }
+
+  // ── Video player controls ──────────────────
+  function fmtTime(s) { if (isNaN(s)) return '0:00'; const m = Math.floor(s/60), sec = Math.floor(s%60); return m+':'+String(sec).padStart(2,'0'); }
+  function getVid(id) { return document.getElementById('vid-'+id); }
+  function toggleVid(id) {
+    const v = getVid(id); if (!v || v.readyState < 2) return;
+    const icon = document.getElementById('play-icon-'+id);
+    if (v.paused) { v.play(); if (icon) { icon.textContent='▶'; icon.style.opacity='1'; setTimeout(()=>icon.style.opacity='0',600); } }
+    else { v.pause(); if (icon) { icon.textContent='⏸'; icon.style.opacity='1'; setTimeout(()=>icon.style.opacity='0',800); } }
+  }
+  function toggleMute(id) { const v=getVid(id); if(!v)return; v.muted=!v.muted; const btn=document.getElementById('mbtn-'+id); if(btn)btn.textContent=v.muted?'🔇':'🔊'; }
+  function toggleFs(id) {
+    const container = document.querySelector(`.video-container[data-file-id="${id}"]`);
+    if (!container) return;
+    if (!document.fullscreenElement) { (container.requestFullscreen||container.webkitRequestFullscreen||container.msRequestFullscreen).call(container); }
+    else { document.exitFullscreen?.(); }
+  }
+  function onVidCanPlay(id) { const l=document.getElementById('loader-'+id); if(l)l.style.display='none'; }
+  function onVidWait(id)    { const l=document.getElementById('loader-'+id); if(l)l.style.display='block'; }
+  function onVidPlay(id)    { const l=document.getElementById('loader-'+id); if(l)l.style.display='none'; const btn=document.getElementById('pbtn-'+id); if(btn)btn.textContent='⏸'; }
+  function onVidMeta(id)    { const v=getVid(id); if(!v)return; const t=document.getElementById('time-'+id); if(t)t.textContent='0:00 / '+fmtTime(v.duration); }
+  function onVidEnded(id)   { const btn=document.getElementById('pbtn-'+id); if(btn)btn.textContent='▶'; if(_carouselIdx<_carouselItems.length-1)carouselGoTo(_carouselIdx+1); }
+  function onVidTimeUpdate(id) {
+    const v=getVid(id); if(!v||!v.duration)return;
+    const pct=(v.currentTime/v.duration)*100;
+    const prog=document.getElementById('prog-'+id), thumb=document.getElementById('thumb-'+id), time=document.getElementById('time-'+id);
+    if(prog)prog.style.width=pct+'%'; if(thumb)thumb.style.left=pct+'%';
+    if(time)time.textContent=fmtTime(v.currentTime)+' / '+fmtTime(v.duration);
+    const buf=document.getElementById('buf-'+id); if(buf&&v.buffered.length)buf.style.width=((v.buffered.end(v.buffered.length-1)/v.duration)*100)+'%';
+  }
+  let _scrubbing=false, _scrubId=null;
+  function scrubAt(e,id){ const bar=document.getElementById('bar-'+id); if(!bar)return; const v=getVid(id); if(!v||!v.duration)return; const rect=bar.getBoundingClientRect(); v.currentTime=Math.max(0,Math.min((e.clientX-rect.left)/rect.width,1))*v.duration; }
+  function scrubStart(e,id){ e.preventDefault(); _scrubbing=true; _scrubId=id; scrubAt(e,id); const onMove=ev=>{if(_scrubbing)scrubAt(ev,_scrubId);}; const onUp=()=>{_scrubbing=false;_scrubId=null;document.removeEventListener('mousemove',onMove);document.removeEventListener('mouseup',onUp);}; document.addEventListener('mousemove',onMove); document.addEventListener('mouseup',onUp); }
+  function scrubTouchStart(e,id){ e.stopPropagation(); const onMove=ev=>{if(ev.touches[0])scrubAt(ev.touches[0],id);}; const onEnd=()=>{document.removeEventListener('touchmove',onMove);document.removeEventListener('touchend',onEnd);}; document.addEventListener('touchmove',onMove,{passive:true}); document.addEventListener('touchend',onEnd); if(e.touches[0])scrubAt(e.touches[0],id); }
+
+  function carouselGoTo(idx) {
+    _carouselIdx = Math.max(0, Math.min(idx, _carouselItems.length-1));
+    const track = document.getElementById('det-track'); if(track)track.style.transform=`translateX(-${_carouselIdx*100}%)`;
+    document.querySelectorAll('#det-dots .carousel-dot').forEach((d,i)=>d.classList.toggle('active',i===_carouselIdx));
+  }
+  function carouselTouchStart(e) { _touchStartX = e.changedTouches[0].clientX; }
+  function carouselTouchEnd(e) { const dx=e.changedTouches[0].clientX-_touchStartX; if(Math.abs(dx)<40)return; dx<0?carouselGoTo(_carouselIdx+1):carouselGoTo(_carouselIdx-1); }
+
+  // ── Detail modal ───────────────────────────
+  let _lastDetailId = null;
+  let _lastDetailHTML = '';
+
+  function openDetail(id) {
+    const a = accounts.find(x => x.id === id); if (!a) return;
+    if (id === _lastDetailId && _lastDetailHTML) {
+      document.getElementById('detail-content').innerHTML = _lastDetailHTML;
+      document.getElementById('detail-overlay').classList.add('open');
+      return;
+    }
+    const rankColor = getRankColor(a.rank);
+    const rankIcon = getRankIcon(a.rank);
+    const isSold = a.status === 'sold';
+    const isReserved = a.status === 'reserved';
+    const isPending = a.status === 'pending';
+    _carouselItems = _buildCarouselItems(a);
+    _carouselIdx = 0;
+    const rows = [];
+    if (a.ign) rows.push(['IGN', a.ign]);
+    if (a.accid) rows.push(['Account ID', a.accid]);
+    if (a.kda) rows.push(['KDA', a.kda]);
+    if (a.winRate) rows.push(['Win Rate', a.winRate+'%']);
+    if (a.exp) rows.push(['EXP Progress', a.exp+'%']);
+    if (a.ach) rows.push(['Achievement', a.ach+'%']);
+    const tags = a.notes ? a.notes.split(',').filter(t=>t.trim()).map(t=>`<span class="tag">${t.trim()}</span>`).join('') : '';
+    const displayPrice = a.price * 1.10;
+    const statusPill = isSold ? '<span class="acc-status-pill s-sold" style="font-size:11px;padding:3px 10px">Sold</span>'
+      : isReserved ? '<span class="acc-status-pill s-reserved" style="font-size:11px;padding:3px 10px">Reserved</span>'
+      : isPending ? '<span class="acc-status-pill s-pending" style="font-size:11px;padding:3px 10px">Pending Review</span>'
+      : '<span class="acc-status-pill s-available" style="font-size:11px;padding:3px 10px">Available</span>';
+
+    _lastDetailHTML = `
+      <div class="detail-modal-media">${_renderCarousel(_carouselItems)}</div>
+      <div class="detail-modal-body">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;margin-top:4px">
+          <div style="display:flex;align-items:center;gap:12px">
+            <div class="detail-modal-rank-icon">${rankIcon}</div>
+            <div><div class="detail-modal-rank-name" style="color:${rankColor}">${a.rank}</div><div class="detail-modal-rank-sub">Sudden Attack · ${a.id}</div></div>
+          </div>
+          ${statusPill}
+        </div>
+        ${rows.length ? `<div class="modal-details" style="margin-bottom:12px">${rows.map(([l,v])=>`<div class="modal-detail-row"><span class="modal-detail-label">${l}</span><span class="modal-detail-val">${v}</span></div>`).join('')}</div>` : ''}
+        ${tags ? `<div class="modal-tags" style="margin-bottom:14px">${tags}</div>` : ''}
+        <div class="modal-price-row">
+          <span class="modal-price">${fmt(displayPrice)}</span>
+          ${!isSold && !isReserved && !isPending
+              ? `<button class="buy-btn" style="padding:9px 22px;font-size:13px" onclick="closeDetail();openPay('${a.id}')">Buy now</button>`
+              : isPending
+              ? `<span style="font-size:11px;color:var(--blue);font-family:Rajdhani,sans-serif;letter-spacing:.05em;text-transform:uppercase">Under Verification</span>`
+              : `<span style="font-size:11px;color:var(--text3);font-family:Rajdhani,sans-serif;letter-spacing:.05em;text-transform:uppercase">${isSold ? 'Sold out' : 'Reserved'}</span>`}
+        </div>
+      </div>`;
+
+    _lastDetailId = id;
+    document.getElementById('detail-content').innerHTML = _lastDetailHTML;
+    document.getElementById('detail-overlay').classList.add('open');
+  }
+
+  function closeDetail() {
+    document.querySelectorAll('#det-carousel .video-container iframe').forEach(ifr => { ifr.src = 'about:blank'; });
+    document.getElementById('detail-overlay').classList.remove('open');
+  }
+
+  function openLightbox(url, type='img') {
+    const img=document.getElementById('lightbox-img'), vid=document.getElementById('lightbox-vid'), lb=document.getElementById('lightbox');
+    if (type==='video'||url.includes('/preview')) {
+      img.style.display='none'; vid.style.display='none';
+      lb.querySelector('iframe')?.remove();
+      const ifr=document.createElement('iframe'); ifr.src=url; ifr.style.cssText='width:90vw;height:80vh;border:none'; ifr.setAttribute('allowfullscreen','true'); lb.appendChild(ifr);
+    } else {
+      lb.querySelector('iframe')?.remove();
+      img.src=url; img.style.display='block'; vid.style.display='none';
+    }
+    lb.classList.add('open');
+  }
+  function closeLightbox() { const v=document.getElementById('lightbox-vid'); v.pause(); v.src=''; document.getElementById('lightbox').querySelector('iframe')?.remove(); document.getElementById('lightbox').classList.remove('open'); }
+
+  // ── Buy modal ──────────────────────────────
+  function openPay(id) {
+    const a = accounts.find(x => x.id === id); if (!a) return;
+    currentAccId = id;
+    const finalPrice = a.price * 1.10;
+    document.getElementById('modal-acc-info').textContent = a.rank + (a.ign?' · '+a.ign:'') + (a.accid?' · ID '+a.accid:'');
+    document.getElementById('modal-amt-acc').textContent = fmt(finalPrice);
+    document.getElementById('pay-overlay').classList.add('open');
+    document.getElementById('upload-status-acc').textContent = '';
+    const ubtn = document.getElementById('upload-btn-acc');
+    ubtn.style.display='none'; ubtn.disabled=false; ubtn.textContent='Submit payment';
+    document.getElementById('preview-img-acc').style.display='none';
+    document.getElementById('preview-pdf-acc').style.display='none';
+    document.getElementById('proof-file-acc').value='';
+    document.getElementById('buyer-ign').value='';
+    document.getElementById('buyer-name').value='';
+    document.getElementById('buyer-phone').value='';
+  }
+  function closePay() { document.getElementById('pay-overlay').classList.remove('open'); currentAccId=null; }
+
+  function previewFileAcc(input) {
+    previewProofFile(input, 'preview-img-acc', 'preview-pdf-acc', 'upload-btn-acc');
+  }
+
+  async function submitPurchase() {
+    const buyerIgn   = document.getElementById('buyer-ign').value.trim();
+    const buyerName  = document.getElementById('buyer-name').value.trim();
+    const buyerPhone = document.getElementById('buyer-phone').value.trim();
+    const file = document.getElementById('proof-file-acc').files[0];
+    if (!buyerIgn)  { showToast('Please enter your in-game name.'); return; }
+    if (!buyerName) { showToast('Please enter your full name.'); return; }
+    if (!buyerPhone){ showToast('Please enter your phone number.'); return; }
+    if (!file)      { showToast('Please upload payment screenshot or PDF.'); return; }
+    const btn=document.getElementById('upload-btn-acc'), status=document.getElementById('upload-status-acc');
+    btn.disabled=true; btn.textContent='Uploading...';
+    status.textContent='Uploading proof...'; status.style.color='var(--text2)';
+    try {
+      const acc = accounts.find(x => x.id === currentAccId);
+      const orderId = genId('ACC');
+      const timestamp = new Date().toISOString();
+      const details = [acc?.rank, acc?.ign?'IGN:'+acc.ign:'', acc?.accid?'ID:'+acc.accid:''].filter(Boolean).join(' · ');
+      await uploadProofFile(file, orderId, 'accountPurchase', {
+        acc_id: currentAccId, timestamp,
+        name: buyerIgn, buyer_name: buyerName, phone: buyerPhone,
+        email: '', items: details, total: acc?.price||0, note: '', status: 'Paid'
+      });
+      status.textContent='Logging order...';
+      await fetch(API_URL, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({
+          action:'newOrder', order_id:orderId, timestamp,
+          name:buyerName+' ('+buyerIgn+')', phone:buyerPhone, email:'',
+          items:details, total:acc?.price||0, note:'Buyer IGN: '+buyerIgn, status:'Paid', proof:''
+        })
+      });
+      status.textContent='Marking account reserved...';
+      try { await adminFetch({action:'updateAccountStatus', account:{id:currentAccId, status:'reserved'}}); } catch(_){}
+      status.textContent='Payment submitted! We will contact you soon.'; status.style.color='var(--green)';
+      btn.textContent='Submitted ✓';
+      setTimeout(()=>{ closePay(); fetchAccounts(); fetchSheet(); }, 4000);
+    } catch(e) {
+      status.textContent='Failed: '+e.message; status.style.color='var(--red)';
+      btn.disabled=false; btn.textContent='Submit payment';
+    }
+  }
+
+  // ── Sell modal (public) ────────────────────
+  function openSellModal() {
+    document.getElementById('sell-overlay').classList.add('open');
+    document.getElementById('sell-status').textContent='';
+    for (let i=0;i<4;i++) {
+      sellTempFiles[i]=null;
+      const img=document.getElementById('ss-slot-img-'+i); if(img){img.src='';img.style.display='none';}
+      const lbl=document.getElementById('ss-slot-lbl-'+i); if(lbl)lbl.style.display='';
+      const rm=document.getElementById('ss-slot-rm-'+i); if(rm)rm.style.display='none';
+      const inp=document.getElementById('ss-slot-'+i)?.querySelector('input'); if(inp)inp.value='';
+    }
+    ['sell-seller-name','sell-seller-phone','sell-seller-ign','sell-rank','sell-price','sell-ign','sell-accid','sell-kda','sell-wr','sell-exp','sell-notes'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+    const btn=document.getElementById('sell-submit-btn'); btn.disabled=false; btn.textContent='Submit listing';
+  }
+  function closeSellModal() { document.getElementById('sell-overlay').classList.remove('open'); }
+
+  function handleSellSlot(input, idx) {
+    const file = input.files[0]; if (!file) return;
+    sellTempFiles[idx] = file;
+    const reader = new FileReader();
+    reader.onload = e => {
+      const img = document.getElementById('ss-slot-img-'+idx);
+      if (img) { img.src=e.target.result; img.style.display='block'; }
+      const lbl = document.getElementById('ss-slot-lbl-'+idx); if(lbl)lbl.style.display='none';
+      const rm = document.getElementById('ss-slot-rm-'+idx); if(rm)rm.style.display='block';
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function removeSellSlot(e, idx) {
+    e.stopPropagation();
+    sellTempFiles[idx]=null;
+    const img=document.getElementById('ss-slot-img-'+idx); if(img){img.src='';img.style.display='none';}
+    const lbl=document.getElementById('ss-slot-lbl-'+idx); if(lbl)lbl.style.display='';
+    const rm=document.getElementById('ss-slot-rm-'+idx); if(rm)rm.style.display='none';
+    const inp=document.getElementById('ss-slot-'+idx)?.querySelector('input'); if(inp)inp.value='';
+  }
+
+  async function submitSellAccount() {
+    const g = id => document.getElementById(id)?.value.trim()||'';
+    const sellername  = g('sell-seller-name');
+    const sellerphone = g('sell-seller-phone');
+    const sellerign   = g('sell-seller-ign');
+    const rank        = g('sell-rank');
+    const ign         = g('sell-ign');
+    const price       = parseFloat(g('sell-price'));
+
+    if (!sellername)  { showToast('Please enter your full name.'); return; }
+    if (!sellerphone) { showToast('Please enter your phone number.'); return; }
+    if (!sellerign)   { showToast('Please enter your in-game name.'); return; }
+    if (!rank)        { showToast('Please enter the account rank.'); return; }
+    if (!price || price <= 0) { showToast('Please enter a valid asking price.'); return; }
+
+    const btn    = document.getElementById('sell-submit-btn');
+    const status = document.getElementById('sell-status');
+    btn.disabled=true; btn.textContent='Submitting...';
+    status.textContent='Preparing listing...'; status.style.color='var(--text2)';
+
+    const accid = genId('ACC');
+    const uploadedUrls = ['','','',''];
+
+    try {
+      const filesToUpload = sellTempFiles.map((f,i)=>({file:f,idx:i})).filter(x=>x.file);
+      for (const {file,idx} of filesToUpload) {
+        status.textContent = `Uploading media ${idx+1}...`;
+        const isVid = file.type.startsWith('video/') || file.type === 'image/gif';
+        const fileName = `acc_${idx}_${Date.now()}.${file.name.split('.').pop()}`;
+
+        if (isVid) {
+          // ── Direct upload: browser → Google Drive (bypasses Vercel 4.5MB limit) ──
+          status.textContent = `Uploading video ${idx+1} directly to Drive...`;
+          uploadedUrls[idx] = await uploadDirectToDrive(file, fileName, 'account_public', ign);
+        } else {
+          // ── Standard: compress image → base64 → Vercel → Drive ──
+          const base64 = await compressImage(file, 1200, 0.8);
+          const resp = await fetch(API_URL, {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({ action:'uploadPublicAccountImage', ign, fileName, mimeType:'image/jpeg', base64 })
+          });
+          const res = await resp.json();
+          if (res.error) throw new Error(res.error);
+          uploadedUrls[idx] = res.url || '';
+        }
+      }
+
+      status.textContent='Saving listing...';
+      const acc = {
+        id: accid,
+        rank,
+        price,
+        ign: g('sell-ign'),
+        accid: g('sell-accid'),
+        sellername: sellername,
+        sellercontact: sellerphone,
+        sellerign: sellerign,
+        kda: g('sell-kda'),
+        winrate: g('sell-wr'),
+        exp: g('sell-exp'),
+        achievement: '',
+        notes: g('sell-notes'),
+        status: 'pending',
+        createdat: Date.now(),
+        img1: uploadedUrls[0], img2: uploadedUrls[1], img3: uploadedUrls[2], img4: uploadedUrls[3]
+      };
+      const resp = await fetch(API_URL, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ action:'saveAccount', account: acc, isNew: true })
+      });
+      const result = await resp.json();
+      if (result.error) throw new Error(result.error);
+
+      status.textContent='Listing submitted! We will review and contact you soon.'; status.style.color='var(--green)';
+      btn.textContent='Submitted ✓';
+      setTimeout(()=>{ closeSellModal(); fetchAccounts(); }, 3500);
+    } catch(e) {
+      status.textContent='Failed: '+e.message; status.style.color='var(--red)';
+      btn.disabled=false; btn.textContent='Submit listing';
+    }
+  }
+
+  // ── Admin: manage list ─────────────────────
+  function renderManageList() {
+    const el = document.getElementById('acc-manage-list');
+    if (!el) return;
+    if (!accounts.length) { 
+      el.innerHTML = '<div style="font-size:12px;color:var(--text3);font-family:Rajdhani,sans-serif;text-align:center;padding:16px">No accounts yet</div>'; 
+      return; 
+    }
+    const sortedAccounts = [...accounts].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+    el.innerHTML = sortedAccounts.map(a => {
+      const sellerInfo = a.sellername ? `<div style="font-size:11px;color:var(--text3);margin-top:2px">Seller: ${a.sellername}${a.sellerphone?' · '+a.sellerphone:''}</div>` : '';
+      const publicPrice = a.price * 1.10;
+      return `
+      <div class="acc-list-item" id="acc-row-${a.id}">
+        <div class="acc-list-info">
+          <div style="display:flex; align-items:center; gap:8px">
+            <strong>${a.rank}</strong> 
+            <span style="color:var(--text3); font-size:11px;">(Net: ${fmt(a.price)} → Sell: ${fmt(publicPrice)})</span>
+          </div>
+          <div style="font-size:12px;color:var(--text2);margin-top:2px">${a.ign?a.ign:''}${a.accId?' · ID '+a.accId:''}</div>
+          ${sellerInfo}
+          <div class="acc-mgmt-id" style="margin-top:3px">${a.id}</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end">
+          <select class="status-select" id="acc-st-${a.id}">
+            <option value="pending"    ${a.status==='pending'    ?'selected':''}>Pending</option>
+            <option value="available"  ${a.status==='available'  ?'selected':''}>Available</option>
+            <option value="reserved"   ${a.status==='reserved'   ?'selected':''}>Reserved</option>
+            <option value="sold"       ${a.status==='sold'       ?'selected':''}>Sold</option>
+          </select>
+          <button class="save-status-btn" id="acc-btn-${a.id}" onclick="updateAccStatus('${a.id}')">Save</button>
+          <span id="acc-ind-${a.id}" style="font-size:13px;width:16px;text-align:center;flex-shrink:0"></span>
+          <button class="icon-btn" onclick="showAddForm('${a.id}')" title="Edit">✎</button>
+          <button class="icon-btn danger" onclick="deleteAccount('${a.id}')" title="Delete">✕</button>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  async function updateAccStatus(id) {
+    const sel = document.getElementById('acc-st-'+id);
+    const btn = document.getElementById('acc-btn-'+id);
+    const ind = document.getElementById('acc-ind-'+id);
+    btn.disabled=true; btn.textContent='...'; ind.textContent='';
+    try {
+      await adminFetch({ action:'updateAccountStatus', account:{ id, status: sel.value } });
+      const a = accounts.find(x=>x.id===id);
+      if (a) a.status = sel.value;
+      ind.textContent='✓'; ind.style.color='var(--green)';
+      btn.textContent='Save'; btn.disabled=false;
+      setTimeout(()=>{ if(ind)ind.textContent=''; }, 3000);
+      renderGrid();
+    } catch(e) {
+      ind.textContent='✕'; ind.style.color='var(--red)';
+      btn.textContent='Save'; btn.disabled=false;
+      setTimeout(()=>{ if(ind)ind.textContent=''; }, 4000);
+    }
+  }
+
+  // ── Admin: account form ────────────────────
+  function showAddForm(id=null) {
+    editingId=id; newAccId=id?null:genId('ACC');
+    document.getElementById('acc-form-label').textContent = id ? 'Edit account' : 'New account';
+    document.getElementById('cancel-form-btn').style.display='';
+    resetSlots();
+    if (id) {
+      const a=accounts.find(x=>x.id===id);
+      if (a) {
+        document.getElementById('f-rank').value=a.rank||'';
+        document.getElementById('f-price').value=a.price||'';
+        document.getElementById('f-ign').value=a.ign||'';
+        document.getElementById('f-id').value=a.accId||'';
+        document.getElementById('f-kda').value=a.kda||'';
+        document.getElementById('f-wr').value=a.winRate||'';
+        document.getElementById('f-exp').value=a.exp||'';
+        document.getElementById('f-ach').value=a.ach||'';
+        document.getElementById('f-notes').value=a.notes||'';
+        document.getElementById('f-status').value=a.status||'available';
+        document.getElementById('f-sellername').value = a.sellername || '';
+        document.getElementById('f-sellercontact').value = a.sellercontact || '';
+        document.getElementById('f-sellerign').value = a.sellerign || '';
+        populateSlots(a);
+      }
+    }
+    document.getElementById('acc-form').style.display='block';
+    document.getElementById('acc-form').scrollIntoView({behavior:'smooth',block:'start'});
+  }
+  function hideAddForm() { document.getElementById('acc-form').style.display='none'; document.getElementById('cancel-form-btn').style.display='none'; editingId=null; newAccId=null; resetSlots(); }
+
+  function clearSlot(i) {
+    const img=document.getElementById('slot-img-'+i), vid=document.getElementById('slot-vid-'+i);
+    if(img){img.src='';img.style.display='none';} if(vid){vid.src='';vid.style.display='none';}
+    document.getElementById('slot-rm-'+i)?.style&&(document.getElementById('slot-rm-'+i).style.display='none');
+    const lbl=document.getElementById('slot-'+i)?.querySelector('.slot-lbl'); if(lbl)lbl.style.display='';
+    const inp=document.getElementById('slot-'+i)?.querySelector('input'); if(inp)inp.value='';
+  }
+  function resetSlots() {
+    slotUrls=['','','','']; tempFiles=[null,null,null,null];
+    for(let i=0;i<4;i++)clearSlot(i);
+    document.getElementById('stats-review-panel').style.display='none';
+    document.getElementById('stats-extract-status').textContent='';
+  }
+  function populateSlots(a) {
+    slotUrls=[a.img1,a.img2,a.img3,a.img4];
+    slotUrls.forEach((url,i)=>{
+      if(!url)return;
+      const isVid=isVideoUrl(url), img=document.getElementById('slot-img-'+i), vid=document.getElementById('slot-vid-'+i);
+      if(isVid){if(vid){vid.src=url;vid.style.display='block';}}
+      else{if(img){img.src=url;img.style.display='block';}}
+      document.getElementById('slot-rm-'+i).style.display='block';
+      document.getElementById('slot-'+i).querySelector('.slot-lbl').style.display='none';
+    });
+  }
+  function applyStatsToForm() {
+    const g=id=>document.getElementById(id).value.trim();
+    document.getElementById('f-ign').value=g('rv-ign');
+    document.getElementById('f-id').value=g('rv-accid');
+    document.getElementById('f-kda').value=g('rv-kda');
+    document.getElementById('f-wr').value=g('rv-wr');
+    document.getElementById('f-exp').value=g('rv-exp');
+    document.getElementById('stats-review-panel').style.display='none';
+    showToast('Stats applied to form.');
+  }
+
+  async function handleSlotFile(input, idx) {
+    const file=input.files[0]; if(!file)return;
+    tempFiles[idx]=file;
+    const reader=new FileReader();
+    reader.onload=e=>{
+      const isVid=file.type.startsWith('video/'), isGif=file.type==='image/gif';
+      const img=document.getElementById('slot-img-'+idx), vid=document.getElementById('slot-vid-'+idx);
+      if(isVid&&!isGif){if(vid){vid.src=e.target.result;vid.style.display='block';} if(img)img.style.display='none';}
+      else{if(img){img.src=e.target.result;img.style.display='block';} if(vid)vid.style.display='none';}
+      document.getElementById('slot-'+idx).querySelector('.slot-lbl').style.display='none';
+      document.getElementById('slot-rm-'+idx).style.display='block';
+    };
+    reader.readAsDataURL(file);
+    if(idx===0){
+      const st=document.getElementById('stats-extract-status'), rv=document.getElementById('stats-review-panel');
+      st.textContent='Extracting data...'; st.style.color='var(--text2)';
+      try{
+        const base64=await compressImage(file,1400,0.85);
+        const resp=await adminFetch({action:'extractAccountStats',base64});
+        const result=await resp.json();
+        document.getElementById('rv-ign').value=result.ign||'';
+        document.getElementById('rv-accid').value=result.accId||'';
+        document.getElementById('rv-kda').value=result.kda||'';
+        document.getElementById('rv-wr').value=result.winRate||'';
+        document.getElementById('rv-exp').value=result.exp||'';
+        rv.style.display='block'; st.textContent='Stats extracted.'; st.style.color='var(--green)';
+      }catch(e){st.textContent='Data extraction failed.';st.style.color='var(--red)';}
+    }
+  }
+  function removeSlot(e,idx){
+    e.stopPropagation(); tempFiles[idx]=null; slotUrls[idx]='';
+    const img=document.getElementById('slot-img-'+idx); if(img){img.src='';img.style.display='none';}
+    const vid=document.getElementById('slot-vid-'+idx); if(vid){vid.src='';vid.style.display='none';}
+    document.getElementById('slot-rm-'+idx).style.display='none';
+    document.getElementById('slot-'+idx).querySelector('.slot-lbl').style.display='';
+    document.getElementById('slot-'+idx).querySelector('input').value='';
+    if(idx===0){document.getElementById('stats-review-panel').style.display='none';document.getElementById('stats-extract-status').textContent='';}
+  }
+
+  async function saveAccount() {
+    const rank=document.getElementById('f-rank').value.trim();
+    const ign=document.getElementById('f-ign').value.trim();
+    const price=parseFloat(document.getElementById('f-price').value);
+    const st=document.getElementById('save-acc-status'), btn=document.getElementById('save-acc-btn');
+    if(!rank){showToast('⚠️ Rank is required!');return;}
+    if(isNaN(price)||price<=0){showToast('⚠️ Price is required!');return;}
+    if(!adminToken){showToast('Admin session expired.');return;}
+    btn.disabled=true; btn.textContent='Uploading...';
+    if(st){st.textContent='Initializing...';st.style.color='var(--text2)';}
+
+    // ── Per-slot upload — videos go direct to Drive, images via base64 ──
+    async function uploadSlot(i) {
+      if(!tempFiles[i])return;
+      const file=tempFiles[i];
+      const ext=file.name.split('.').pop();
+      const fileName=`acc_${i}_${Date.now()}.${ext}`;
+      const isVid=file.type.startsWith('video/');
+      const isGif=file.type==='image/gif';
+
+      if(isVid||isGif){
+        // Direct upload path: browser → Google Drive (bypasses Vercel 4.5MB limit)
+        if(st)st.textContent=`Uploading video (slot ${i+1}) directly to Drive...`;
+        slotUrls[i] = await uploadDirectToDrive(file, fileName, 'account', ign);
+      }else{
+        // Standard path: compress image → base64 → Vercel → Drive
+        const base64=await compressImage(file,1200,0.8);
+        const resp=await adminFetch({action:'uploadAccountImage',ign,fileName,mimeType:'image/jpeg',base64});
+        const res=await resp.json(); if(res.error)throw new Error('Upload error: '+res.error);
+        slotUrls[i]=res.url;
+      }
+    }
+
+    try{
+      if(tempFiles[0]){if(st)st.textContent='Uploading stats screenshot...'; await uploadSlot(0);}
+      if (pending.length) {
+        // Loop through files one by one instead of all at once
+        const pending = [1, 2, 3].filter(i => tempFiles[i]);
+        for (const i of pending) {
+          if (st) st.textContent = `Uploading media file ${i + 1} of ${pending.length}...`;
+          await uploadSlot(i); // This "awaits" each upload before starting the next
+        }
+      }
+      if(st)st.textContent='Saving account data...';
+      const acc = {
+        id: editingId || newAccId,
+        rank: document.getElementById('f-rank').value.trim(),
+        price: parseFloat(document.getElementById('f-price').value),
+        ign: document.getElementById('f-ign').value.trim(),
+        accid: document.getElementById('f-id').value.trim(),
+        sellername: document.getElementById('f-sellername').value.trim(),
+        sellercontact: document.getElementById('f-sellercontact').value.trim(),
+        sellerign: document.getElementById('f-sellerign').value.trim(),
+        kda: document.getElementById('f-kda').value.trim(),
+        winrate: document.getElementById('f-wr').value.trim(),
+        exp: document.getElementById('f-exp').value.trim(),
+        achievement: document.getElementById('f-ach').value.trim(),
+        notes: document.getElementById('f-notes').value.trim(),
+        status: document.getElementById('f-status').value,
+        createdat: Date.now(),
+        img1: slotUrls[0], img2: slotUrls[1], img3: slotUrls[2], img4: slotUrls[3]
+      };
+      const finalResp=await adminFetch({action:'saveAccount',account:acc,isNew:!editingId});
+      const result=await finalResp.json(); if(result.error)throw new Error(result.error);
+      if(st){st.textContent='Saved successfully!';st.style.color='var(--green)';}
+      btn.textContent='Saved ✓'; showToast(editingId?'Account updated!':'Account added!');
+      setTimeout(()=>{hideAddForm();fetchAccounts();btn.disabled=false;btn.textContent='Save account';if(st)st.textContent='';},1200);
+    }catch(e){
+      if(st){st.textContent='Error: '+e.message;st.style.color='var(--red)';}
+      showToast('Save failed: '+e.message); btn.disabled=false; btn.textContent='Save account';
+    }
+  }
+
+  function showGridSkeleton() {
+    document.getElementById('acc-grid').innerHTML = Array(4).fill(`<div class="skeleton"><div class="skel-line short"></div><div class="skel-line med"></div><div class="skel-line full"></div><div class="skel-line full"></div><div class="skel-line short"></div></div>`).join('');
+  }
+
+  registerFn('renderManageList', renderManageList);
+
+  // ── Overlay close handlers ─────────────────
+  document.getElementById('pay-overlay').addEventListener('click', function(e){ if(e.target===this)closePay(); });
+  document.getElementById('sell-overlay').addEventListener('click', function(e){ if(e.target===this)closeSellModal(); });
+  document.getElementById('lightbox').addEventListener('click', function(e){ if(e.target===this)closeLightbox(); });
+  document.getElementById('acc-search').addEventListener('input', debounce(renderGrid, 200));
+</script>
