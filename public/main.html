@@ -1225,42 +1225,49 @@
       }
     }
 
+    /* 1. Page Adjustment */
     body {
-      padding-bottom: 32px; /* Create room for the bar */
+      padding-bottom: 24px; /* Matches the slim height of the game bar */
     }
 
+    /* 2. The Ticker Container */
     .bottom-ticker {
       position: fixed;
       bottom: 0;
       left: 0;
       width: 100%;
-      /* Dark tactical grey using your theme's background */
-      background: var(--bg2); 
-      /* Sharp gold border like in your image */
-      border-top: 1.5px solid var(--accent);
-      border-bottom: 1.5px solid var(--accent);
-      height: 32px;
-      z-index: 1000;
+      height: 24px; /* Slimmer height to match the game UI */
+      background: rgba(10, 10, 10, 0.9); /* Deep dark background */
+      
+      /* The tactical dual-border look */
+      border-top: 1px solid #555555; /* Subtle grey top border */
+      border-bottom: 1px solid #222222; /* Darker bottom edge */
+      outline: 1.5px solid #a89060; /* The distinct gold-rim highlight */
+      outline-offset: -2px; /* Pulls the gold line slightly inside */
+      
+      z-index: 9999;
       overflow: hidden;
       display: flex;
       align-items: center;
     }
 
+    /* 3. The Tactical Text */
     .bottom-ticker span {
       position: absolute;
-      /* Monospaced font for that tactical/server look */
-      font-family: 'Rajdhani', monospace; 
-      color: var(--accent);
+      /* Using a sharp, narrow font to match the game's HUD */
+      font-family: 'Consolas', 'Courier New', monospace; 
+      color: #d8c090; /* Desaturated tactical gold */
       font-weight: 700;
-      font-size: 13px;
-      letter-spacing: 0.05em;
-      text-transform: uppercase;
+      font-size: 11px; /* Small, technical text */
+      letter-spacing: 0.02em;
       white-space: nowrap;
-      /* Adjust speed here (higher seconds = slower) */
-      animation: tactical-scroll 12s linear infinite;
+      line-height: 24px; /* Centers text vertically exactly in the 24px bar */
+      
+      /* Smooth scrolling animation */
+      animation: game-scroll 15s linear infinite;
     }
 
-    @keyframes tactical-scroll {
+    @keyframes game-scroll {
       0% { transform: translateX(100vw); }
       100% { transform: translateX(-100%); }
     }
