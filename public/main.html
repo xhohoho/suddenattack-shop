@@ -1254,16 +1254,14 @@
 
     .bottom-ticker span {
       display: inline-block;
-      white-space: nowrap;
-      /* This is the GAP between the end of text and the start of the clone */
-      /* If you want them close together, lower this number (e.g., 50px) */
-      padding-right: 100px; 
       font-family: 'Courier New', Courier, monospace;
       color: #d4c59a;
       font-weight: bold;
       font-size: 13px;
       letter-spacing: 1px;
       text-shadow: 1px 1px 0px #000;
+      padding-right: 100px; /* Space between the text and its clone */
+      line-height: 28px;    /* Centers text vertically in the 28px bar */
     }
 
     .ticker-btn-left, .ticker-btn-right {
@@ -1288,12 +1286,10 @@
     }
 
     .ticker-track {
-      display: flex;
-      align-items: center;
-      width: max-content;
+      display: block; /* Changed from flex for better overflow handling */
+      white-space: nowrap;
       height: 100%;
-      /* This pushes the very first start to the right edge */
-      padding-left: 100%; 
+      width: 200%; /* Make room for two copies of text side-by-side */
     }
 
     .ticker-track span {
@@ -2571,46 +2567,39 @@
     // ── Ticker seamless loop ──────────────────────
     window.addEventListener('load', () => {
       const track = document.querySelector('.ticker-track');
-      const originalSpan = track.querySelector('span');
-      if (!track || !originalSpan) return;
+      const span = track.querySelector('span');
+      const container = document.querySelector('.ticker-content');
+      if (!track || !span || !container) return;
 
-      // 1. Remove any existing clones to prevent triple-text if this runs twice
-      const existingSpans = track.querySelectorAll('span');
-      if (existingSpans.length > 1) {
-        for (let i = 1; i < existingSpans.length; i++) existingSpans[i].remove();
-      }
+      // 1. Clear any existing clones and then clone once
+      track.innerHTML = `<span>${span.innerHTML}</span><span>${span.innerHTML}</span>`;
+      
+      const firstSpan = track.querySelectorAll('span')[0];
+      const textWidth = firstSpan.offsetWidth;
+      const containerWidth = container.offsetWidth;
 
-      // 2. Clone the span for the seamless loop
-      const clone = originalSpan.cloneNode(true);
-      track.appendChild(clone);
+      // 2. SPEED CONTROL
+      // 100 is medium speed. Higher is faster.
+      const speed = 100;
+      const duration = (textWidth + containerWidth) / speed;
 
-      // 3. Calculate the width of ONE span (including its right padding)
-      const singleWidth = originalSpan.offsetWidth;
-
-      // 4. SPEED CONTROL
-      // 100 is a good "medium-fast" Sudden Attack speed
-      const speed = 100; 
-      const duration = singleWidth / speed;
-
-      // 5. Create the Keyframe
+      // 3. Create the Animation
+      // We start with the first text pushed all the way to the right (containerWidth)
+      // and move it until the first copy has fully cleared the left side.
       const ks = document.createElement('style');
-      ks.id = 'seamless-ticker-style';
-      // We only move by the width of the text segment. 
-      // Because it's cloned, the clone will be at the right edge 
-      // exactly when the first one finishes its cycle.
+      ks.id = 'sa-ticker-logic';
       ks.textContent = `
-        @keyframes sudden-attack-continuous {
-          0%   { transform: translateX(0); }
-          100% { transform: translateX(-${singleWidth}px); }
+        @keyframes sa-continuous-loop {
+          0%   { transform: translateX(${containerWidth}px); }
+          100% { transform: translateX(-${textWidth}px); }
         }
       `;
       
-      const oldStyle = document.getElementById('seamless-ticker-style');
-      if (oldStyle) oldStyle.remove();
+      const oldKs = document.getElementById('sa-ticker-logic');
+      if (oldKs) oldKs.remove();
       document.head.appendChild(ks);
 
-      // Apply animation to the track
-      track.style.animation = `sudden-attack-continuous ${duration}s linear infinite`;
+      track.style.animation = `sa-continuous-loop ${duration}s linear infinite`;
     });
   </script>
 </body>
