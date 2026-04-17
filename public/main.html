@@ -1226,11 +1226,10 @@
     }
 
     :root {
-      /* Sudden Attack Industrial Palette */
-      --sa-bg: #1a1a14;        /* Very dark olive/black */
-      --sa-border: #4a4a42;    /* Dark metallic grey */
-      --sa-highlight: #6b6b5e; /* Lighter metallic edge */
-      --sa-text: #d4c59a;      /* That specific pale gold/tan font color */
+      --sa-bg: #1a1a14;
+      --sa-border: #4a4a42;
+      --sa-highlight: #6b6b5e;
+      --sa-text: #d4c59a;
     }
 
     body {
@@ -1248,39 +1247,26 @@
       display: flex;
       align-items: center;
       z-index: 1000;
-
-      /* THE BORDER LOGIC */
-      /* This creates the thin outer grey/white frame seen in the image */
-      border-top: 1px solid #5a5a52;    /* The 'grey' top border */
-      border-bottom: 1px solid #111;   /* Darker bottom for depth */
-      
-      /* The 'Bevel' effect: a secondary lighter line inside the top edge */
-      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1); 
+      border-top: 1px solid #5a5a52;
+      border-bottom: 1px solid #111;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
     }
 
-    /* Adjusting the side buttons to have that same silver/grey frame */
     .ticker-btn-left, .ticker-btn-right {
       width: 16px;
-      height: 20px; /* Sits slightly inside the main bar */
+      height: 20px;
       margin: 0 4px;
       background: #3c3c34;
-      
-      /* Metallic Frame */
-      border: 1px solid #5a5a52; 
+      border: 1px solid #5a5a52;
       box-sizing: border-box;
       flex-shrink: 0;
-      position: relative;
-      
-      /* Shadow for the button depth */
       box-shadow: 1px 1px 0px #000;
     }
 
-    /* Optional: The vertical divider lines between the buttons and the text */
     .ticker-content {
       flex-grow: 1;
       height: 100%;
       overflow: hidden;
-      position: relative; /* Essential for containing the absolute track */
       background: #0d0d08;
       border-left: 1px solid #333;
       border-right: 1px solid #333;
@@ -1289,35 +1275,25 @@
     .ticker-track {
       display: flex;
       align-items: center;
-      width: 100%;
+      width: max-content;
       height: 100%;
+      animation: scroll-left 8s linear infinite;
     }
 
-    .bottom-ticker span {
-      position: absolute;
-      left: 0;
-      top: 50%;
+    .ticker-track span {
       white-space: nowrap;
+      padding-right: 80px; /* gap between loops */
       font-family: 'Courier New', Courier, monospace;
       color: #d4c59a;
       font-weight: bold;
       font-size: 13px;
       letter-spacing: 1px;
       text-shadow: 1px 1px 0px #000;
-      animation: scroll-left 8s linear infinite;
-    }
-
-    .ticker-track span:nth-child(2) {
-      animation-delay: -4s; /* Half the duration = perfectly interleaved */
     }
 
     @keyframes scroll-left {
-      0% {
-        transform: translateX(100vw) translateY(-50%);   /* starts at far right */
-      }
-      100% {
-        transform: translateX(-100%)  translateY(-50%);  /* ends fully off left */
-      }
+      0%   { transform: translateX(0); }
+      100% { transform: translateX(-50%); }
     }
   </style>
 </head>
@@ -1327,7 +1303,6 @@
     <div class="ticker-btn-left"></div>
     <div class="ticker-content">
       <div class="ticker-track">
-        <span>Joe Kontol</span>
         <span>Joe Kontol</span>
       </div>
     </div>
@@ -1720,6 +1695,8 @@
 ════════════════════════════════════════════ -->
     <script>
       // ── Config ─────────────────────────────────
+      const track = document.querySelector('.ticker-track');
+      track.innerHTML += track.innerHTML;
       const API_URL = '/api/index';
 
       // ── Shared item state (used by main.html admin + item.html) ──
