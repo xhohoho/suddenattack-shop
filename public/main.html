@@ -1225,19 +1225,24 @@
       }
     }
 
+    /* 1. Add padding to the body so content doesn't get hidden behind the bar */
+    body {
+      padding-bottom: 50px; 
+    }
+
     .bottom-ticker {
       position: fixed;
-      bottom: 20px;
+      bottom: 0;
       left: 0;
-      width: 100%; /* Full width container */
-      background: var(--bg2); 
-      border-top: 1px solid var(--accent);
-      border-bottom: 1px solid var(--accent);
-      height: 34px;
+      width: 100%;
+      background: var(--bg2);
+      /* The gold border at the top makes it look like part of the UI */
+      border-top: 1px solid var(--accent); 
+      height: 40px;
       z-index: 1000;
       overflow: hidden;
       display: flex;
-      align-items: center;
+      align-items: center; /* Vertically centers the text */
     }
 
     .bottom-ticker span {
@@ -1245,14 +1250,16 @@
       font-family: 'Rajdhani', sans-serif;
       color: var(--accent);
       font-weight: 700;
+      font-size: 14px;
+      text-transform: uppercase;
       white-space: nowrap;
-      /* Adjust '5s' to change speed */
-      animation: scroll-left 5s linear infinite;
+      /* Adjust 8s for speed - higher is slower */
+      animation: scroll-left 8s linear infinite;
     }
 
     @keyframes scroll-left {
-      0% { transform: translateX(100vw); }   /* Start completely off-screen right */
-      100% { transform: translateX(-100%); } /* End completely off-screen left */
+      0% { transform: translateX(100vw); }
+      100% { transform: translateX(-100%); }
     }
   </style>
 </head>
