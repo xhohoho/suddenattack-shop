@@ -1243,46 +1243,50 @@
       bottom: 0;
       left: 0;
       width: 100%;
-      height: 28px; /* Sudden Attack's bar is quite slim */
+      height: 28px;
       background: var(--sa-bg);
       display: flex;
-      border-top: 2px solid #000; /* Dark gap above the bar */
+      align-items: center;
       z-index: 1000;
-      box-shadow: inset 0 1px 0 var(--sa-highlight); /* Top inner bevel */
+
+      /* THE BORDER LOGIC */
+      /* This creates the thin outer grey/white frame seen in the image */
+      border-top: 1px solid #5a5a52;    /* The 'grey' top border */
+      border-bottom: 1px solid #111;   /* Darker bottom for depth */
+      
+      /* The 'Bevel' effect: a secondary lighter line inside the top edge */
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1); 
     }
 
-    /* The "Button Frames" on the ends */
+    /* Adjusting the side buttons to have that same silver/grey frame */
     .ticker-btn-left, .ticker-btn-right {
-      width: 18px;
-      height: 100%;
-      background: #33332d;
-      border: 1px solid var(--sa-border);
+      width: 16px;
+      height: 20px; /* Sits slightly inside the main bar */
+      margin: 0 4px;
+      background: #3c3c34;
+      
+      /* Metallic Frame */
+      border: 1px solid #5a5a52; 
       box-sizing: border-box;
       flex-shrink: 0;
       position: relative;
+      
+      /* Shadow for the button depth */
+      box-shadow: 1px 1px 0px #000;
     }
 
-    /* The inner "recessed" line on the buttons */
-    .ticker-btn-left::after, .ticker-btn-right::after {
-      content: '';
-      position: absolute;
-      top: 4px;
-      bottom: 4px;
-      left: 6px;
-      right: 6px;
-      background: #111;
-      border-left: 1px solid #000;
-      border-right: 1px solid var(--sa-highlight);
-    }
-
+    /* Optional: The vertical divider lines between the buttons and the text */
     .ticker-content {
       flex-grow: 1;
+      height: 100%;
       overflow: hidden;
       display: flex;
       align-items: center;
-      background: #11110b; /* Darker than the main bar for depth */
-      border-left: 1px solid #000;
-      border-right: 1px solid #000;
+      background: #0d0d08;
+      
+      /* Inner borders to separate the scroll area from the buttons */
+      border-left: 2px solid #222;
+      border-right: 2px solid #222;
     }
 
     .bottom-ticker span {
