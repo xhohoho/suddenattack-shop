@@ -1226,7 +1226,8 @@
     }
 
     body {
-      padding-bottom: 24px; /* Ensure content doesn't hide behind the bar */
+      /* This creates the 'safe zone' so your shop items don't hide behind the bar */
+      padding-bottom: 40px; 
     }
 
     .bottom-ticker {
@@ -1234,45 +1235,35 @@
       bottom: 0;
       left: 0;
       width: 100%;
-      height: 24px;
-      /* Dark tactical grey-black background */
-      background-color: #0d0d0d; 
-      
-      /* The "Sudden Attack" Frame: A gold inner line with a grey outer rim */
-      border-top: 1px solid #3a3a3a;
-      border-bottom: 1px solid #1a1a1a;
-      outline: 1px solid #9e8456; /* Desaturated gold */
-      outline-offset: -3px; /* This forces the gold line INSIDE the bar */
-      
-      /* Subtle inner shadow to make the bar look "recessed" */
-      box-shadow: inset 0 0 5px rgba(0,0,0,0.8);
-      
-      z-index: 9999;
+      background: var(--bg2);
+      border-top: 1px solid var(--accent);
+      height: 40px;
+      z-index: 1000;
       overflow: hidden;
+      
+      /* PERFECT CENTERING LOGIC */
       display: flex;
-      align-items: center;
+      align-items: center; 
+      justify-content: center;
     }
 
     .bottom-ticker span {
-      position: absolute;
-      /* Fixed-width font to match server text/IP strings */
-      font-family: 'Courier New', Courier, monospace; 
-      color: #c9af75; /* Tactical HUD gold color */
-      font-weight: bold;
-      font-size: 11px;
+      /* Remove position: absolute to let Flexbox handle the centering */
+      display: block;
+      font-family: 'Rajdhani', sans-serif;
+      color: var(--accent);
+      font-weight: 700;
+      font-size: 14px;
       text-transform: uppercase;
       white-space: nowrap;
+      line-height: 1; /* Prevents invisible padding inside the font */
       
-      /* Vertical alignment fix for the 24px bar */
-      line-height: 24px;
-      padding-left: 10px;
-
-      animation: game-scroll 12s linear infinite;
+      animation: scroll-left 10s linear infinite;
     }
 
-    @keyframes game-scroll {
+    @keyframes scroll-left {
       0% { transform: translateX(100vw); }
-      100% { transform: translateX(-100%); }
+      100% { transform: translateX(-100vw); } /* Matches 100vw for a cleaner exit */
     }
   </style>
 </head>
