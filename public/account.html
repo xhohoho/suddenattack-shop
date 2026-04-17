@@ -366,12 +366,9 @@
     if (!url || !url.startsWith('blob:')) return;
     _blobRefCount[url] = Math.max(0, (_blobRefCount[url] || 1) - 1);
   }
-  // Videos use Google Drive's /preview embed — no proxy needed
-  // We return the Drive preview URL directly and let the carousel render an iframe
   function getVideoDriveUrl(fileId) {
     return `https://drive.google.com/file/d/${fileId}/preview`;
   }
-  // Keep getVideoBlobUrl as alias for compatibility but return drive preview URL
   async function getVideoBlobUrl(fileId) {
     return getVideoDriveUrl(fileId);
   }
@@ -380,6 +377,40 @@
     if (/\.gif(\?|$)/i.test(url)) return false;
     if (url.includes('drive.google.com')) return true;
     return /\.(mp4|mov|webm|avi|mkv)(\?|$)/i.test(url);
+  }
+
+  // ── Direct-to-Drive upload helper (bypasses Vercel 4.5MB limit) ─────────────
+  // Used for videos and GIFs. Flow:
+  //   1. Ask backend for a resumable Drive upload URL (backend auth → Drive session)
+  //   2. PUT the raw file blob directly to Google Drive from the browser
+  //   3. Ask backend to make the file public and return the embed URL
+  async function uploadDirectToDrive(file, fileName, folderContext, ign) {
+    // Step 1: Get resumable upload URL from backend
+    const urlResp = await fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'getDirectUploadUrl', fileName, mimeType: file.type, folderContext, ign })
+    });
+    const urlResult = await urlResp.json();
+    if (urlResult.error) throw new Error('Upload init failed: ' + urlResult.error);
+
+    // Step 2: Upload file blob directly to Google Drive (no Vercel in between)
+    const uploadResp = await fetch(urlResult.uploadUrl, {
+      method: 'PUT',
+      headers: { 'Content-Type': file.type },
+      body: file
+    });
+    if (!uploadResp.ok) throw new Error(`Direct upload to Drive failed: ${uploadResp.status}`);
+
+    // Step 3: Finalize — set public permission, get URL
+    const finalResp = await fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'finalizeUpload', fileName, mimeType: file.type, folderId: urlResult.folderId })
+    });
+    const finalResult = await finalResp.json();
+    if (finalResult.error) throw new Error('Finalize failed: ' + finalResult.error);
+    return finalResult.url;
   }
 
   // ── Rank helpers ───────────────────────────
@@ -413,9 +444,7 @@
         headers: { 'Content-Type': 'application/json' }, 
         body: JSON.stringify({ action: 'getAccounts' }) 
       });
-      
       const d = await r.json();
-      // API returns { values: [ {id, rank, price, ...}, ... ] } — already mapped objects
       const rows = d.values || [];
       if (!rows.length) return;
 
@@ -443,10 +472,8 @@
 
       const hash = JSON.stringify(newData);
       if (hash === _lastAccountData) return;
-      
       _lastAccountData = hash;
       accounts = newData;
-
       renderGrid();
       if (adminUnlocked) renderManageList();
     } catch (e) {
@@ -482,86 +509,70 @@
   }
 
   function renderGrid() {
-      const q = document.getElementById('acc-search').value.toLowerCase();
-      const sort = document.getElementById('sort-select').value;
-      
-      let list = [...accounts]; 
-      
-      // 1. Case-insensitive filter matching
-      if (currentFilter !== 'all') {
-          list = list.filter(a => (a.status || '').toLowerCase().trim() === currentFilter.toLowerCase());
+    const q = document.getElementById('acc-search').value.toLowerCase();
+    const sort = document.getElementById('sort-select').value;
+    let list = [...accounts];
+    if (currentFilter !== 'all') {
+      list = list.filter(a => (a.status || '').toLowerCase().trim() === currentFilter.toLowerCase());
+    }
+    if (q) {
+      list = list.filter(a => {
+        const searchStr = (a.rank + (a.ign || '') + (a.accId || '') + (a.notes || '')).toLowerCase();
+        return searchStr.includes(q);
+      });
+    }
+    if (sort === 'price-asc') list.sort((a, b) => a.price - b.price);
+    else if (sort === 'price-desc') list.sort((a, b) => b.price - a.price);
+    else list.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+
+    document.getElementById('results-count').textContent = list.length + ' account' + (list.length !== 1 ? 's' : '');
+    const el = document.getElementById('acc-grid');
+    if (!list.length) { 
+      el.innerHTML = '<div style="text-align:center;padding:24px;font-size:12px;color:var(--text3);font-family:Rajdhani,sans-serif">No accounts found</div>'; 
+      return; 
+    }
+
+    el.innerHTML = list.map(a => {
+      const rankColor = getRankColor(a.rank);
+      const rankIcon = getRankIcon(a.rank);
+      const status = (a.status || 'pending').toLowerCase().trim();
+      const isSold = status === 'sold';
+      const isReserved = status === 'reserved';
+      const isPending = status === 'pending';
+      const displayPrice = a.price * 1.10;
+      const statusPill = isSold ? '<span class="acc-status-pill s-sold">Sold</span>'
+        : isReserved ? '<span class="acc-status-pill s-reserved">Reserved</span>'
+        : isPending ? '<span class="acc-status-pill s-pending">Pending Review</span>'
+        : '<span class="acc-status-pill s-available">Available</span>';
+      const details = [];
+      if (a.ign) details.push(`<div class="detail-row"><span class="detail-label">IGN</span><span class="detail-val hl">${a.ign}</span></div>`);
+      if (a.accId) details.push(`<div class="detail-row"><span class="detail-label">ID</span><span class="detail-val">${a.accId}</span></div>`);
+      if (a.kda) details.push(`<div class="detail-row"><span class="detail-label">KDA</span><span class="detail-val hl">${a.kda}</span></div>`);
+      const tags = a.notes ? a.notes.split(',').filter(t => t.trim()).map(t => `<span class="tag">${t.trim()}</span>`).join('') : '';
+      let actionHtml = '';
+      if (isPending) {
+        actionHtml = `<span style="font-size:10px;color:var(--blue);font-family:Rajdhani,sans-serif;letter-spacing:.05em;text-transform:uppercase;opacity:0.7">Awaiting Verification</span>`;
+      } else if (isSold || isReserved) {
+        actionHtml = `<span style="font-size:11px;color:var(--text3);font-family:Rajdhani,sans-serif;letter-spacing:.05em;text-transform:uppercase">${isSold ? 'Sold out' : 'Reserved'}</span>`;
+      } else {
+        actionHtml = `<button class="buy-btn" onclick="event.stopPropagation();openPay('${a.id}')">Buy now</button>`;
       }
-      
-      // 2. Search filter - ensured property names match your fetchAccounts mapping
-      if (q) {
-          list = list.filter(a => {
-              const searchStr = (a.rank + (a.ign || '') + (a.accId || '') + (a.notes || '')).toLowerCase();
-              return searchStr.includes(q);
-          });
-      }
-      
-      // Sort logic
-      if (sort === 'price-asc') list.sort((a, b) => a.price - b.price);
-      else if (sort === 'price-desc') list.sort((a, b) => b.price - a.price);
-      else list.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
-
-      document.getElementById('results-count').textContent = list.length + ' account' + (list.length !== 1 ? 's' : '');
-      const el = document.getElementById('acc-grid');
-      
-      if (!list.length) { 
-          el.innerHTML = '<div style="text-align:center;padding:24px;font-size:12px;color:var(--text3);font-family:Rajdhani,sans-serif">No accounts found</div>'; 
-          return; 
-      }
-
-      el.innerHTML = list.map(a => {
-          const rankColor = getRankColor(a.rank);
-          const rankIcon = getRankIcon(a.rank);
-          
-          // 3. Robust Status Check (lowercase + trim)
-          const status = (a.status || 'pending').toLowerCase().trim();
-          const isSold = status === 'sold';
-          const isReserved = status === 'reserved';
-          const isPending = status === 'pending';
-          
-          const displayPrice = a.price * 1.10;
-
-          const statusPill = isSold ? '<span class="acc-status-pill s-sold">Sold</span>'
-              : isReserved ? '<span class="acc-status-pill s-reserved">Reserved</span>'
-              : isPending ? '<span class="acc-status-pill s-pending">Pending Review</span>'
-              : '<span class="acc-status-pill s-available">Available</span>';
-
-          const details = [];
-          if (a.ign) details.push(`<div class="detail-row"><span class="detail-label">IGN</span><span class="detail-val hl">${a.ign}</span></div>`);
-          if (a.accId) details.push(`<div class="detail-row"><span class="detail-label">ID</span><span class="detail-val">${a.accId}</span></div>`);
-          if (a.kda) details.push(`<div class="detail-row"><span class="detail-label">KDA</span><span class="detail-val hl">${a.kda}</span></div>`);
-          
-          const tags = a.notes ? a.notes.split(',').filter(t => t.trim()).map(t => `<span class="tag">${t.trim()}</span>`).join('') : '';
-
-          let actionHtml = '';
-          if (isPending) {
-              actionHtml = `<span style="font-size:10px;color:var(--blue);font-family:Rajdhani,sans-serif;letter-spacing:.05em;text-transform:uppercase;opacity:0.7">Awaiting Verification</span>`;
-          } else if (isSold || isReserved) {
-              actionHtml = `<span style="font-size:11px;color:var(--text3);font-family:Rajdhani,sans-serif;letter-spacing:.05em;text-transform:uppercase">${isSold ? 'Sold out' : 'Reserved'}</span>`;
-          } else {
-              actionHtml = `<button class="buy-btn" onclick="event.stopPropagation();openPay('${a.id}')">Buy now</button>`;
-          }
-
-          return `<div class="acc-card${isSold ? ' sold' : ''}${isPending ? ' pending' : ''}" onclick="openDetail('${a.id}')">
-              <div class="card-header"><span class="acc-id">${a.id}</span>${statusPill}</div>
-              <div class="card-rank">
-                  <div class="rank-icon">${rankIcon}</div>
-                  <div><div class="rank-name" style="color:${rankColor}">${a.rank}</div><div class="rank-tier">Sudden Attack</div></div>
-              </div>
-              ${details.length ? `<div class="card-details">${details.join('')}</div>` : ''}
-              ${tags ? `<div class="card-tags">${tags}</div>` : ''}
-              <hr class="card-divider"/>
-              <div class="card-footer">
-                  <span class="acc-price">${fmt(displayPrice)}</span>
-                  ${actionHtml}
-              </div>
-              ${isSold ? '<div class="sold-overlay"><span class="sold-stamp">Sold</span></div>' : ''}
-          </div>`;
-      }).join('');
+      return `<div class="acc-card${isSold ? ' sold' : ''}${isPending ? ' pending' : ''}" onclick="openDetail('${a.id}')">
+        <div class="card-header"><span class="acc-id">${a.id}</span>${statusPill}</div>
+        <div class="card-rank">
+          <div class="rank-icon">${rankIcon}</div>
+          <div><div class="rank-name" style="color:${rankColor}">${a.rank}</div><div class="rank-tier">Sudden Attack</div></div>
+        </div>
+        ${details.length ? `<div class="card-details">${details.join('')}</div>` : ''}
+        ${tags ? `<div class="card-tags">${tags}</div>` : ''}
+        <hr class="card-divider"/>
+        <div class="card-footer">
+          <span class="acc-price">${fmt(displayPrice)}</span>
+          ${actionHtml}
+        </div>
+        ${isSold ? '<div class="sold-overlay"><span class="sold-stamp">Sold</span></div>' : ''}
+      </div>`;
+    }).join('');
   }
 
   // ── Carousel ───────────────────────────────
@@ -583,7 +594,6 @@
       if (isVid && !fileId) return `<div class="carousel-slide">${statsTag}${counter}<div style="color:var(--red);text-align:center;padding:20px;font-size:12px">Invalid video URL</div></div>`;
       let media;
       if (isVid && fileId) {
-        // Use Google Drive iframe embed directly — absolute fill so it matches card width
         const drivePreviewUrl = `https://drive.google.com/file/d/${fileId}/preview`;
         media = `<div class="video-container" style="position:relative;width:100%;height:340px;background:#000" data-file-id="${fileId}">
           <iframe id="vid-${fileId}" src="${drivePreviewUrl}" style="position:absolute;top:0;left:0;width:100%;height:100%;border:none" frameborder="0" allow="autoplay" allowfullscreen></iframe>
@@ -632,19 +642,10 @@
   function scrubStart(e,id){ e.preventDefault(); _scrubbing=true; _scrubId=id; scrubAt(e,id); const onMove=ev=>{if(_scrubbing)scrubAt(ev,_scrubId);}; const onUp=()=>{_scrubbing=false;_scrubId=null;document.removeEventListener('mousemove',onMove);document.removeEventListener('mouseup',onUp);}; document.addEventListener('mousemove',onMove); document.addEventListener('mouseup',onUp); }
   function scrubTouchStart(e,id){ e.stopPropagation(); const onMove=ev=>{if(ev.touches[0])scrubAt(ev.touches[0],id);}; const onEnd=()=>{document.removeEventListener('touchmove',onMove);document.removeEventListener('touchend',onEnd);}; document.addEventListener('touchmove',onMove,{passive:true}); document.addEventListener('touchend',onEnd); if(e.touches[0])scrubAt(e.touches[0],id); }
 
-  // No injectCarouselBlobUrls needed — Drive /preview src is set directly at render time
-
   function carouselGoTo(idx) {
     _carouselIdx = Math.max(0, Math.min(idx, _carouselItems.length-1));
     const track = document.getElementById('det-track'); if(track)track.style.transform=`translateX(-${_carouselIdx*100}%)`;
     document.querySelectorAll('#det-dots .carousel-dot').forEach((d,i)=>d.classList.toggle('active',i===_carouselIdx));
-    // Pause iframes (Drive embed) when not active by resetting src temporarily
-    document.querySelectorAll('#det-carousel .video-container').forEach((c,i)=>{
-      if(i !== _carouselIdx) {
-        const ifr = c.querySelector('iframe');
-        // Don't reset src — Drive iframe will auto-pause when hidden
-      }
-    });
   }
   function carouselTouchStart(e) { _touchStartX = e.changedTouches[0].clientX; }
   function carouselTouchEnd(e) { const dx=e.changedTouches[0].clientX-_touchStartX; if(Math.abs(dx)<40)return; dx<0?carouselGoTo(_carouselIdx+1):carouselGoTo(_carouselIdx-1); }
@@ -656,7 +657,6 @@
   function openDetail(id) {
     const a = accounts.find(x => x.id === id); if (!a) return;
     if (id === _lastDetailId && _lastDetailHTML) {
-      // Re-render so iframes get their Drive src back (closeDetail resets them to about:blank)
       document.getElementById('detail-content').innerHTML = _lastDetailHTML;
       document.getElementById('detail-overlay').classList.add('open');
       return;
@@ -710,7 +710,6 @@
   }
 
   function closeDetail() {
-    // Unload iframes to stop Drive video playback
     document.querySelectorAll('#det-carousel .video-container iframe').forEach(ifr => { ifr.src = 'about:blank'; });
     document.getElementById('detail-overlay').classList.remove('open');
   }
@@ -799,7 +798,6 @@
   function openSellModal() {
     document.getElementById('sell-overlay').classList.add('open');
     document.getElementById('sell-status').textContent='';
-    // Reset sell slots
     for (let i=0;i<4;i++) {
       sellTempFiles[i]=null;
       const img=document.getElementById('ss-slot-img-'+i); if(img){img.src='';img.style.display='none';}
@@ -840,7 +838,7 @@
     const sellerPhone = g('sell-seller-phone');
     const sellerIgn   = g('sell-seller-ign');
     const rank        = g('sell-rank');
-    const ign        = g('sell-ign');
+    const ign         = g('sell-ign');
     const price       = parseFloat(g('sell-price'));
 
     if (!sellerName)  { showToast('Please enter your full name.'); return; }
@@ -858,53 +856,46 @@
     const uploadedUrls = ['','','',''];
 
     try {
-      // Upload media files — always use base64 JSON (API doesn't support FormData)
       const filesToUpload = sellTempFiles.map((f,i)=>({file:f,idx:i})).filter(x=>x.file);
       for (const {file,idx} of filesToUpload) {
         status.textContent = `Uploading media ${idx+1}...`;
         const isVid = file.type.startsWith('video/') || file.type === 'image/gif';
-        let base64, mimeType, fileName;
+        const fileName = `acc_${idx}_${Date.now()}.${file.name.split('.').pop()}`;
+
         if (isVid) {
-          // Read video/gif as raw base64
-          base64 = await new Promise((res, rej) => {
-            const reader = new FileReader();
-            reader.onload = e => res(e.target.result.split(',')[1]);
-            reader.onerror = () => rej(new Error('Failed to read file'));
-            reader.readAsDataURL(file);
-          });
-          mimeType = file.type;
-          fileName = `acc_${idx}_${Date.now()}.${file.name.split('.').pop()}`;
+          // ── Direct upload: browser → Google Drive (bypasses Vercel 4.5MB limit) ──
+          status.textContent = `Uploading video ${idx+1} directly to Drive...`;
+          uploadedUrls[idx] = await uploadDirectToDrive(file, fileName, 'account_public', ign);
         } else {
-          base64 = await compressImage(file, 1200, 0.8);
-          mimeType = 'image/jpeg';
-          fileName = `acc_${idx}_${Date.now()}.jpg`;
+          // ── Standard: compress image → base64 → Vercel → Drive ──
+          const base64 = await compressImage(file, 1200, 0.8);
+          const resp = await fetch(API_URL, {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({ action:'uploadPublicAccountImage', ign, fileName, mimeType:'image/jpeg', base64 })
+          });
+          const res = await resp.json();
+          if (res.error) throw new Error(res.error);
+          uploadedUrls[idx] = res.url || '';
         }
-        const resp = await fetch(API_URL, {
-          method:'POST', headers:{'Content-Type':'application/json'},
-          body: JSON.stringify({ action:'uploadPublicAccountImage', ign:ign, fileName, mimeType, base64 })
-        });
-        const res = await resp.json();
-        if (res.error) throw new Error(res.error);
-        uploadedUrls[idx] = res.url || '';
       }
 
       status.textContent='Saving listing...';
       const acc = {
         id: accId,
-        rank: rank,
-        price: price,
+        rank,
+        price,
         ign: g('sell-ign'),
-        accid: g('sell-accid'),         // Standardized
-        sellername: sellerName,         // Standardized
-        sellercontact: sellerPhone,     // Standardized
-        sellerign: sellerIgn,           // Standardized
+        accid: g('sell-accid'),
+        sellername: sellerName,
+        sellercontact: sellerPhone,
+        sellerign: sellerIgn,
         kda: g('sell-kda'),
-        winrate: g('sell-wr'),          // Standardized
+        winrate: g('sell-wr'),
         exp: g('sell-exp'),
-        achievement: '',                // Standardized
+        achievement: '',
         notes: g('sell-notes'),
         status: 'pending',
-        createdat: Date.now(),          // Standardized
+        createdat: Date.now(),
         img1: uploadedUrls[0], img2: uploadedUrls[1], img3: uploadedUrls[2], img4: uploadedUrls[3]
       };
       const resp = await fetch(API_URL, {
@@ -924,25 +915,17 @@
   }
 
   // ── Admin: manage list ─────────────────────
-  // Uses status dropdown + save per row (same pattern as orders tab — no toggle button)
   function renderManageList() {
     const el = document.getElementById('acc-manage-list');
     if (!el) return;
-    
     if (!accounts.length) { 
       el.innerHTML = '<div style="font-size:12px;color:var(--text3);font-family:Rajdhani,sans-serif;text-align:center;padding:16px">No accounts yet</div>'; 
       return; 
     }
-
-    // Sort by createdAt descending (latest on top)
     const sortedAccounts = [...accounts].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
-
     el.innerHTML = sortedAccounts.map(a => {
       const sellerInfo = a.sellerName ? `<div style="font-size:11px;color:var(--text3);margin-top:2px">Seller: ${a.sellerName}${a.sellerPhone?' · '+a.sellerPhone:''}</div>` : '';
-      
-      // Calculate the 110% price just for admin reference if needed
       const publicPrice = a.price * 1.10;
-
       return `
       <div class="acc-list-item" id="acc-row-${a.id}">
         <div class="acc-list-info">
@@ -982,7 +965,6 @@
       ind.textContent='✓'; ind.style.color='var(--green)';
       btn.textContent='Save'; btn.disabled=false;
       setTimeout(()=>{ if(ind)ind.textContent=''; }, 3000);
-      // Refresh grid so public view reflects status change
       renderGrid();
     } catch(e) {
       ind.textContent='✕'; ind.style.color='var(--red)';
@@ -1103,30 +1085,29 @@
     if(!rank){showToast('⚠️ Rank is required!');return;}
     if(isNaN(price)||price<=0){showToast('⚠️ Price is required!');return;}
     if(!adminToken){showToast('Admin session expired.');return;}
-    const accId=editingId||newAccId;
     btn.disabled=true; btn.textContent='Uploading...';
     if(st){st.textContent='Initializing...';st.style.color='var(--text2)';}
 
-    async function uploadSlot(i){
+    // ── Per-slot upload — videos go direct to Drive, images via base64 ──
+    async function uploadSlot(i) {
       if(!tempFiles[i])return;
-      const file=tempFiles[i], fileName=`acc_${i}_${Date.now()}.${file.name.split('.').pop()}`;
-      // Always use base64 JSON — API doesn't support FormData
-      let base64, mimeType;
-      if(file.type.startsWith('video/')||file.type==='image/gif'){
-        base64 = await new Promise((res,rej)=>{
-          const reader=new FileReader();
-          reader.onload=e=>res(e.target.result.split(',')[1]);
-          reader.onerror=()=>rej(new Error('Failed to read file'));
-          reader.readAsDataURL(file);
-        });
-        mimeType=file.type;
+      const file=tempFiles[i];
+      const ext=file.name.split('.').pop();
+      const fileName=`acc_${i}_${Date.now()}.${ext}`;
+      const isVid=file.type.startsWith('video/');
+      const isGif=file.type==='image/gif';
+
+      if(isVid||isGif){
+        // Direct upload path: browser → Google Drive (bypasses Vercel 4.5MB limit)
+        if(st)st.textContent=`Uploading video (slot ${i+1}) directly to Drive...`;
+        slotUrls[i] = await uploadDirectToDrive(file, fileName, 'account', ign);
       }else{
-        base64=await compressImage(file,1200,0.8);
-        mimeType='image/jpeg';
+        // Standard path: compress image → base64 → Vercel → Drive
+        const base64=await compressImage(file,1200,0.8);
+        const resp=await adminFetch({action:'uploadAccountImage',ign,fileName,mimeType:'image/jpeg',base64});
+        const res=await resp.json(); if(res.error)throw new Error('Upload error: '+res.error);
+        slotUrls[i]=res.url;
       }
-      const resp=await adminFetch({action:'uploadAccountImage',ign:ign,fileName,mimeType,base64});
-      const res=await resp.json(); if(res.error)throw new Error('Upload error: '+res.error);
-      slotUrls[i]=res.url;
     }
 
     try{
@@ -1135,23 +1116,23 @@
       if(pending.length){if(st)st.textContent=`Uploading ${pending.length} media file(s)...`; await Promise.all(pending.map(i=>uploadSlot(i)));}
       if(st)st.textContent='Saving account data...';
       const acc = {
-          id: editingId || newAccId,
-          rank: document.getElementById('f-rank').value.trim(),
-          price: parseFloat(document.getElementById('f-price').value),
-          ign: document.getElementById('f-ign').value.trim(),
-          accid: document.getElementById('f-id').value.trim(),             // Standardized
-          sellername: document.getElementById('f-sellername').value.trim(),    // Standardized
-          sellercontact: document.getElementById('f-sellercontact').value.trim(),// Standardized
-          sellerign: document.getElementById('f-sellerign').value.trim(),      // Standardized
-          kda: document.getElementById('f-kda').value.trim(),
-          winrate: document.getElementById('f-wr').value.trim(),          // Standardized
-          exp: document.getElementById('f-exp').value.trim(),
-          achievement: document.getElementById('f-ach').value.trim(),      // Standardized
-          notes: document.getElementById('f-notes').value.trim(),
-          status: document.getElementById('f-status').value,
-          createdat: Date.now(),                                           // Standardized
-          img1: slotUrls[0], img2: slotUrls[1], img3: slotUrls[2], img4: slotUrls[3]
-        };
+        id: editingId || newAccId,
+        rank: document.getElementById('f-rank').value.trim(),
+        price: parseFloat(document.getElementById('f-price').value),
+        ign: document.getElementById('f-ign').value.trim(),
+        accid: document.getElementById('f-id').value.trim(),
+        sellername: document.getElementById('f-sellername').value.trim(),
+        sellercontact: document.getElementById('f-sellercontact').value.trim(),
+        sellerign: document.getElementById('f-sellerign').value.trim(),
+        kda: document.getElementById('f-kda').value.trim(),
+        winrate: document.getElementById('f-wr').value.trim(),
+        exp: document.getElementById('f-exp').value.trim(),
+        achievement: document.getElementById('f-ach').value.trim(),
+        notes: document.getElementById('f-notes').value.trim(),
+        status: document.getElementById('f-status').value,
+        createdat: Date.now(),
+        img1: slotUrls[0], img2: slotUrls[1], img3: slotUrls[2], img4: slotUrls[3]
+      };
       const finalResp=await adminFetch({action:'saveAccount',account:acc,isNew:!editingId});
       const result=await finalResp.json(); if(result.error)throw new Error(result.error);
       if(st){st.textContent='Saved successfully!';st.style.color='var(--green)';}
