@@ -1225,9 +1225,17 @@
       }
     }
 
+    :root {
+      /* Sudden Attack Industrial Palette */
+      --sa-bg: #1a1a14;        /* Very dark olive/black */
+      --sa-border: #4a4a42;    /* Dark metallic grey */
+      --sa-highlight: #6b6b5e; /* Lighter metallic edge */
+      --sa-text: #d4c59a;      /* That specific pale gold/tan font color */
+    }
+
     body {
-      /* This creates the 'safe zone' so your shop items don't hide behind the bar */
-      padding-bottom: 40px; 
+      padding-bottom: 30px;
+      background-color: #000;
     }
 
     .bottom-ticker {
@@ -1235,45 +1243,75 @@
       bottom: 0;
       left: 0;
       width: 100%;
-      background: var(--bg2);
-      border-top: 1px solid var(--accent);
-      height: 40px;
-      z-index: 1000;
-      overflow: hidden;
-      
-      /* PERFECT CENTERING LOGIC */
+      height: 28px; /* Sudden Attack's bar is quite slim */
+      background: var(--sa-bg);
       display: flex;
-      align-items: center; 
-      justify-content: center;
+      border-top: 2px solid #000; /* Dark gap above the bar */
+      z-index: 1000;
+      box-shadow: inset 0 1px 0 var(--sa-highlight); /* Top inner bevel */
+    }
+
+    /* The "Button Frames" on the ends */
+    .ticker-btn-left, .ticker-btn-right {
+      width: 18px;
+      height: 100%;
+      background: #33332d;
+      border: 1px solid var(--sa-border);
+      box-sizing: border-box;
+      flex-shrink: 0;
+      position: relative;
+    }
+
+    /* The inner "recessed" line on the buttons */
+    .ticker-btn-left::after, .ticker-btn-right::after {
+      content: '';
+      position: absolute;
+      top: 4px;
+      bottom: 4px;
+      left: 6px;
+      right: 6px;
+      background: #111;
+      border-left: 1px solid #000;
+      border-right: 1px solid var(--sa-highlight);
+    }
+
+    .ticker-content {
+      flex-grow: 1;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      background: #11110b; /* Darker than the main bar for depth */
+      border-left: 1px solid #000;
+      border-right: 1px solid #000;
     }
 
     .bottom-ticker span {
-      /* Remove position: absolute to let Flexbox handle the centering */
-      display: block;
-      font-family: 'Rajdhani', sans-serif;
-      color: var(--accent);
-      font-weight: 700;
-      font-size: 14px;
-      text-transform: uppercase;
+      display: inline-block;
+      font-family: 'Courier New', Courier, monospace; /* Use a monospaced font for that tech look */
+      color: var(--sa-text);
+      font-weight: bold;
+      font-size: 13px;
       white-space: nowrap;
-      line-height: 1; /* Prevents invisible padding inside the font */
-      
-      animation: scroll-left 10s linear infinite;
+      letter-spacing: 1px;
+      animation: scroll-left 15s linear infinite;
+      text-shadow: 1px 1px 0px #000; /* Adds the "etched" look */
     }
 
     @keyframes scroll-left {
-      0% { transform: translateX(100vw); }
-      100% { transform: translateX(-100vw); } /* Matches 100vw for a cleaner exit */
+      0% { transform: translateX(100%); }
+      100% { transform: translateX(-100%); }
     }
   </style>
 </head>
 
 <body>
   <div class="bottom-ticker">
-    <div class="ticker-wrapper">
+    <div class="ticker-btn-left"></div>
+    <div class="ticker-content">
       <span>⚡ Joe Kontol • ⚡</span>
     </div>
-</div>
+    <div class="ticker-btn-right"></div>
+  </div>
   <div class="wrap">
     <div class="topbar">
       <div class="page-title"><span>Hohoh0</span> Shop</div>
