@@ -1253,18 +1253,15 @@
     }
 
     .bottom-ticker span {
-      position: absolute;
+      display: inline-block;
       white-space: nowrap;
-      padding-right: 100px;
+      padding-right: 80px; /* This is the gap between the end and the start of the next loop */
       font-family: 'Courier New', Courier, monospace;
       color: #d4c59a;
       font-weight: bold;
       font-size: 13px;
       letter-spacing: 1px;
       text-shadow: 1px 1px 0px #000;
-      
-      /* Pushes the start point to the right edge of the bar */
-      left: 100%; 
     }
 
     .ticker-btn-left, .ticker-btn-right {
@@ -1291,9 +1288,9 @@
     .ticker-track {
       display: flex;
       align-items: center;
-      width: 100%; /* Changed from max-content to 100% */
+      width: max-content; /* Container expands to fit both copies of text */
       height: 100%;
-      position: relative;
+      will-change: transform; /* Smoother animation */
     }
 
     .ticker-track span {
@@ -2570,27 +2567,34 @@
 
     // ── Ticker seamless loop ──────────────────────
     window.addEventListener('load', () => {
-      const span = document.querySelector('.bottom-ticker span');
-      if (!span) return;
+      const track = document.querySelector('.ticker-track');
+      const originalSpan = track.querySelector('span');
+      if (!track || !originalSpan) return;
 
-      // Measure the text width
-      const textWidth = span.offsetWidth;
-      const containerWidth = document.querySelector('.ticker-content').offsetWidth;
+      // 1. Duplicate the text to create a seamless chain
+      const clone = originalSpan.cloneNode(true);
+      track.appendChild(clone);
 
-      // SPEED CONTROL
-      // Lower number = Faster (Total seconds to cross the screen)
-      const scrollSpeed = 8; 
+      // 2. Measure the width of EXACTLY one span (including its gap)
+      const singleWidth = originalSpan.offsetWidth;
 
+      // 3. SPEED CONTROL
+      // Increase this number to make it FASTER (pixels per second)
+      const speed = 120; 
+      const duration = singleWidth / speed;
+
+      // 4. Create the "Chain Loop" animation
       const ks = document.createElement('style');
       ks.textContent = `
-        @keyframes scroll-left {
+        @keyframes seamless-loop {
           0%   { transform: translateX(0); }
-          100% { transform: translateX(-${textWidth + containerWidth}px); }
+          100% { transform: translateX(-${singleWidth}px); }
         }
       `;
       document.head.appendChild(ks);
 
-      span.style.animation = `scroll-left ${scrollSpeed}s linear infinite`;
+      // Apply the animation to the track (not the span)
+      track.style.animation = `seamless-loop ${duration}s linear infinite`;
     });
   </script>
 </body>
