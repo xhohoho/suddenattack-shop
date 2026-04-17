@@ -1270,6 +1270,7 @@
       background: #0d0d08;
       border-left: 1px solid #333;
       border-right: 1px solid #333;
+      position: relative; /* Ensure it contains the track */
     }
 
     .ticker-track {
@@ -1277,12 +1278,13 @@
       align-items: center;
       width: max-content;
       height: 100%;
-      /* animation injected by JS after measuring width */
+      /* This forces the text to start at the far right edge of the parent */
+      padding-left: 100%; 
     }
 
     .ticker-track span {
       white-space: nowrap;
-      padding-right: 80px; /* gap between loops */
+      padding-right: 50px; /* Space between the text and the next loop */
       font-family: 'Courier New', Courier, monospace;
       color: #d4c59a;
       font-weight: bold;
@@ -2555,27 +2557,28 @@
     // ── Ticker seamless loop ──────────────────────
     window.addEventListener('load', () => {
       const track = document.querySelector('.ticker-track');
-      if (!track) return;
+      const span = track.querySelector('span');
+      if (!track || !span) return;
 
-      // Duplicate so we always have 2 identical copies
+      // Clone the text to create the seamless chain
       track.innerHTML += track.innerHTML;
 
-      // Wait one frame so browser has painted and measured
       requestAnimationFrame(() => {
-        const singleWidth = track.scrollWidth / 2;
-        if (!singleWidth) return;
+        // We measure the width of one single text segment
+        const textWidth = span.offsetWidth + 50; // text + our padding-right gap
 
         const ks = document.createElement('style');
         ks.textContent = `
           @keyframes scroll-left {
             0%   { transform: translateX(0); }
-            100% { transform: translateX(-${singleWidth}px); }
+            100% { transform: translateX(-${textWidth}px); }
           }
         `;
         document.head.appendChild(ks);
 
-        // Apply animation after keyframe is registered
-        track.style.animation = 'scroll-left 8s linear infinite';
+        // Apply the animation
+        // Adjust '10s' to change the speed (higher = slower)
+        track.style.animation = 'scroll-left 10s linear infinite';
       });
     });
   </script>
