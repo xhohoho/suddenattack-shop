@@ -153,7 +153,7 @@ async function findOrCreateFolder(drive, folderName, parentId) {
   const folder = await drive.files.create({
     supportsAllDrives: true,
     requestBody: {
-      name: escapedName,
+      name: folderName,
       mimeType: 'application/vnd.google-apps.folder',
       parents: [parentId],
     },
