@@ -1255,7 +1255,8 @@
     .bottom-ticker span {
       display: inline-block;
       white-space: nowrap;
-      padding-right: 80px; /* This is the gap between the end and the start of the next loop */
+      /* Adjust this for the gap between the end of text and start of next loop */
+      padding-right: 100px; 
       font-family: 'Courier New', Courier, monospace;
       color: #d4c59a;
       font-weight: bold;
@@ -1282,15 +1283,16 @@
       background: #0d0d08;
       border-left: 1px solid #333;
       border-right: 1px solid #333;
-      position: relative; /* Ensure it contains the track */
+      position: relative;
     }
 
     .ticker-track {
       display: flex;
       align-items: center;
-      width: max-content; /* Container expands to fit both copies of text */
+      width: max-content;
       height: 100%;
-      will-change: transform; /* Smoother animation */
+      /* This pushes the first copy of the text to the right edge */
+      padding-left: 100%; 
     }
 
     .ticker-track span {
@@ -2569,32 +2571,33 @@
     window.addEventListener('load', () => {
       const track = document.querySelector('.ticker-track');
       const originalSpan = track.querySelector('span');
-      if (!track || !originalSpan) return;
+      const container = document.querySelector('.ticker-content');
+      if (!track || !originalSpan || !container) return;
 
-      // 1. Duplicate the text to create a seamless chain
+      // 1. Duplicate for seamless chain
       const clone = originalSpan.cloneNode(true);
       track.appendChild(clone);
 
-      // 2. Measure the width of EXACTLY one span (including its gap)
-      const singleWidth = originalSpan.offsetWidth;
+      // 2. Measure widths
+      const textWidth = originalSpan.offsetWidth; // Length of one text segment + its padding
+      const barWidth = container.offsetWidth;    // Length of the visible black bar
 
       // 3. SPEED CONTROL
-      // Increase this number to make it FASTER (pixels per second)
-      const speed = 120; 
-      const duration = singleWidth / speed;
+      const speed = 120; // Pixels per second
+      const duration = (textWidth + barWidth) / speed;
 
-      // 4. Create the "Chain Loop" animation
+      // 4. Create the "Sudden Attack" style animation
+      // It starts at 0 (far right) and moves left by (text width + bar width)
       const ks = document.createElement('style');
       ks.textContent = `
-        @keyframes seamless-loop {
+        @keyframes sudden-attack-loop {
           0%   { transform: translateX(0); }
-          100% { transform: translateX(-${singleWidth}px); }
+          100% { transform: translateX(-${textWidth + barWidth}px); }
         }
       `;
       document.head.appendChild(ks);
 
-      // Apply the animation to the track (not the span)
-      track.style.animation = `seamless-loop ${duration}s linear infinite`;
+      track.style.animation = `sudden-attack-loop ${duration}s linear infinite`;
     });
   </script>
 </body>
