@@ -1295,6 +1295,10 @@
 
     .bottom-ticker span {
       position: absolute;
+      left: 0;             /* <--- ADD THIS: Force the starting anchor to the left */
+      top: 50%;            /* Center vertically */
+      transform: translateY(-50%); /* Fine-tune vertical centering */
+      
       white-space: nowrap;
       font-family: 'Courier New', Courier, monospace;
       color: #d4c59a;
@@ -1303,17 +1307,17 @@
       letter-spacing: 1px;
       text-shadow: 1px 1px 0px #000;
       
-      /* The Animation */
-      /* Starts exactly at the right boundary of the ticker-content */
-      animation: scroll-left 10s linear infinite;
+      animation: scroll-left 5s linear infinite;
     }
 
     @keyframes scroll-left {
       0% {
-        transform: translateX(100%); /* 100% of the ticker-content width */
+        /* TranslateX(100%) of its parent (.ticker-content) */
+        transform: translate(100%, -50%); 
       }
       100% {
-        transform: translateX(-100%); /* Move until it is fully hidden on the left */
+        /* Move until it is fully hidden off the left side */
+        transform: translate(-100%, -50%); 
       }
     }
   </style>
