@@ -1225,9 +1225,9 @@
       }
     }
 
-    /* 1. Add padding to the body so content doesn't get hidden behind the bar */
     body {
-      padding-bottom: 50px; 
+      /* This creates the 'safe zone' so your shop items don't hide behind the bar */
+      padding-bottom: 40px; 
     }
 
     .bottom-ticker {
@@ -1236,30 +1236,34 @@
       left: 0;
       width: 100%;
       background: var(--bg2);
-      /* The gold border at the top makes it look like part of the UI */
-      border-top: 1px solid var(--accent); 
+      border-top: 1px solid var(--accent);
       height: 40px;
       z-index: 1000;
       overflow: hidden;
+      
+      /* PERFECT CENTERING LOGIC */
       display: flex;
-      align-items: center; /* Vertically centers the text */
+      align-items: center; 
+      justify-content: center;
     }
 
     .bottom-ticker span {
-      position: absolute;
+      /* Remove position: absolute to let Flexbox handle the centering */
+      display: block;
       font-family: 'Rajdhani', sans-serif;
       color: var(--accent);
       font-weight: 700;
       font-size: 14px;
       text-transform: uppercase;
       white-space: nowrap;
-      /* Adjust 8s for speed - higher is slower */
-      animation: scroll-left 8s linear infinite;
+      line-height: 1; /* Prevents invisible padding inside the font */
+      
+      animation: scroll-left 3s linear infinite;
     }
 
     @keyframes scroll-left {
       0% { transform: translateX(100vw); }
-      100% { transform: translateX(-100%); }
+      100% { transform: translateX(-100vw); } /* Matches 100vw for a cleaner exit */
     }
   </style>
 </head>
