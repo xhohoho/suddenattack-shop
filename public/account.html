@@ -1112,9 +1112,9 @@
 
     try{
       if(tempFiles[0]){if(st)st.textContent='Uploading stats screenshot...'; await uploadSlot(0);}
+      const pending = [1, 2, 3].filter(i => tempFiles[i]);
       if (pending.length) {
         // Loop through files one by one instead of all at once
-        const pending = [1, 2, 3].filter(i => tempFiles[i]);
         for (const i of pending) {
           if (st) st.textContent = `Uploading media file ${i + 1} of ${pending.length}...`;
           await uploadSlot(i); // This "awaits" each upload before starting the next
