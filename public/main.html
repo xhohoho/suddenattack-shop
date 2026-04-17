@@ -2560,26 +2560,41 @@
       const span = track.querySelector('span');
       if (!track || !span) return;
 
-      // Clone the text to create the seamless chain
+      // 1. Duplicate the text for a seamless chain
       track.innerHTML += track.innerHTML;
 
-      requestAnimationFrame(() => {
-        // We measure the width of one single text segment
-        const textWidth = span.offsetWidth + 50; // text + our padding-right gap
+      // 2. Measure and apply animation
+      const updateAnimation = () => {
+        // Measure the width of exactly ONE span (the sentence + its padding)
+        const singleWidth = span.getBoundingClientRect().width;
+        
+        // ADJUST SPEED HERE: 
+        // Higher number = Slower (e.g., 100 = fast, 50 = very fast)
+        // Lower number = Faster
+        const pixelsPerSecond = 100; 
+        const duration = singleWidth / pixelsPerSecond;
 
         const ks = document.createElement('style');
+        ks.id = 'dynamic-ticker-ks';
         ks.textContent = `
           @keyframes scroll-left {
             0%   { transform: translateX(0); }
-            100% { transform: translateX(-${textWidth}px); }
+            100% { transform: translateX(-${singleWidth}px); }
           }
         `;
+        
+        // Remove old style if it exists to prevent stacking
+        const oldKs = document.getElementById('dynamic-ticker-ks');
+        if (oldKs) oldKs.remove();
+        
         document.head.appendChild(ks);
 
-        // Apply the animation
-        // Adjust '10s' to change the speed (higher = slower)
-        track.style.animation = 'scroll-left 5s linear infinite';
-      });
+        // Apply the speed and animation
+        track.style.animation = `scroll-left ${duration}s linear infinite`;
+      };
+
+      // Run on load
+      updateAnimation();
     });
   </script>
 </body>
