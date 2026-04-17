@@ -1226,8 +1226,7 @@
     }
 
     body {
-      /* This creates the 'safe zone' so your shop items don't hide behind the bar */
-      padding-bottom: 40px; 
+      padding-bottom: 32px; /* Create room for the bar */
     }
 
     .bottom-ticker {
@@ -1235,35 +1234,35 @@
       bottom: 0;
       left: 0;
       width: 100%;
-      background: var(--bg2);
-      border-top: 1px solid var(--accent);
-      height: 40px;
+      /* Dark tactical grey using your theme's background */
+      background: var(--bg2); 
+      /* Sharp gold border like in your image */
+      border-top: 1.5px solid var(--accent);
+      border-bottom: 1.5px solid var(--accent);
+      height: 32px;
       z-index: 1000;
       overflow: hidden;
-      
-      /* PERFECT CENTERING LOGIC */
       display: flex;
-      align-items: center; 
-      justify-content: center;
+      align-items: center;
     }
 
     .bottom-ticker span {
-      /* Remove position: absolute to let Flexbox handle the centering */
-      display: block;
-      font-family: 'Rajdhani', sans-serif;
+      position: absolute;
+      /* Monospaced font for that tactical/server look */
+      font-family: 'Rajdhani', monospace; 
       color: var(--accent);
       font-weight: 700;
-      font-size: 14px;
+      font-size: 13px;
+      letter-spacing: 0.05em;
       text-transform: uppercase;
       white-space: nowrap;
-      line-height: 1; /* Prevents invisible padding inside the font */
-      
-      animation: scroll-left 10s linear infinite;
+      /* Adjust speed here (higher seconds = slower) */
+      animation: tactical-scroll 12s linear infinite;
     }
 
-    @keyframes scroll-left {
+    @keyframes tactical-scroll {
       0% { transform: translateX(100vw); }
-      100% { transform: translateX(-100vw); } /* Matches 100vw for a cleaner exit */
+      100% { transform: translateX(-100%); }
     }
   </style>
 </head>
