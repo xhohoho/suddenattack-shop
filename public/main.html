@@ -1277,7 +1277,7 @@
       align-items: center;
       width: max-content;
       height: 100%;
-      animation: scroll-left 8s linear infinite;
+      /* animation injected by JS after measuring width */
     }
 
     .ticker-track span {
@@ -1690,23 +1690,6 @@
 ════════════════════════════════════════════ -->
     <script>
       // ── Config ─────────────────────────────────
-      const track = document.querySelector('.ticker-track');
-      
-      // Duplicate the content
-      track.innerHTML += track.innerHTML;
-      
-      // Measure one copy's width
-      const singleWidth = track.scrollWidth / 2;
-      
-      // Inject the keyframe dynamically using exact pixel value
-      const style = document.createElement('style');
-      style.textContent = `
-        @keyframes scroll-left {
-          0%   { transform: translateX(0); }
-          100% { transform: translateX(-${singleWidth}px); }
-        }
-      `;
-      document.head.appendChild(style);
       const API_URL = '/api/index';
 
       // ── Shared item state (used by main.html admin + item.html) ──
@@ -2568,6 +2551,33 @@
     unifiedBoot();
     setInterval(fetchSheet, 30000); 
     setInterval(fetchAccounts, 60000);
+
+    // ── Ticker seamless loop ──────────────────────
+    window.addEventListener('load', () => {
+      const track = document.querySelector('.ticker-track');
+      if (!track) return;
+
+      // Duplicate so we always have 2 identical copies
+      track.innerHTML += track.innerHTML;
+
+      // Wait one frame so browser has painted and measured
+      requestAnimationFrame(() => {
+        const singleWidth = track.scrollWidth / 2;
+        if (!singleWidth) return;
+
+        const ks = document.createElement('style');
+        ks.textContent = `
+          @keyframes scroll-left {
+            0%   { transform: translateX(0); }
+            100% { transform: translateX(-${singleWidth}px); }
+          }
+        `;
+        document.head.appendChild(ks);
+
+        // Apply animation after keyframe is registered
+        track.style.animation = 'scroll-left 8s linear infinite';
+      });
+    });
   </script>
 </body>
 
