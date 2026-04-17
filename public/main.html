@@ -1228,16 +1228,11 @@
     .bottom-ticker {
       position: fixed;
       bottom: 20px;
-      left: 50%;
-      transform: translateX(-50%);
-      width: 90%;
-      max-width: 600px;
-      /* Using your theme variables */
+      left: 0;
+      width: 100%; /* Full width container */
       background: var(--bg2); 
-      backdrop-filter: blur(10px);
-      border: 1px solid var(--accent); /* Changed to accent for a "glow" effect */
-      box-shadow: 0 0 15px rgba(232, 184, 75, 0.1); /* Subtle gold glow */
-      border-radius: 50px;
+      border-top: 1px solid var(--accent);
+      border-bottom: 1px solid var(--accent);
       height: 34px;
       z-index: 1000;
       overflow: hidden;
@@ -1245,26 +1240,19 @@
       align-items: center;
     }
 
-    .ticker-wrapper {
-      display: flex;
-      white-space: nowrap;
-    }
-
     .bottom-ticker span {
+      position: absolute;
       font-family: 'Rajdhani', sans-serif;
       color: var(--accent);
       font-weight: 700;
-      font-size: 13px;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      padding-right: 50px; /* Space between repeating text */
-      animation: slide-text 3s linear infinite;
+      white-space: nowrap;
+      /* Adjust '5s' to change speed */
+      animation: scroll-left 5s linear infinite;
     }
 
-    /* Seamless loop animation */
-    @keyframes slide-text {
-      0% { transform: translateX(0); }
-      100% { transform: translateX(-50%); }
+    @keyframes scroll-left {
+      0% { transform: translateX(100vw); }   /* Start completely off-screen right */
+      100% { transform: translateX(-100%); } /* End completely off-screen left */
     }
   </style>
 </head>
