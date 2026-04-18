@@ -1243,73 +1243,28 @@
       left: 0;
       width: 100%;
       height: 28px;
-      background: var(--sa-bg);
+      background: #1a1a14;
       display: flex;
       align-items: center;
       z-index: 1000;
       border-top: 1px solid #5a5a52;
       border-bottom: 1px solid #111;
-      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.1);
     }
-
-    .bottom-ticker span {
-      display: inline-block;
-      font-family: 'Courier New', Courier, monospace;
-      color: #d4c59a;
-      font-weight: bold;
-      font-size: 13px;
-      letter-spacing: 1px;
-      text-shadow: 1px 1px 0px #000;
-      padding-right: 100px; /* Space between the text and its clone */
-      line-height: 28px;    /* Centers text vertically in the 28px bar */
-    }
-
     .ticker-btn-left, .ticker-btn-right {
-      width: 16px;
-      height: 20px;
-      margin: 0 4px;
-      background: #3c3c34;
-      border: 1px solid #5a5a52;
-      box-sizing: border-box;
-      flex-shrink: 0;
+      width: 16px; height: 20px; margin: 0 4px;
+      background: #3c3c34; border: 1px solid #5a5a52;
+      box-sizing: border-box; flex-shrink: 0;
       box-shadow: 1px 1px 0px #000;
     }
-
     .ticker-content {
-      flex-grow: 1;
-      height: 28px;
-      overflow: hidden;
+      flex-grow: 1; height: 28px; overflow: hidden;
       background: #0d0d08;
       border-top: 1px solid #5a5a52;
       border-bottom: 1px solid #111;
-      display: flex;
-      align-items: center;
       position: relative;
     }
-
-    .ticker-track {
-      display: flex;
-      white-space: nowrap;
-      width: max-content;
-      /* We reset the animation at -50% for a seamless conveyor effect */
-      animation: scroll-seamless linear infinite;
-    }
-
-    .ticker-track span {
-      display: inline-block;
-      font-family: 'Courier New', Courier, monospace;
-      color: #d4c59a;
-      font-weight: bold;
-      font-size: 13px;
-      letter-spacing: 1px;
-      text-shadow: 1px 1px 0px #000;
-      /* The 'gap' is now automated via JS or a consistent percentage */
-    }
-
-    @keyframes scroll-seamless {
-      0%   { transform: translateX(0); }
-      100% { transform: translateX(-50%); }
-    }
+    #tickerCanvas { position: absolute; top: 0; left: 0; }
   </style>
 </head>
 
@@ -1317,9 +1272,7 @@
   <div class="bottom-ticker">
     <div class="ticker-btn-left"></div>
     <div class="ticker-content" id="tickerContainer">
-      <div class="ticker-track" id="tickerTrack">
-        <span>Joe Kontol</span>
-      </div>
+      <canvas id="tickerCanvas"></canvas>
     </div>
     <div class="ticker-btn-right"></div>
   </div>
@@ -2573,34 +2526,83 @@
     setInterval(fetchAccounts, 60000);
 
     // ── Ticker seamless loop ──────────────────────
-    window.addEventListener('load', () => {
-      const track = document.getElementById('tickerTrack');
-      const container = document.getElementById('tickerContainer');
-      const span = track.querySelector('span');
-      
-      const text = span.innerHTML;
-      const textWidth = span.offsetWidth;
-      const containerWidth = container.offsetWidth;
-
-      /* AUTOMATION LOGIC:
-        To make the 2nd copy appear at the right edge exactly when the 
-        1st copy starts disappearing on the left, the gap between them 
-        must be: (Container Width - Text Width).
-      */
-      const autoGap = Math.max(0, containerWidth - textWidth);
-      span.style.paddingRight = `${autoGap}px`;
-
-      // Create the double-buffer for the -50% seamless loop
-      track.innerHTML = `<span>${text}</span><span>${text}</span>`;
-      track.querySelectorAll('span').forEach(s => s.style.paddingRight = `${autoGap}px`);
-
-      // Calculate speed: We want a consistent movement speed regardless of text length
-      const speed = 200; // pixels per second
-      const totalTrackWidth = track.offsetWidth / 2; // One full cycle distance
-      const duration = totalTrackWidth / speed;
-      
-      track.style.animationDuration = `${duration}s`;
-    });
+    (function() {
+      const canvas = document.getElementById('tickerCanvas');
+      const ctx = canvas.getContext('2d');
+      const wrap = document.getElementById('tickerContainer');
+    
+      const TICKER_TEXT = 'Joe Kontol';  // edit your text here; trailing spaces = gap between loops
+      const FONT = 'bold 13px "Courier New", Courier, monospace';
+      const COLOR = '#d4c59a';
+      const BG = '#0d0d08';
+      const SPEED = 1.5; // px per frame — increase to go faster
+    
+      let charWidths = [], totalWidth = 0, offset = 0, animId = null;
+    
+      function setup() {
+      canvas.width = wrap.offsetWidth;
+      canvas.height = 28;
+      ctx.font = FONT;
+    
+      const base = 'Joe Kontol';  // just the text, no trailing spaces
+      ctx.font = FONT;
+      const spaceW = ctx.measureText(' ').width;
+      const textW = ctx.measureText(base).width;
+    
+      // Add enough spaces so one full loop = canvas width + text width
+      const gapNeeded = Math.max(canvas.width, canvas.width - textW + 80);
+      const spacesNeeded = Math.ceil(gapNeeded / spaceW);
+      const padded = base + ' '.repeat(spacesNeeded);
+    
+      charWidths = Array.from(padded).map(c => ctx.measureText(c).width);
+      totalWidth = charWidths.reduce((a, b) => a + b, 0);
+      // update the text reference
+      window._tickerText = padded;
+    }
+    
+      function draw() {
+        ctx.fillStyle = BG;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.font = FONT;
+        ctx.fillStyle = COLOR;
+        ctx.textBaseline = 'middle';
+        ctx.shadowColor = '#000';
+        ctx.shadowOffsetX = 1;
+        ctx.shadowOffsetY = 1;
+        ctx.shadowBlur = 0;
+    
+        let x = -offset;
+        // repeat enough times to always fill the canvas
+        for (let rep = 0; rep < Math.ceil(canvas.width / totalWidth) + 2; rep++) {
+          for (let i = 0; i < window._tickerText.length; i++) {
+      if (x + charWidths[i] > 0 && x < canvas.width) {
+        ctx.fillText(window._tickerText[i], x, 14);
+      }
+      x += charWidths[i];
+    }
+    // second copy starts right after
+    for (let i = 0; i < window._tickerText.length; i++) {
+      if (x + charWidths[i] > 0 && x < canvas.width) {
+        ctx.fillText(window._tickerText[i], x, 14);
+      }
+      x += charWidths[i];
+    }
+        }
+    
+        offset += SPEED;
+        if (offset >= totalWidth) offset -= totalWidth;
+        animId = requestAnimationFrame(draw);
+      }
+    
+      function start() {
+        if (animId) cancelAnimationFrame(animId);
+        setup();
+        draw();
+      }
+    
+      window.addEventListener('resize', start);
+      start();
+    })();
   </script>
 </body>
 
