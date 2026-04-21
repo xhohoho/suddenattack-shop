@@ -5,6 +5,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Hohoh0 Shop</title>
+  
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Inter:wght@300;400;500&display=swap');
 
@@ -1265,6 +1266,16 @@
       position: relative;
     }
     #tickerCanvas { position: absolute; top: 0; left: 0; }
+
+    #muteBtn {
+      font-size: 24px;
+      vertical-align: middle;
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+    #muteBtn:hover {
+      opacity: 0.7;
+    }
   </style>
 </head>
 
@@ -1278,7 +1289,8 @@
   </div>
   <div class="wrap">
     <div class="topbar">
-      <div class="page-title"><span>Hohoh0</span> Shop</div>
+      <div class="page-title"><span>Hohoh0</span> Shop <button id="muteBtn" style="margin-left: 10px; background:
+  none; border: none; cursor: pointer;">🔊</button> </div>
       <div style="display:flex;align-items:center;gap:12px">
         <button class="admin-toggle" onclick="toggleAdmin()">Admin</button>
         <div>
@@ -2605,32 +2617,34 @@
       start();
     })();
 
-    const player = document.getElementById('player');
-    const playlist = [
-      "./audio/suddenattack1.mp3",
-      "./audio/suddenattack2.mp3"
-    ];
+    document.addEventListener('DOMContentLoaded', () => {
+      const player   = document.getElementById('player');
+      const muteBtn  = document.getElementById('muteBtn');
+      const playlist = ["./audio/suddenattack1.mp3", "./audio/suddenattack2.mp3"];
+      let index      = 0;
+      let isMuted    = false; // track mute state
 
-    let index = 0;
-
-    function playNext() {
-      player.src = playlist[index];
-      player.play();
-      index = (index + 1) % playlist.length;
-    }
-
-    let isPlaying = false;
-
-    document.addEventListener('click', () => {
-      if (!isPlaying) {
-        isPlaying = true;
-        playNext(); // Now starts after user clicks anywhere
+      function playNext() {
+        player.src = playlist[index];
+        player.play().catch(err => console.error('play error:', err));
+        index = (index + 1) % playlist.length;
       }
+
+      // Toggle mute on button click
+      muteBtn.addEventListener('click', () => {
+        isMuted = !isMuted;
+        player.muted = isMuted;
+        muteBtn.textContent = isMuted ? '🔇' : '🔊';
+      });
+
+      // Start on first click
+      document.addEventListener('click', () => {
+        if (!player.src) playNext();
+      });
+
+      // Auto-play next track when current ends
+      player.addEventListener('ended', playNext);
     });
-
-    player.addEventListener('ended', playNext);
-    
-
   </script>
   
 </body>
