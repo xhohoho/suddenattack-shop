@@ -10,4 +10,6 @@ const merged = main
 
 fs.mkdirSync('dist', { recursive: true });
 fs.writeFileSync('dist/index.html', merged);
+fs.cpSync('public/audio', 'dist/audio', { recursive: true
+  });
 console.log('✅ Built dist/index.html');
