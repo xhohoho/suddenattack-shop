@@ -2603,10 +2603,32 @@
       window.addEventListener('resize', start);
       start();
     })();
-  </script>
 
-  <audio autoplay loop src="./audio/suddenattack1.mp3"></audio>
-  <audio autoplay loop src="./audio/suddenattack2.mp3"></audio>
+    const player = document.getElementById('player');
+    const playlist = [
+      "./audio/suddenattack1.mp3",
+      "./audio/suddenattack2.mp3"
+    ];
+
+    let index = 0;
+
+    function playNext() {
+      player.src = playlist[index];
+      player.play();
+      index = (index + 1) % playlist.length;
+    }
+
+    let isPlaying = false;
+
+    document.addEventListener('click', () => {
+      if (!isPlaying) {
+        isPlaying = true;
+        playNext(); // Now starts after user clicks anywhere
+      }
+    });
+
+  </script>
+  <audio id="player"></audio>
 </body>
 
 </html>
