@@ -44,11 +44,16 @@
     }
 
     .topbar {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
+      position: fixed;
+      top: 0;
+      z-index: 100;
+      background: var(--bg);
+      padding: 0.75rem 2px;
       margin-bottom: 1.5rem;
-      padding: 0 2px
+      /* optional: subtle border to separate from content */
+      border-bottom: 1px solid var(--border);
+      backdrop-filter: blur(10px);
+      background: rgba(10, 11, 15, 0.9); /* slightly transparent */
     }
 
     .page-title {
