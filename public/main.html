@@ -38,22 +38,25 @@
     }
 
     .wrap {
-      padding: 1.5rem 1rem;
+      padding: 5rem 1rem 1.5rem; /* top increased to clear the fixed topbar */
       background: var(--bg);
-      min-height: 100vh
+      min-height: 100vh;
     }
 
     .topbar {
       position: fixed;
       top: 0;
+      left: 0;
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
       z-index: 100;
-      background: var(--bg);
-      padding: 0.75rem 2px;
-      margin-bottom: 1.5rem;
-      /* optional: subtle border to separate from content */
+      padding: 0.75rem 1rem;
+      margin-bottom: 0;
       border-bottom: 1px solid var(--border);
       backdrop-filter: blur(10px);
-      background: rgba(10, 11, 15, 0.9); /* slightly transparent */
+      background: rgba(10, 11, 15, 0.9);
     }
 
     .page-title {
