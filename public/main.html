@@ -1966,6 +1966,10 @@
             });
             
             const result = await resp.json();
+            const items = result.items || [];
+            if (items.length) {
+              allItems.push(...items);
+            }
             if (result.url) {
               // Now 'i' matches exactly with the slot 0 or 1
               await adminFetch({ action: 'uploadSlideImg', slideIndex: i, url: result.url });
