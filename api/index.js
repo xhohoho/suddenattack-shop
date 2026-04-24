@@ -172,6 +172,10 @@ async function callGemini(base64, prompt) {
     })
   });
   const d = await r.json();
+  if (!d.candidates || !d.candidates[0]?.content?.parts?.[0]?.text) {
+    console.error('❌ Gemini bad response:', JSON.stringify(d).slice(0, 500));
+    throw new Error(`Gemini returned no valid text. ${d.error?.message || ''}`);
+  }
   return d.candidates[0].content.parts[0].text;
 }
 
