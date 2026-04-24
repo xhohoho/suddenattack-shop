@@ -1952,6 +1952,7 @@
         try {
           const filesToUpload = shopExtractFiles.filter(Boolean);
           const allItems = []; let uploadedUrls = [];
+          const slides = document.querySelectorAll('#slideshow img');
           for (let i = 0; i < shopExtractFiles.length; i++) {
             const file = shopExtractFiles[i];
             if (!file) continue; // Skip empty slots
@@ -1971,7 +1972,6 @@
               if (slides[i]) slides[i].src = result.url;
             }
           }
-          const slides = document.querySelectorAll('#slideshow img');
           for (let i = 0; i < uploadedUrls.length; i++) {
             if (slides[i]) slides[i].src = uploadedUrls[i];
             try { await adminFetch({ action: 'uploadSlideImg', slideIndex: i, url: uploadedUrls[i] }); } catch (_) { }
