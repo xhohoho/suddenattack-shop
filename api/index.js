@@ -1,4 +1,24 @@
 import { google } from 'googleapis';
+import fs from 'fs';
+import https from 'https';
+
+// Cache Drive image into dist/images (returns public URL)
+function cacheDriveImage(url, outputPath) {
+  if (fs.existsSync(outputPath)) return Promise.resolve();
+  const dir = outputPath.split('/').slice(0, -1).join('/');
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+  const file = fs.createWriteStream(outputPath);
+  return new Promise((resolve, reject) => {
+    https.get(url, response => {
+      response.pipe(file);
+      file.on('finish', () => {
+        file.close();
+        resolve();
+      });
+      response.on('error', reject);
+    }).on('error', reject);
+  });
+}
 
 // ── Auth (Service Account — used for Sheets) ───────────────────────────────────
 function getAuth() {

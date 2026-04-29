@@ -9,7 +9,7 @@
   },
   "scripts": {
     "build": "node build.js",
-    "dev": "node build.js && npx serve dist"
+    "_comment": "node build.js && npx serve dist"
   },
   "dependencies": {
     "@google-cloud/local-auth": "^3.0.1",

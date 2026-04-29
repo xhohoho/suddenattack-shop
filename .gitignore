@@ -3,3 +3,4 @@
 .env*.local
 CLAUDE.md
 /pages
+.env
