@@ -1910,7 +1910,8 @@
             renderFeed(rows);
             allOrders = rows.map(r => ({
               order_id: r.order_id, timestamp: r.timestamp, name: r.name,
-              items: r.items, total: r.total, status: r.status
+              items: r.items, total: r.total, status: r.status,
+              note: r.note
             }));
           }
           document.getElementById('sync-lbl').textContent = 'Synced ' + new Date().toLocaleTimeString();
