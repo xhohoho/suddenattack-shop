@@ -2501,7 +2501,8 @@
           
           allOrders = d.orders.map(o => ({
             order_id: o.order_id, timestamp: o.timestamp, name: o.name,
-            items: o.items, total: o.total, status: o.status
+            items: o.items, total: o.total, status: o.status,
+            note: o.note
           }));
           renderFeed(allOrders.reverse());
         }
