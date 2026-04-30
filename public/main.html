@@ -2637,6 +2637,7 @@
       const playlist = ["./audio/suddenattack1.mp3", "./audio/suddenattack2.m4a", "./audio/suddenattack3.m4a"];
       let index      = 0;
       let isMuted    = false; // track mute state
+      player.volume = 0.1;
 
       function playNext() {
         player.src = playlist[index];
