@@ -115,6 +115,7 @@
 
   let currentOrderId   = null;
   let currentOrderTimestamp = null;
+  const SERVICE_CHARGE = 0.50;
 
   // ── Table render ───────────────────────────
   function buildTable() {
@@ -160,9 +161,13 @@
       if (r > 0) { el.textContent=fmt(r); el.className='row-amt'; }
       else { el.textContent='—'; el.className='row-amt zero'; }
     });
-    document.getElementById('gtotal').textContent = fmt(tot);
+    // Update total display with service charge
+    const serviceText = tot > 0 ? ` + ${fmt(SERVICE_CHARGE)}(service charge)` : '';
+    const displayTotal = tot > 0 ? `${fmt(tot)}${serviceText}` : 'RM0.00';
+    document.getElementById('gtotal').textContent = displayTotal;
     const has = Object.values(qtys).some(v=>v>0);
-    document.getElementById('sumhint').textContent = has ? `Total ${fmt(tot)}` : 'Add quantity to place an order.';
+    const hintTotal = tot > 0 ? `${fmt(tot)}${serviceText}` : 'RM0.00';
+    document.getElementById('sumhint').textContent = has ? `Total ${hintTotal}` : 'Add quantity to place an order.';
   }
 
   function getLines() {
@@ -194,7 +199,7 @@
       timestamp: new Date().toISOString(),
       name, phone:'', email:'',
       items: getLines(),
-      total: getTotal().toFixed(2),
+      total: (getTotal()+SERVICE_CHARGE).toFixed(2),
       note: document.getElementById('fno').value.trim(),
       status: 'New', proof: ''
     };
@@ -215,17 +220,14 @@
   // ── Payment modal ──────────────────────────
   // Updated in itempdf.html logic
   function openModal(total, orderId, timestamp) {
-    // If called from the 'Pay' button in the feed, 
-    // 'total' might be an element/event, so we handle both cases:
     if (typeof total === 'object' && total.dataset) {
       currentOrderId = total.dataset.oid;
       currentOrderTimestamp = total.dataset.ts;
-      document.getElementById('modal-amt-item').textContent = fmt(parseFloat(total.dataset.tot));
+      document.getElementById('modal-amt-item').textContent = fmt(+total.dataset.tot);
     } else {
-      // Called directly from submitOrder
       currentOrderId = orderId;
       currentOrderTimestamp = timestamp;
-      document.getElementById('modal-amt-item').textContent = fmt(parseFloat(total));
+      document.getElementById('modal-amt-item').textContent = fmt(+total);
     }
 
     const oidEl = document.getElementById('modal-order-id');
