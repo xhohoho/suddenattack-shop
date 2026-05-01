@@ -2558,7 +2558,7 @@
       const ctx = canvas.getContext('2d');
       const wrap = document.getElementById('tickerContainer');
     
-      const TICKER_TEXT = 'Mulai 1 Mei 2026, 50 sen akan dikenakan setiap transaksi untuk menampung kos server. Terima Kasih daun keladi~                                         Joe kontol di ban dari website ini konek';  // edit your text here; trailing spaces = gap between loops
+      const TICKER_TEXT = 'Joe Kontol';  // edit your text here; trailing spaces = gap between loops
       const FONT = 'bold 13px "Courier New", Courier, monospace';
       const COLOR = '#d4c59a';
       const BG = '#0d0d08';
@@ -2571,7 +2571,7 @@
       canvas.height = 28;
       ctx.font = FONT;
     
-      const base = 'Mulai 1 Mei 2026, 50 sen akan dikenakan setiap transaksi untuk menampung kos server. Terima Kasih daun keladi~                                         Joe kontol di ban dari website ini konek';  // just the text, no trailing spaces
+      const base = 'Joe Kontol';  // just the text, no trailing spaces
       ctx.font = FONT;
       const spaceW = ctx.measureText(' ').width;
       const textW = ctx.measureText(base).width;
@@ -2637,6 +2637,7 @@
       const playlist = ["./audio/suddenattack1.mp3", "./audio/suddenattack2.m4a", "./audio/suddenattack3.m4a"];
       let index      = 0;
       let isMuted    = false; // track mute state
+      player.volume = 0.1;
 
       function playNext() {
         player.src = playlist[index];
