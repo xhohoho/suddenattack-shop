@@ -236,7 +236,7 @@
     </div>
     <div class="buyer-field">
       <label>Phone number *</label>
-      <input id="sell-seller-phone" type="tel" placeholder="e.g. 01112345678" />
+      <input id="sell-seller-contact" type="tel" placeholder="e.g. 01112345678" />
     </div>
     <div class="buyer-field">
       <label>In-game name *</label>
@@ -805,7 +805,7 @@
       const rm=document.getElementById('ss-slot-rm-'+i); if(rm)rm.style.display='none';
       const inp=document.getElementById('ss-slot-'+i)?.querySelector('input'); if(inp)inp.value='';
     }
-    ['sell-seller-name','sell-seller-phone','sell-seller-ign','sell-rank','sell-price','sell-ign','sell-accid','sell-kda','sell-wr','sell-exp','sell-notes'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+    ['sell-seller-name','sell-seller-contact','sell-seller-ign','sell-rank','sell-price','sell-ign','sell-accid','sell-kda','sell-wr','sell-exp','sell-notes'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
     const btn=document.getElementById('sell-submit-btn'); btn.disabled=false; btn.textContent='Submit listing';
   }
   function closeSellModal() { document.getElementById('sell-overlay').classList.remove('open'); }
