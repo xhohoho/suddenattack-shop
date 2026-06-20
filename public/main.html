@@ -632,31 +632,6 @@
       transition: border-color .2s
     }
 
-    .fmid {
-      flex: 1;
-      min-width: 0;
-      align-self: center;
-      padding: 0 6px
-    }
-
-    .fmid input {
-      flex: 1;
-      min-width: 0;
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      padding: 5px 9px;
-      font-size: 11px;
-      font-family: 'Inter', sans-serif;
-      color: var(--text);
-      background: var(--bg3);
-      outline: none;
-      transition: border-color .2s
-    }
-
-    .fmid input:focus {
-      border-color: #e8b84b50
-    }
-
     .fcard:hover {
       border-color: var(--border2)
     }
@@ -1907,12 +1882,13 @@
           if (card && card.dataset.fp === fp) return; // unchanged, skip
 
           const midHtml = adminUnlocked
-            ? `<div class="fmid" style="display:flex;align-items:center;gap:6px">
-              <input type="text" id="feedcm-${oid}" value="${(o.comment || '').replace(/"/g, '&quot;')}" placeholder="Add comment — visible to everyone" />
-              <button class="pay-btn" id="feedcmbtn-${oid}" onclick="saveFeedComment('${oid}')" style="cursor:pointer;border:none;flex-shrink:0">💬</button>
+            ? `<div class="fi" style="margin-top:4px;display:flex;align-items:center;gap:6px">
+              <input type="text" id="feedcm-${oid}" value="${(o.comment || '').replace(/"/g, '&quot;')}" placeholder="Add comment — visible to everyone"
+                style="flex:1;min-width:0;border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:11px;font-family:'Inter',sans-serif;color:var(--text);background:var(--bg3);outline:none" />
+              <button class="pay-btn" id="feedcmbtn-${oid}" onclick="saveFeedComment('${oid}')" style="cursor:pointer;border:none">💬 Save</button>
               <span id="feedcmind-${oid}" style="font-size:12px;width:14px;text-align:center;flex-shrink:0"></span>
             </div>`
-            : (o.comment ? `<div class="fmid" style="font-size:12px;color:var(--accent);line-height:1.4">💬 <strong>Admin:</strong> ${o.comment}</div>` : `<div class="fmid"></div>`);
+            : (o.comment ? `<div class="fi" style="color:var(--accent)">💬 <strong>Admin:</strong> ${o.comment}</div>` : '');
 
           const html = `<div class="fcard" data-fp="${fp}">
         <div class="av" style="background:${bg};color:${fg}">${ini}</div>
@@ -1920,9 +1896,9 @@
           <div class="fn2">${o.name}</div>
           <div class="fi">${o.items}</div>
           ${o.note ? `<div class="fi" style="font-style:italic;color:var(--text3)">${o.note}</div>` : ''}
+          ${midHtml}
           <span class="pill ${sc}">${actualStatus}</span>${showNewBadge ? `<span class="pill p-new" style="margin-left:4px">New</span>` : ''}${isPayable(o.status) ? `<button class="pay-btn" data-tot="${tot}" data-oid="${oid}" data-ts="${ts || new Date().toISOString()}" onclick="openModal(this)">Pay</button>` : ''}
         </div>
-        ${midHtml}
         <div class="fr"><div class="ft">${fmt(tot)}</div><div class="fa">${timeAgo(ts)}</div></div>
       </div>`;
 
