@@ -4,3 +4,5 @@
 CLAUDE.md
 /pages
 .env
+node_modules/
+debug.cjs
