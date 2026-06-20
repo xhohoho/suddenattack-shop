@@ -2728,6 +2728,17 @@
 
       // Auto-play next track when current ends
       player.addEventListener('ended', playNext);
+
+      // ── Pause music when tab/window loses focus, resume when it comes back ──
+      let wasPlayingBeforeHidden = false;
+      document.addEventListener('visibilitychange', () => {
+        if (document.hidden) {
+          wasPlayingBeforeHidden = !player.paused;
+          if (wasPlayingBeforeHidden) player.pause();
+        } else {
+          if (wasPlayingBeforeHidden) player.play().catch(() => {});
+        }
+      });
     });
   </script>
   
