@@ -213,7 +213,12 @@
     }
 
     .admin-panel.open {
-      display: block
+      display: block;
+      position: sticky;
+      top: 4rem;
+      z-index: 90;
+      max-height: calc(100vh - 4.5rem);
+      overflow-y: auto
     }
 
     .admin-title {

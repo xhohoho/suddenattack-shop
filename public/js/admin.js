@@ -49,6 +49,10 @@ async function checkPass() {
 
       loadShopEditor();
       renderManageList();
+
+      // Re-render the public feed now so inline comment boxes appear immediately
+      _lastFeedData = '';
+      fetchSheet();
     } else {
       st.textContent = 'Wrong password.'; st.style.color = 'var(--red)';
     }
@@ -98,22 +102,30 @@ function renderOrderMgmt() {
   const el = document.getElementById('order-mgmt-list');
   if (!allOrders.length) { el.innerHTML = '<div class="admin-loading">No orders</div>'; return; }
   el.innerHTML = allOrders.slice(0, 30).map(o => `
-    <div class="order-mgmt-item" id="row-${o.order_id}">
-      <div class="order-mgmt-info">
-        <div class="order-mgmt-id">${o.order_id}</div>
-        <div class="order-mgmt-name">${o.name}</div>
-        <div class="order-mgmt-items">${o.items}</div>
+    <div class="order-mgmt-item" id="row-${o.order_id}" style="flex-direction:column;align-items:stretch">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;width:100%">
+        <div class="order-mgmt-info">
+          <div class="order-mgmt-id">${o.order_id}</div>
+          <div class="order-mgmt-name">${o.name}</div>
+          <div class="order-mgmt-items">${o.items}</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
+          <span class="order-mgmt-total">${o.total ? 'RM ' + parseFloat(o.total).toFixed(2) : ''}</span>
+          <select class="status-select" id="st-${o.order_id}">
+            <option ${o.status === 'New' ? 'selected' : ''}>New</option>
+            <option ${o.status === 'Paid' ? 'selected' : ''}>Paid</option>
+            <option ${o.status === 'Verified' ? 'selected' : ''}>Verified</option>
+            <option ${o.status === 'Completed' ? 'selected' : ''}>Completed</option>
+          </select>
+          <button class="save-status-btn" id="btn-${o.order_id}" onclick="updateOrderStatus('${o.order_id}')">Save</button>
+          <span id="ind-${o.order_id}" style="font-size:13px;width:16px;text-align:center;flex-shrink:0"></span>
+        </div>
       </div>
-      <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
-        <span class="order-mgmt-total">${o.total ? 'RM ' + parseFloat(o.total).toFixed(2) : ''}</span>
-        <select class="status-select" id="st-${o.order_id}">
-          <option ${o.status === 'New' ? 'selected' : ''}>New</option>
-          <option ${o.status === 'Paid' ? 'selected' : ''}>Paid</option>
-          <option ${o.status === 'Verified' ? 'selected' : ''}>Verified</option>
-          <option ${o.status === 'Completed' ? 'selected' : ''}>Completed</option>
-        </select>
-        <button class="save-status-btn" id="btn-${o.order_id}" onclick="updateOrderStatus('${o.order_id}')">Save</button>
-        <span id="ind-${o.order_id}" style="font-size:13px;width:16px;text-align:center;flex-shrink:0"></span>
+      <div style="display:flex;align-items:center;gap:6px;margin-top:8px;width:100%">
+        <input type="text" id="cm-${o.order_id}" placeholder="Add a comment — visible to everyone" value="${(o.comment || '').replace(/"/g, '&quot;')}"
+          style="flex:1;min-width:0;border:1px solid var(--border);border-radius:6px;padding:6px 9px;font-size:12px;font-family:'Inter',sans-serif;color:var(--text);background:var(--bg2);outline:none" />
+        <button class="save-status-btn" id="cmbtn-${o.order_id}" onclick="saveOrderComment('${o.order_id}')">Save</button>
+        <span id="cmind-${o.order_id}" style="font-size:13px;width:16px;text-align:center;flex-shrink:0"></span>
       </div>
     </div>`).join('');
 }
@@ -127,6 +139,26 @@ async function updateOrderStatus(orderId) {
     await adminFetch({ action: 'updateOrderStatus', order_id: orderId, status: sel.value });
     const o = allOrders.find(x => x.order_id === orderId);
     if (o) o.status = sel.value;
+    ind.textContent = '✓'; ind.style.color = 'var(--green)';
+    btn.textContent = 'Save'; btn.disabled = false;
+    setTimeout(() => { if (ind) ind.textContent = ''; }, 3000);
+    fetchSheet();
+  } catch (e) {
+    ind.textContent = '✕'; ind.style.color = 'var(--red)';
+    btn.textContent = 'Save'; btn.disabled = false;
+    setTimeout(() => { if (ind) ind.textContent = ''; }, 4000);
+  }
+}
+
+async function saveOrderComment(orderId) {
+  const inp = document.getElementById('cm-' + orderId);
+  const btn = document.getElementById('cmbtn-' + orderId);
+  const ind = document.getElementById('cmind-' + orderId);
+  btn.disabled = true; btn.textContent = '...'; ind.textContent = '';
+  try {
+    await adminFetch({ action: 'updateOrderComment', order_id: orderId, comment: inp.value });
+    const o = allOrders.find(x => x.order_id === orderId);
+    if (o) o.comment = inp.value;
     ind.textContent = '✓'; ind.style.color = 'var(--green)';
     btn.textContent = 'Save'; btn.disabled = false;
     setTimeout(() => { if (ind) ind.textContent = ''; }, 3000);

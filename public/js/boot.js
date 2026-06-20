@@ -27,7 +27,7 @@ async function unifiedBoot() {
       allOrders = d.orders.map(o => ({
         order_id: o.order_id, timestamp: o.timestamp, name: o.name,
         items: o.items, total: o.total, status: o.status,
-        note: o.note
+        note: o.note, comment: o.comment
       }));
       renderFeed(allOrders.reverse());
     }
@@ -158,4 +158,15 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   player.addEventListener('ended', playNext);
+
+  // Pause music when tab/window loses focus, resume when it comes back
+  let wasPlayingBeforeHidden = false;
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+      wasPlayingBeforeHidden = !player.paused;
+      if (wasPlayingBeforeHidden) player.pause();
+    } else {
+      if (wasPlayingBeforeHidden) player.play().catch(() => {});
+    }
+  });
 });
