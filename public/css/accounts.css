@@ -1,0 +1,133 @@
+/* ── Accounts-specific styles ── */
+.acc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px,1fr)); gap: 16px }
+.acc-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 10px; padding: 16px; position: relative; cursor: pointer; transition: all .2s; display: flex; flex-direction: column; gap: 12px; overflow: hidden }
+.acc-card:hover { border-color: var(--accent); transform: translateY(-2px) }
+.acc-card.sold { opacity: .6; filter: grayscale(1) }
+.acc-card.pending { border-color: #ffffff18; opacity: .75 }
+.card-header { display: flex; justify-content: space-between; align-items: center }
+.acc-id { font-family: 'Rajdhani', sans-serif; font-size: 11px; font-weight: 600; color: var(--text3); letter-spacing: .06em }
+.acc-status-pill { font-family: 'Rajdhani', sans-serif; font-size: 10px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; padding: 2px 8px; border-radius: 3px }
+.s-available { background: #2ecc8a18; color: var(--green) }
+.s-reserved { background: #e8b84b18; color: var(--accent) }
+.s-sold { background: #ffffff0a; color: var(--text3) }
+.s-pending { background: #4a9eff18; color: var(--blue) }
+.card-rank { display: flex; align-items: center; gap: 12px; margin-bottom: 4px }
+.rank-icon { font-size: 28px }
+.rank-name { font-family: 'Rajdhani', sans-serif; font-size: 18px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase }
+.rank-tier { font-size: 11px; color: var(--text3); margin-top: 2px }
+.card-details { background: var(--bg3); border-radius: 6px; padding: 10px; display: flex; flex-direction: column; gap: 6px }
+.detail-row { display: flex; justify-content: space-between; align-items: center; font-size: 12px }
+.detail-label { color: var(--text2) }
+.detail-val { color: var(--text); font-family: 'Rajdhani', sans-serif; font-weight: 600 }
+.detail-val.hl { color: var(--accent) }
+.progress-wrap { flex: 1; background: var(--bg2); border-radius: 4px; height: 6px; overflow: hidden; border: 1px solid var(--border) }
+.progress-bar { width: 100%; height: 100% }
+.progress-fill { height: 100%; background: var(--accent); border-radius: 4px }
+.card-tags { display: flex; flex-wrap: wrap; gap: 6px }
+.tag { font-size: 10px; font-family: 'Rajdhani', sans-serif; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; background: var(--bg3); color: var(--text2); padding: 2px 6px; border-radius: 4px; border: 1px solid var(--border) }
+.card-divider { border: none; border-top: 1px solid var(--border2); margin: 0 }
+.card-footer { display: flex; justify-content: space-between; align-items: center }
+.acc-price { font-family: 'Rajdhani', sans-serif; font-size: 20px; font-weight: 700; color: var(--accent) }
+.buy-btn { padding: 6px 14px; background: var(--accent); color: #0a0b0f; border: none; border-radius: 6px; font-family: 'Rajdhani', sans-serif; font-size: 12px; font-weight: 700; cursor: pointer; transition: all .15s; letter-spacing: .05em; text-transform: uppercase }
+.buy-btn:hover { background: var(--accent2) }
+.sold-overlay { position: absolute; inset: 0; background: rgba(10,11,15,.4); display: flex; align-items: center; justify-content: center; z-index: 10; pointer-events: none }
+.sold-stamp { font-family: 'Rajdhani', sans-serif; font-size: 24px; font-weight: 700; color: var(--text); text-transform: uppercase; letter-spacing: .2em; padding: 8px 16px; border: 2px solid var(--text); border-radius: 8px; transform: rotate(-15deg); opacity: .8 }
+.filter-bar { display: flex; gap: 10px; margin-bottom: 16px; align-items: center; flex-wrap: wrap }
+.search-wrap { position: relative; flex: 1; min-width: 200px }
+.search-wrap span { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--text3); font-size: 14px; pointer-events: none }
+.search-wrap input { width: 100%; background: var(--bg2); border: 1px solid var(--border); border-radius: 6px; padding: 8px 12px 8px 32px; font-size: 13px; font-family: 'Inter', sans-serif; color: var(--text); outline: none; transition: border-color .2s }
+.search-wrap input:focus { border-color: #e8b84b50 }
+.filter-chip { background: var(--bg2); border: 1px solid var(--border); border-radius: 20px; padding: 6px 14px; font-size: 12px; font-family: 'Rajdhani', sans-serif; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--text2); cursor: pointer; transition: all .2s }
+.filter-chip:hover { border-color: var(--border2); color: var(--text) }
+.filter-chip.active { background: #e8b84b15; border-color: var(--accent); color: var(--accent) }
+.sort-select { background: var(--bg2); border: 1px solid var(--border); border-radius: 6px; padding: 7px 12px; font-size: 12px; font-family: 'Rajdhani', sans-serif; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--text2); outline: none; cursor: pointer }
+.results-count { font-size: 11px; color: var(--text3); font-family: 'Rajdhani', sans-serif; letter-spacing: .05em; text-transform: uppercase; margin-left: auto }
+.carousel-wrap { position: relative; width: 100%; border-radius: 10px; overflow: hidden; background: var(--bg3); margin-bottom: 0;}
+.carousel-track { display: flex; transition: transform .35s cubic-bezier(.4,0,.2,1); will-change: transform }
+.carousel-slide { flex: 0 0 100%; width: 100%; position: relative; height: 340px; display: flex; align-items: center; justify-content: center; background: var(--bg3);}
+.carousel-slide img { max-width: 100%; max-height: 100%; width: auto; height: auto; object-fit: contain; display: block; background: var(--bg3);}
+.carousel-slide video { width: 100%; max-height: 340px; display: block; background: #000 }
+.carousel-dots { display: flex; justify-content: center; gap: 6px; padding: 10px 0 8px }
+.carousel-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--border2); cursor: pointer; transition: all .2s; border: none; padding: 0 }
+.carousel-dot.active { background: var(--accent); width: 18px; border-radius: 3px }
+.carousel-badge { position: absolute; top: 8px; left: 8px; background: rgba(10,11,15,.8); backdrop-filter: blur(4px); border: 1px solid #e8b84b40; border-radius: 4px; font-family: 'Rajdhani', sans-serif; font-size: 10px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--accent); padding: 2px 7px; pointer-events: none; z-index: 2 }
+.carousel-counter { position: absolute; top: 8px; right: 8px; background: rgba(10,11,15,.7); border-radius: 4px; font-family: 'Rajdhani', sans-serif; font-size: 11px; color: var(--text2); padding: 2px 7px; pointer-events: none; z-index: 2 }
+.carousel-arrow { position: absolute; top: 50%; transform: translateY(-50%); z-index: 10; background: rgba(10,11,15,.65); border: 1px solid var(--border2); border-radius: 50%; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text); font-size: 14px; transition: all .15s; backdrop-filter: blur(4px) }
+.carousel-arrow:hover { background: rgba(10,11,15,.9); border-color: var(--accent); color: var(--accent) }
+.carousel-arrow.prev { left: 8px }
+.carousel-arrow.next { right: 8px }
+.carousel-no-media { display: flex; align-items: center; justify-content: center; height: 180px; color: var(--text3); font-family: 'Rajdhani', sans-serif; font-size: 13px; letter-spacing: .06em; text-transform: uppercase; border: 1px dashed var(--border); border-radius: 10px; background: var(--bg3) }
+.detail-modal-media { margin: -20px -18px 0; border-radius: 10px 10px 0 0; overflow: hidden }
+.detail-modal-body { padding-top: 16px }
+.detail-modal-rank-row { display: flex; align-items: center; gap: 12px; margin-bottom: 12px }
+.detail-modal-rank-icon { font-size: 30px; flex-shrink: 0 }
+.detail-modal-rank-name { font-family: 'Rajdhani', sans-serif; font-size: 21px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; line-height: 1.1 }
+.detail-modal-rank-sub { font-size: 11px; color: var(--text3); margin-top: 2px }
+.pay-modal-title { font-family: 'Rajdhani', sans-serif; font-size: 18px; font-weight: 700; color: var(--text); letter-spacing: .05em; text-transform: uppercase; margin-bottom: 4px }
+.modal-sub-info { font-size: 12px; color: var(--text2); margin-bottom: 12px }
+.modal-label { font-family: 'Rajdhani', sans-serif; font-size: 12px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--text3); margin-bottom: 10px }
+.buyer-field { margin-bottom: 12px }
+.buyer-field label { display: block; font-family: 'Rajdhani', sans-serif; font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--text3); margin-bottom: 6px }
+.buyer-field input { width: 100%; background: var(--bg3); border: 1px solid var(--border); border-radius: 6px; padding: 8px 12px; font-size: 13px; font-family: 'Inter', sans-serif; color: var(--text); outline: none; transition: border-color .2s }
+.buyer-field input:focus { border-color: #e8b84b50 }
+.modal-rank-row { display: flex; align-items: center; gap: 14px; margin-bottom: 16px }
+.modal-rank-icon { font-size: 32px; flex-shrink: 0 }
+.modal-rank-name { font-family: 'Rajdhani', sans-serif; font-size: 22px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase }
+.modal-rank-sub { font-size: 12px; color: var(--text3); margin-top: 2px }
+.modal-details { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px }
+.modal-detail-row { display: flex; justify-content: space-between; align-items: center; background: var(--bg3); padding: 10px 14px; border-radius: 6px; border: 1px solid var(--border) }
+.modal-detail-label { font-size: 12px; color: var(--text2) }
+.modal-detail-val { font-size: 14px; font-weight: 500; color: var(--text) }
+.modal-tags { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px }
+.modal-price-row { display: flex; justify-content: space-between; align-items: center; padding-top: 16px; border-top: 1px solid var(--border2) }
+.modal-price { font-family: 'Rajdhani', sans-serif; font-size: 28px; font-weight: 700; color: var(--accent) }
+.stats-review { background: var(--bg3); border: 1px solid #e8b84b30; border-radius: 8px; padding: 14px; margin-top: 10px; display: none }
+.stats-review-title { font-family: 'Rajdhani', sans-serif; font-size: 11px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--accent); margin-bottom: 10px }
+.stats-review-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px }
+.stats-field { display: flex; flex-direction: column; gap: 3px }
+.stats-field label { font-family: 'Rajdhani', sans-serif; font-size: 10px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--text3) }
+.stats-field input { background: var(--bg2); border: 1px solid var(--border); border-radius: 5px; padding: 6px 9px; font-size: 12px; font-family: 'Inter', sans-serif; color: var(--text); outline: none; transition: border-color .2s; width: 100% }
+.stats-field input:focus { border-color: #e8b84b50 }
+.stats-review-actions { display: flex; gap: 8px; margin-top: 10px }
+.lightbox { position: fixed; inset: 0; background: rgba(0,0,0,.92); z-index: 2000; display: none; align-items: center; justify-content: center; padding: 24px }
+.lightbox.open { display: flex }
+.lightbox img { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 8px }
+.lightbox video { max-width: 100%; max-height: 90vh; border-radius: 8px }
+.lightbox-close { position: absolute; top: 20px; right: 24px; background: none; border: none; color: #fff; font-size: 32px; cursor: pointer; opacity: .7; transition: opacity .2s }
+.lightbox-close:hover { opacity: 1 }
+.spinner { width: 30px; height: 30px; border: 3px solid rgba(255,255,255,.3); border-radius: 50%; border-top-color: #fff; animation: spin 1s ease-in-out infinite; margin: 0 auto; }
+.skeleton { background: var(--bg2); border: 1px solid var(--border); border-radius: 10px; padding: 16px; display: flex; flex-direction: column; gap: 12px }
+.skel-line { background: var(--bg3); border-radius: 4px; height: 12px; animation: shimmer 1.5s infinite }
+.skel-line.short { width: 40% }
+.skel-line.med { width: 65% }
+.skel-line.full { width: 100% }
+@keyframes shimmer { 0%,100% { opacity: .4 } 50% { opacity: .9 } }
+@keyframes spin { to { transform: rotate(360deg); }}
+.video-container:fullscreen { width: 100vw !important; height: 100vh !important; display: flex !important; justify-content: center !important; align-items: center !important; background: #000 !important; }
+.video-container:fullscreen video { width: 100vw !important; height: 100vh !important; object-fit: contain !important; background: #000 !important; max-width: none !important; max-height: none !important; }
+.modal-overlay { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 1000; display: none; align-items: center; justify-content: center; background: rgba(0,0,0,.8) }
+.modal-overlay.open { display: flex }
+.modal { position: relative; max-width: 500px; width: 90%; max-height: 90vh; overflow-y: auto }
+#detail-modal { padding: 20px 18px; cursor: default }
+#detail-content { cursor: default }
+.modal-close { z-index: 20; position: absolute; top: 14px; right: 16px }
+
+/* ── Sell Account Form (public) ── */
+.sell-banner { background: linear-gradient(135deg, #1a1c24, #111318); border: 1px solid var(--border2); border-radius: 10px; padding: 16px 18px; margin-bottom: 18px; display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; flex-wrap: wrap }
+.sell-banner-text { flex: 1 }
+.sell-banner-title { font-family: 'Rajdhani', sans-serif; font-size: 15px; font-weight: 700; color: var(--text); letter-spacing: .04em; margin-bottom: 3px }
+.sell-banner-sub { font-size: 12px; color: var(--text2); line-height: 1.5 }
+.sell-banner-sub strong { color: var(--accent) }
+.sell-open-btn { padding: 8px 18px; background: var(--accent); color: #0a0b0f; border: none; border-radius: 6px; font-family: 'Rajdhani', sans-serif; font-size: 13px; font-weight: 700; cursor: pointer; letter-spacing: .05em; text-transform: uppercase; white-space: nowrap; transition: all .15s; flex-shrink: 0 }
+.sell-open-btn:hover { background: var(--accent2) }
+
+/* Pending notice on card */
+.pending-notice { background: #4a9eff12; border: 1px solid #4a9eff25; border-radius: 5px; padding: 6px 10px; font-family: 'Rajdhani', sans-serif; font-size: 10px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--blue); text-align: center }
+
+/* Admin accounts list — status select row */
+.acc-mgmt-item { background: var(--bg3); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap }
+.acc-mgmt-info { flex: 1; min-width: 0 }
+.acc-mgmt-id { font-family: 'Rajdhani', sans-serif; font-size: 10px; color: var(--text3); letter-spacing: .06em }
+.acc-mgmt-name { font-size: 13px; font-weight: 500; color: var(--text); margin-top: 1px }
+.acc-mgmt-sub { font-size: 11px; color: var(--text2); margin-top: 2px }
+.acc-mgmt-price { font-family: 'Rajdhani', sans-serif; font-size: 13px; font-weight: 600; color: var(--accent); white-space: nowrap; flex-shrink: 0 }
