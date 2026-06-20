@@ -364,6 +364,26 @@ async function handleUpdateOrderStatus(auth, body, res) {
   return res.json({ result: 'ok' });
 }
 
+async function handleUpdateOrderComment(auth, body, res) {
+  checkToken(body);
+  console.log(`💬 updateOrderComment: ${body.order_id}`);
+  const { headers, data } = await getSheetData(auth, 'Orders');
+  const rowIdx = data.findIndex(r => r.order_id === body.order_id);
+  if (rowIdx === -1) throw new Error('Order not found');
+  const rowNum = rowIdx + 2;
+  let commentColIdx = headers.indexOf('comment');
+  if (commentColIdx === -1) {
+    // Sheet has no "Comment" column yet — create one in the next empty column.
+    commentColIdx = headers.length;
+    const headerCol = colLetter(commentColIdx);
+    await sheetsWrite(auth, `Orders!${headerCol}1`, [['Comment']]);
+  }
+  const commentCol = colLetter(commentColIdx);
+  await sheetsWrite(auth, `Orders!${commentCol}${rowNum}`, [[body.comment || '']]);
+  console.log(`✅ comment saved for ${body.order_id}`);
+  return res.json({ result: 'ok' });
+}
+
 async function handleNewOrder(auth, body, res) {
   let proofFormula = '';
   if (body.base64) {
@@ -632,6 +652,7 @@ export default async function handler(req, res) {
 
     // ── Admin-only actions ──────────────────
     if (action === 'updateOrderStatus')       return await handleUpdateOrderStatus(auth, body, res);
+    if (action === 'updateOrderComment')      return await handleUpdateOrderComment(auth, body, res);
     if (action === 'uploadProofItem')         return await handleUploadProofItem(auth, body, res);
     if (action === 'saveItems')               return await handleSaveItems(auth, body, res);
     if (action === 'extractItems')            return await handleExtractItems(auth, body, res);
