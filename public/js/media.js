@@ -1,29 +1,5 @@
 // ── Media helpers ──────────────────────────────
 
-const _videoBlobCache = {};
-const _blobRefCount = {};
-const _blobCacheOrder = [];
-const _BLOB_CACHE_MAX = 20;
-
-function _tryRevoke(fileId) {
-  const url = _videoBlobCache[fileId];
-  if (!url) return;
-  if ((_blobRefCount[url] || 0) > 0) return;
-  URL.revokeObjectURL(url);
-  delete _videoBlobCache[fileId];
-  delete _blobRefCount[url];
-}
-
-function _blobRetain(url) {
-  if (!url || !url.startsWith('blob:')) return;
-  _blobRefCount[url] = (_blobRefCount[url] || 0) + 1;
-}
-
-function _blobRelease(url) {
-  if (!url || !url.startsWith('blob:')) return;
-  _blobRefCount[url] = Math.max(0, (_blobRefCount[url] || 1) - 1);
-}
-
 function getVideoDriveUrl(fileId) {
   return `https://drive.google.com/file/d/${fileId}/preview`;
 }
@@ -67,30 +43,6 @@ async function uploadDirectToDrive(file, fileName, folderContext, ign) {
   const finalResult = await finalResp.json();
   if (finalResult.error) throw new Error('Finalize failed: ' + finalResult.error);
   return finalResult.url;
-}
-
-// ── Rank helpers ───────────────────────────────
-
-const RANK_ICONS = { bronze: '🥉', silver: '🥈', gold: '🥇', platinum: '💎', diamond: '💎', master: '👑', grandmaster: '👑', challenger: '🏆', default: '🎮' };
-
-function getRankIcon(rank) {
-  if (!rank) return RANK_ICONS.default;
-  const r = rank.toLowerCase();
-  for (const [k, v] of Object.entries(RANK_ICONS)) { if (r.includes(k)) return v; }
-  return RANK_ICONS.default;
-}
-
-function getRankColor(rank) {
-  if (!rank) return 'var(--text2)';
-  const r = rank.toLowerCase();
-  if (r.includes('challenger') || r.includes('grandmaster')) return '#e8b84b';
-  if (r.includes('master')) return '#9b7fe8';
-  if (r.includes('diamond')) return '#4a9eff';
-  if (r.includes('platinum')) return '#2ecc8a';
-  if (r.includes('gold')) return '#f0c040';
-  if (r.includes('silver')) return '#9099a8';
-  if (r.includes('bronze')) return '#cd7f32';
-  return 'var(--text2)';
 }
 
 // ── Lightbox ───────────────────────────────────

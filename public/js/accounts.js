@@ -32,6 +32,30 @@ function _blobRelease(url) {
   _blobRefCount[url] = Math.max(0, (_blobRefCount[url] || 1) - 1);
 }
 
+// ── Rank helpers ───────────────────────────────
+
+const RANK_ICONS = { bronze: '🥉', silver: '🥈', gold: '🥇', platinum: '💎', diamond: '💎', master: '👑', grandmaster: '👑', challenger: '🏆', default: '🎮' };
+
+function getRankIcon(rank) {
+  if (!rank) return RANK_ICONS.default;
+  const r = rank.toLowerCase();
+  for (const [k, v] of Object.entries(RANK_ICONS)) { if (r.includes(k)) return v; }
+  return RANK_ICONS.default;
+}
+
+function getRankColor(rank) {
+  if (!rank) return 'var(--text2)';
+  const r = rank.toLowerCase();
+  if (r.includes('challenger') || r.includes('grandmaster')) return '#e8b84b';
+  if (r.includes('master')) return '#9b7fe8';
+  if (r.includes('diamond')) return '#4a9eff';
+  if (r.includes('platinum')) return '#2ecc8a';
+  if (r.includes('gold')) return '#f0c040';
+  if (r.includes('silver')) return '#9099a8';
+  if (r.includes('bronze')) return '#cd7f32';
+  return 'var(--text2)';
+}
+
 // ── Fetch accounts ─────────────────────────
 let _lastAccountData = '';
 async function fetchAccounts() {
