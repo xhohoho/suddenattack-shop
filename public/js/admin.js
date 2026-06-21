@@ -224,7 +224,7 @@ async function extractItems() {
     }
     for (let i = 0; i < uploadedUrls.length; i++) {
       if (slides[i]) slides[i].src = uploadedUrls[i];
-      try { await adminFetch({ action: 'uploadSlideImg', slideIndex: i, url: uploadedUrls[i] }); } catch (_) { }
+      try { await adminFetch({ action: 'uploadSlideImg', slideIndex: i, url: uploadedUrls[i] }); } catch (_) { showToast('Slide ' + (i+1) + ' saved to Drive but sheet update failed'); }
     }
     startSlideshow();
     const seen = new Set();
@@ -373,6 +373,18 @@ function startSlideshow() {
     slideshowIdx = (slideshowIdx + 1) % imgs.length;
     imgs[slideshowIdx].classList.add('active');
   }, 4000);
+
+  // Pause slideshow when tab is hidden
+  if (!window._slideshowVisHandler) {
+    window._slideshowVisHandler = true;
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) {
+        if (slideshowTimer) { clearInterval(slideshowTimer); slideshowTimer = null; }
+      } else if (slideUrls.filter(u => u).length > 1) {
+        startSlideshow();
+      }
+    });
+  }
 }
 
 async function fetchSlideUrls() {
@@ -396,7 +408,7 @@ async function fetchSlideUrls() {
     slideshowIdx = 0;
     startSlideshow();
     initImgFadeIn();
-  } catch (e) { }
+  } catch (e) { console.error('Failed to load slides:', e); }
 }
 
 async function uploadSlide(input, idx) {

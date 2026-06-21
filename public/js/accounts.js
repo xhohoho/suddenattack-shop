@@ -260,7 +260,7 @@ async function submitPurchase() {
     status.textContent = 'Logging order...';
     await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'newOrder', order_id: orderId, timestamp, name: buyerName + ' (' + buyerIgn + ')', phone: buyerPhone, email: '', items: details, total: acc?.price || 0, note: 'Buyer IGN: ' + buyerIgn, status: 'Paid', proof: '' }) });
     status.textContent = 'Marking account reserved...';
-    try { await adminFetch({ action: 'updateAccountStatus', account: { id: currentAccId, status: 'reserved' } }); } catch (_) { }
+    try { await adminFetch({ action: 'updateAccountStatus', account: { id: currentAccId, status: 'reserved' } }); } catch (_) { showToast('Order placed but account status update failed'); }
     status.textContent = 'Payment submitted! We will contact you soon.'; status.style.color = 'var(--green)';
     btn.textContent = 'Submitted ✓';
     setTimeout(() => { closePay(); fetchAccounts(); fetchSheet(); }, 4000);
@@ -513,3 +513,14 @@ document.getElementById('pay-overlay').addEventListener('click', function (e) { 
 document.getElementById('sell-overlay').addEventListener('click', function (e) { if (e.target === this) closeSellModal(); });
 document.getElementById('lightbox').addEventListener('click', function (e) { if (e.target === this) closeLightbox(); });
 document.getElementById('acc-search').addEventListener('input', debounce(renderGrid, 200));
+
+	// Close modals with Escape key
+	document.addEventListener('keydown', function (e) {
+	  if (e.key === 'Escape') {
+	    if (document.getElementById('detail-overlay').classList.contains('open')) closeDetail();
+	    else if (document.getElementById('pay-overlay').classList.contains('open')) closePay();
+	    else if (document.getElementById('sell-overlay').classList.contains('open')) closeSellModal();
+	    else if (document.getElementById('lightbox').classList.contains('open')) closeLightbox();
+	    else if (document.getElementById('modal-overlay').classList.contains('open')) closeModal();
+	  }
+	});

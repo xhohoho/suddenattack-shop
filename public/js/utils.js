@@ -19,6 +19,8 @@ function showToast(msg) {
   const t = document.getElementById('toast');
   clearTimeout(_toastTimer);
   t.textContent = msg;
+  t.setAttribute('role', 'alert');
+  t.setAttribute('aria-live', 'polite');
   t.classList.add('show');
   _toastTimer = setTimeout(() => t.classList.remove('show'), 3000);
 }

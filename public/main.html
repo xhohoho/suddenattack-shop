@@ -36,7 +36,7 @@
       <div id="admin-gate">
         <div class="admin-title">Admin access</div>
         <div class="admin-pass">
-          <input type="password" id="admin-pw" placeholder="Enter password"
+          <input type="password" id="admin-pw" placeholder="Enter password" aria-label="Admin password"
             onkeydown="if(event.key==='Enter')checkPass()" />
           <button class="admin-btn" onclick="checkPass()">Unlock</button>
         </div>
@@ -390,7 +390,7 @@
       <button class="main-tab" onclick="switchMainTab('view-accounts',this)">Accounts</button>
     </div>
 
-    <div class="toast" id="toast"></div>
+    <div class="toast" id="toast" role="alert" aria-live="polite"></div>
     <audio id="player"></audio>
 
   <script src="./js/config.js"></script>
