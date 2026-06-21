@@ -284,7 +284,7 @@ async function submitPurchase() {
     status.textContent = 'Logging order...';
     await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'newOrder', order_id: orderId, timestamp, name: buyerName + ' (' + buyerIgn + ')', phone: buyerPhone, email: '', items: details, total: acc?.price || 0, note: 'Buyer IGN: ' + buyerIgn, status: 'Paid', proof: '' }) });
     status.textContent = 'Marking account reserved...';
-    try { await adminFetch({ action: 'updateAccountStatus', account: { id: currentAccId, status: 'reserved' } }); } catch (_) { showToast('Order placed but account status update failed'); }
+    try { await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'reserveAccount', id: currentAccId }) }); } catch (_) { showToast('Order placed but account status update failed'); }
     status.textContent = 'Payment submitted! We will contact you soon.'; status.style.color = 'var(--green)';
     btn.textContent = 'Submitted ✓';
     setTimeout(() => { closePay(); fetchAccounts(); fetchSheet(); }, 4000);

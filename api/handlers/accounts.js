@@ -79,6 +79,19 @@ export async function handleUpdateAccountStatus(auth, body, res) {
   return res.json({ result: 'ok' });
 }
 
+/** Public: mark an account as reserved after buyer payment (no token required). */
+export async function handleReserveAccount(auth, body, res) {
+  const accId = body.id || body.account?.id;
+  if (!accId) return res.status(400).json({ error: 'Missing account id' });
+  const { headers, data } = await getSheetData(auth, 'AccountList');
+  const rowIdx = data.findIndex(r => String(r.id) === String(accId));
+  if (rowIdx === -1) throw new Error('Account not found');
+  const rowNum = rowIdx + 2;
+  const statusCol = colLetter(headers.indexOf('status'));
+  await sheetsWrite(auth, `AccountList!${statusCol}${rowNum}`, [['reserved']]);
+  return res.json({ result: 'ok' });
+}
+
 export async function handleUploadAccountImage(auth, body, res) {
   requireToken(body);
   const accountIGN = body.ign;

@@ -15,7 +15,7 @@ import {
 } from './handlers/orders.js';
 import {
   handleGetAccounts, handleSaveAccount, handleDeleteAccount,
-  handleUpdateAccountStatus, handleUploadAccountImage, handleUploadPublicAccountImage,
+  handleUpdateAccountStatus, handleUploadAccountImage, handleUploadPublicAccountImage, handleReserveAccount,
 } from './handlers/accounts.js';
 import {
   handleGetShopItems, handleSaveItems, handleExtractItems, handleExtractAccountStats,
@@ -72,6 +72,7 @@ export default async function handler(req, res) {
     if (action === 'saveAccount' && body.isNew) return handleSaveAccount(auth, body, res);
     if (action === 'uploadPublicAccountImage') return handleUploadPublicAccountImage(auth, body, res);
     if (action === 'uploadProofItem')          return handleUploadProofItem(auth, body, res);
+    if (action === 'reserveAccount')           return handleReserveAccount(auth, body, res);
 
     // ── Direct upload (browser → Drive) ───────────────
     if (action === 'getDirectUploadUrl')       return handleGetDirectUploadUrl(body, res);
