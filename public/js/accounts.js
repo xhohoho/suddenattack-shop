@@ -14,24 +14,6 @@ const _blobRefCount   = {};
 const _blobCacheOrder = [];
 const _BLOB_CACHE_MAX = 20;
 
-// ── Blob cache helpers (dead code, kept for safety) ──
-function _tryRevoke(fileId) {
-  const url = _videoBlobCache[fileId];
-  if (!url) return;
-  if ((_blobRefCount[url] || 0) > 0) return;
-  URL.revokeObjectURL(url);
-  delete _videoBlobCache[fileId];
-  delete _blobRefCount[url];
-}
-function _blobRetain(url) {
-  if (!url || !url.startsWith('blob:')) return;
-  _blobRefCount[url] = (_blobRefCount[url] || 0) + 1;
-}
-function _blobRelease(url) {
-  if (!url || !url.startsWith('blob:')) return;
-  _blobRefCount[url] = Math.max(0, (_blobRefCount[url] || 1) - 1);
-}
-
 // ── Rank helpers ───────────────────────────────
 
 const RANK_ICONS = { bronze: '🥉', silver: '🥈', gold: '🥇', platinum: '💎', diamond: '💎', master: '👑', grandmaster: '👑', challenger: '🏆', default: '🎮' };
@@ -127,22 +109,23 @@ function renderGrid() {
       : isReserved ? '<span class="acc-status-pill s-reserved">Reserved</span>'
       : isPending ? '<span class="acc-status-pill s-pending">Pending Review</span>'
       : '<span class="acc-status-pill s-available">Available</span>';
+    const esc = escapeHtml;
     const details = [];
-    if (a.ign) details.push(`<div class="detail-row"><span class="detail-label">IGN</span><span class="detail-val hl">${a.ign}</span></div>`);
-    if (a.accid) details.push(`<div class="detail-row"><span class="detail-label">ID</span><span class="detail-val">${a.accid}</span></div>`);
-    if (a.kda) details.push(`<div class="detail-row"><span class="detail-label">KDA</span><span class="detail-val hl">${a.kda}</span></div>`);
-    const tags = a.notes ? a.notes.split(',').filter(t => t.trim()).map(t => `<span class="tag">${t.trim()}</span>`).join('') : '';
+    if (a.ign) details.push(`<div class="detail-row"><span class="detail-label">IGN</span><span class="detail-val hl">${esc(a.ign)}</span></div>`);
+    if (a.accid) details.push(`<div class="detail-row"><span class="detail-label">ID</span><span class="detail-val">${esc(a.accid)}</span></div>`);
+    if (a.kda) details.push(`<div class="detail-row"><span class="detail-label">KDA</span><span class="detail-val hl">${esc(a.kda)}</span></div>`);
+    const tags = a.notes ? a.notes.split(',').filter(t => t.trim()).map(t => `<span class="tag">${esc(t.trim())}</span>`).join('') : '';
     let actionHtml = '';
     if (isPending) {
       actionHtml = `<span style="font-size:10px;color:var(--blue);font-family:Rajdhani,sans-serif;letter-spacing:.05em;text-transform:uppercase;opacity:0.7">Awaiting Verification</span>`;
     } else if (isSold || isReserved) {
       actionHtml = `<span style="font-size:11px;color:var(--text3);font-family:Rajdhani,sans-serif;letter-spacing:.05em;text-transform:uppercase">${isSold ? 'Sold out' : 'Reserved'}</span>`;
     } else {
-      actionHtml = `<button class="buy-btn" onclick="event.stopPropagation();openPay('${a.id}')">Buy now</button>`;
+      actionHtml = `<button class="buy-btn" onclick="event.stopPropagation();openPay('${esc(a.id)}')">Buy now</button>`;
     }
-    return `<div class="acc-card${isSold ? ' sold' : ''}${isPending ? ' pending' : ''}" onclick="openDetail('${a.id}')">
-      <div class="card-header"><span class="acc-id">${a.id}</span>${statusPill}</div>
-      <div class="card-rank"><div class="rank-icon">${rankIcon}</div><div><div class="rank-name" style="color:${rankColor}">${a.rank}</div><div class="rank-tier">Sudden Attack</div></div></div>
+    return `<div class="acc-card${isSold ? ' sold' : ''}${isPending ? ' pending' : ''}" onclick="openDetail('${esc(a.id)}')">
+      <div class="card-header"><span class="acc-id">${esc(a.id)}</span>${statusPill}</div>
+      <div class="card-rank"><div class="rank-icon">${rankIcon}</div><div><div class="rank-name" style="color:${rankColor}">${esc(a.rank)}</div><div class="rank-tier">Sudden Attack</div></div></div>
       ${details.length ? `<div class="card-details">${details.join('')}</div>` : ''}
       ${tags ? `<div class="card-tags">${tags}</div>` : ''}
       <hr class="card-divider"/>
@@ -181,23 +164,6 @@ function _renderCarousel(items) {
   return `<div class="carousel-wrap" id="det-carousel" ontouchstart="carouselTouchStart(event)" ontouchend="carouselTouchEnd(event)"><div class="carousel-track" id="det-track">${slides}</div>${arrows}${dots}</div>`;
 }
 
-// ── Video player controls (dead code, kept for safety) ──
-function fmtTime(s) { if (isNaN(s)) return '0:00'; const m = Math.floor(s / 60), sec = Math.floor(s % 60); return m + ':' + String(sec).padStart(2, '0'); }
-function getVid(id) { return document.getElementById('vid-' + id); }
-function toggleVid(id) { const v = getVid(id); if (!v || v.readyState < 2) return; const icon = document.getElementById('play-icon-' + id); if (v.paused) { v.play(); if (icon) { icon.textContent = '▶'; icon.style.opacity = '1'; setTimeout(() => icon.style.opacity = '0', 600); } } else { v.pause(); if (icon) { icon.textContent = '⏸'; icon.style.opacity = '1'; setTimeout(() => icon.style.opacity = '0', 800); } } }
-function toggleMute(id) { const v = getVid(id); if (!v) return; v.muted = !v.muted; const btn = document.getElementById('mbtn-' + id); if (btn) btn.textContent = v.muted ? '🔇' : '🔊'; }
-function toggleFs(id) { const c = document.querySelector(`.video-container[data-file-id="${id}"]`); if (!c) return; if (!document.fullscreenElement) { (c.requestFullscreen || c.webkitRequestFullscreen || c.msRequestFullscreen).call(c); } else { document.exitFullscreen?.(); } }
-function onVidCanPlay(id) { const l = document.getElementById('loader-' + id); if (l) l.style.display = 'none'; }
-function onVidWait(id) { const l = document.getElementById('loader-' + id); if (l) l.style.display = 'block'; }
-function onVidPlay(id) { const l = document.getElementById('loader-' + id); if (l) l.style.display = 'none'; const btn = document.getElementById('pbtn-' + id); if (btn) btn.textContent = '⏸'; }
-function onVidMeta(id) { const v = getVid(id); if (!v) return; const t = document.getElementById('time-' + id); if (t) t.textContent = '0:00 / ' + fmtTime(v.duration); }
-function onVidEnded(id) { const btn = document.getElementById('pbtn-' + id); if (btn) btn.textContent = '▶'; if (_carouselIdx < _carouselItems.length - 1) carouselGoTo(_carouselIdx + 1); }
-function onVidTimeUpdate(id) { const v = getVid(id); if (!v || !v.duration) return; const pct = (v.currentTime / v.duration) * 100; const prog = document.getElementById('prog-' + id), thumb = document.getElementById('thumb-' + id), time = document.getElementById('time-' + id); if (prog) prog.style.width = pct + '%'; if (thumb) thumb.style.left = pct + '%'; if (time) time.textContent = fmtTime(v.currentTime) + ' / ' + fmtTime(v.duration); const buf = document.getElementById('buf-' + id); if (buf && v.buffered.length) buf.style.width = ((v.buffered.end(v.buffered.length - 1) / v.duration) * 100) + '%'; }
-let _scrubbing = false, _scrubId = null;
-function scrubAt(e, id) { const bar = document.getElementById('bar-' + id); if (!bar) return; const v = getVid(id); if (!v || !v.duration) return; const rect = bar.getBoundingClientRect(); v.currentTime = Math.max(0, Math.min((e.clientX - rect.left) / rect.width, 1)) * v.duration; }
-function scrubStart(e, id) { e.preventDefault(); _scrubbing = true; _scrubId = id; scrubAt(e, id); const onMove = ev => { if (_scrubbing) scrubAt(ev, _scrubId); }; const onUp = () => { _scrubbing = false; _scrubId = null; document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp); }; document.addEventListener('mousemove', onMove); document.addEventListener('mouseup', onUp); }
-function scrubTouchStart(e, id) { e.stopPropagation(); const onMove = ev => { if (ev.touches[0]) scrubAt(ev.touches[0], id); }; const onEnd = () => { document.removeEventListener('touchmove', onMove); document.removeEventListener('touchend', onEnd); }; document.addEventListener('touchmove', onMove, { passive: true }); document.addEventListener('touchend', onEnd); if (e.touches[0]) scrubAt(e.touches[0], id); }
-
 function carouselGoTo(idx) {
   _carouselIdx = Math.max(0, Math.min(idx, _carouselItems.length - 1));
   const track = document.getElementById('det-track'); if (track) track.style.transform = `translateX(-${_carouselIdx * 100}%)`;
@@ -216,14 +182,15 @@ function openDetail(id) {
   const rankColor = getRankColor(a.rank); const rankIcon = getRankIcon(a.rank);
   const isSold = a.status === 'sold'; const isReserved = a.status === 'reserved'; const isPending = a.status === 'pending';
   _carouselItems = _buildCarouselItems(a); _carouselIdx = 0;
+  const esc = escapeHtml;
   const rows = [];
-  if (a.ign) rows.push(['IGN', a.ign]);
-  if (a.accid) rows.push(['Account ID', a.accid]);
-  if (a.kda) rows.push(['KDA', a.kda]);
-  if (a.winRate) rows.push(['Win Rate', a.winRate + '%']);
-  if (a.exp) rows.push(['EXP Progress', a.exp + '%']);
-  if (a.ach) rows.push(['Achievement', a.ach + '%']);
-  const tags = a.notes ? a.notes.split(',').filter(t => t.trim()).map(t => `<span class="tag">${t.trim()}</span>`).join('') : '';
+  if (a.ign) rows.push(['IGN', esc(a.ign)]);
+  if (a.accid) rows.push(['Account ID', esc(a.accid)]);
+  if (a.kda) rows.push(['KDA', esc(a.kda)]);
+  if (a.winRate) rows.push(['Win Rate', esc(a.winRate) + '%']);
+  if (a.exp) rows.push(['EXP Progress', esc(a.exp) + '%']);
+  if (a.ach) rows.push(['Achievement', esc(a.ach) + '%']);
+  const tags = a.notes ? a.notes.split(',').filter(t => t.trim()).map(t => `<span class="tag">${esc(t.trim())}</span>`).join('') : '';
   const displayPrice = a.price * 1.10;
   const statusPill = isSold ? '<span class="acc-status-pill s-sold" style="font-size:11px;padding:3px 10px">Sold</span>' : isReserved ? '<span class="acc-status-pill s-reserved" style="font-size:11px;padding:3px 10px">Reserved</span>' : isPending ? '<span class="acc-status-pill s-pending" style="font-size:11px;padding:3px 10px">Pending Review</span>' : '<span class="acc-status-pill s-available" style="font-size:11px;padding:3px 10px">Available</span>';
 
@@ -231,14 +198,14 @@ function openDetail(id) {
     <div class="detail-modal-media">${_renderCarousel(_carouselItems)}</div>
     <div class="detail-modal-body">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;margin-top:4px">
-        <div style="display:flex;align-items:center;gap:12px"><div class="detail-modal-rank-icon">${rankIcon}</div><div><div class="detail-modal-rank-name" style="color:${rankColor}">${a.rank}</div><div class="detail-modal-rank-sub">Sudden Attack · ${a.id}</div></div></div>
+        <div style="display:flex;align-items:center;gap:12px"><div class="detail-modal-rank-icon">${rankIcon}</div><div><div class="detail-modal-rank-name" style="color:${rankColor}">${esc(a.rank)}</div><div class="detail-modal-rank-sub">Sudden Attack · ${esc(a.id)}</div></div></div>
         ${statusPill}
       </div>
-      ${rows.length ? `<div class="modal-details" style="margin-bottom:12px">${rows.map(([l, v]) => `<div class="modal-detail-row"><span class="modal-detail-label">${l}</span><span class="modal-detail-val">${v}</span></div>`).join('')}</div>` : ''}
+      ${rows.length ? `<div class="modal-details" style="margin-bottom:12px">${rows.map(([l, v]) => `<div class="modal-detail-row"><span class="modal-detail-label">${esc(l)}</span><span class="modal-detail-val">${esc(v)}</span></div>`).join('')}</div>` : ''}
       ${tags ? `<div class="modal-tags" style="margin-bottom:14px">${tags}</div>` : ''}
       <div class="modal-price-row">
         <span class="modal-price">${fmt(displayPrice)}</span>
-        ${!isSold && !isReserved && !isPending ? `<button class="buy-btn" style="padding:9px 22px;font-size:13px" onclick="closeDetail();openPay('${a.id}')">Buy now</button>` : isPending ? `<span style="font-size:11px;color:var(--blue);font-family:Rajdhani,sans-serif;letter-spacing:.05em;text-transform:uppercase">Under Verification</span>` : `<span style="font-size:11px;color:var(--text3);font-family:Rajdhani,sans-serif;letter-spacing:.05em;text-transform:uppercase">${isSold ? 'Sold out' : 'Reserved'}</span>`}
+        ${!isSold && !isReserved && !isPending ? `<button class="buy-btn" style="padding:9px 22px;font-size:13px" onclick="closeDetail();openPay('${esc(a.id)}')">Buy now</button>` : isPending ? `<span style="font-size:11px;color:var(--blue);font-family:Rajdhani,sans-serif;letter-spacing:.05em;text-transform:uppercase">Under Verification</span>` : `<span style="font-size:11px;color:var(--text3);font-family:Rajdhani,sans-serif;letter-spacing:.05em;text-transform:uppercase">${isSold ? 'Sold out' : 'Reserved'}</span>`}
       </div>
     </div>`;
   _lastDetailId = id;
@@ -370,26 +337,27 @@ function renderManageList() {
   if (!el) return;
   if (!accounts.length) { el.innerHTML = '<div style="font-size:12px;color:var(--text3);font-family:Rajdhani,sans-serif;text-align:center;padding:16px">No accounts yet</div>'; return; }
   const sortedAccounts = [...accounts].sort((a, b) => (b.createdat || 0) - (a.createdat || 0));
+  const esc = escapeHtml;
   el.innerHTML = sortedAccounts.map(a => {
-    const sellerInfo = a.sellername ? `<div style="font-size:11px;color:var(--text3);margin-top:2px">Seller: ${a.sellername}${a.sellercontact ? ' · ' + a.sellercontact : ''}</div>` : '';
+    const sellerInfo = a.sellername ? `<div style="font-size:11px;color:var(--text3);margin-top:2px">Seller: ${esc(a.sellername)}${a.sellercontact ? ' · ' + esc(a.sellercontact) : ''}</div>` : '';
     const publicPrice = a.price * 1.10;
-    return `<div class="acc-list-item" id="acc-row-${a.id}">
+    return `<div class="acc-list-item" id="acc-row-${esc(a.id)}">
       <div class="acc-list-info">
-        <div style="display:flex; align-items:center; gap:8px"><strong>${a.rank}</strong><span style="color:var(--text3); font-size:11px;">(Net: ${fmt(a.price)} → Sell: ${fmt(publicPrice)})</span></div>
-        <div style="font-size:12px;color:var(--text2);margin-top:2px">${a.ign ? a.ign : ''}${a.accid ? ' · ID ' + a.accid : ''}</div>
-        ${sellerInfo}<div class="acc-mgmt-id" style="margin-top:3px">${a.id}</div>
+        <div style="display:flex; align-items:center; gap:8px"><strong>${esc(a.rank)}</strong><span style="color:var(--text3); font-size:11px;">(Net: ${fmt(a.price)} → Sell: ${fmt(publicPrice)})</span></div>
+        <div style="font-size:12px;color:var(--text2);margin-top:2px">${a.ign ? esc(a.ign) : ''}${a.accid ? ' · ID ' + esc(a.accid) : ''}</div>
+        ${sellerInfo}<div class="acc-mgmt-id" style="margin-top:3px">${esc(a.id)}</div>
       </div>
       <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end">
-        <select class="status-select" id="acc-st-${a.id}">
+        <select class="status-select" id="acc-st-${esc(a.id)}">
           <option value="pending" ${a.status === 'pending' ? 'selected' : ''}>Pending</option>
           <option value="available" ${a.status === 'available' ? 'selected' : ''}>Available</option>
           <option value="reserved" ${a.status === 'reserved' ? 'selected' : ''}>Reserved</option>
           <option value="sold" ${a.status === 'sold' ? 'selected' : ''}>Sold</option>
         </select>
-        <button class="save-status-btn" id="acc-btn-${a.id}" onclick="updateAccStatus('${a.id}')">Save</button>
-        <span id="acc-ind-${a.id}" style="font-size:13px;width:16px;text-align:center;flex-shrink:0"></span>
-        <button class="icon-btn" onclick="showAddForm('${a.id}')" title="Edit">✎</button>
-        <button class="icon-btn danger" onclick="deleteAccount('${a.id}')" title="Delete">✕</button>
+        <button class="save-status-btn" id="acc-btn-${esc(a.id)}" onclick="updateAccStatus('${esc(a.id)}')">Save</button>
+        <span id="acc-ind-${esc(a.id)}" style="font-size:13px;width:16px;text-align:center;flex-shrink:0"></span>
+        <button class="icon-btn" onclick="showAddForm('${esc(a.id)}')" title="Edit">✎</button>
+        <button class="icon-btn danger" onclick="deleteAccount('${esc(a.id)}')" title="Delete">✕</button>
       </div>
     </div>`;
   }).join('');

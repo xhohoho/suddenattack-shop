@@ -101,31 +101,32 @@ async function loadOrderMgmt() {
 function renderOrderMgmt() {
   const el = document.getElementById('order-mgmt-list');
   if (!allOrders.length) { el.innerHTML = '<div class="admin-loading">No orders</div>'; return; }
+  const esc = escapeHtml;
   el.innerHTML = allOrders.slice(0, 30).map(o => `
-    <div class="order-mgmt-item" id="row-${o.order_id}" style="flex-direction:column;align-items:stretch">
+    <div class="order-mgmt-item" id="row-${esc(o.order_id)}" style="flex-direction:column;align-items:stretch">
       <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;width:100%">
         <div class="order-mgmt-info">
-          <div class="order-mgmt-id">${o.order_id}</div>
-          <div class="order-mgmt-name">${o.name}</div>
-          <div class="order-mgmt-items">${o.items}</div>
+          <div class="order-mgmt-id">${esc(o.order_id)}</div>
+          <div class="order-mgmt-name">${esc(o.name)}</div>
+          <div class="order-mgmt-items">${esc(o.items)}</div>
         </div>
         <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
           <span class="order-mgmt-total">${o.total ? 'RM ' + parseFloat(o.total).toFixed(2) : ''}</span>
-          <select class="status-select" id="st-${o.order_id}">
+          <select class="status-select" id="st-${esc(o.order_id)}">
             <option ${o.status === 'New' ? 'selected' : ''}>New</option>
             <option ${o.status === 'Paid' ? 'selected' : ''}>Paid</option>
             <option ${o.status === 'Verified' ? 'selected' : ''}>Verified</option>
             <option ${o.status === 'Completed' ? 'selected' : ''}>Completed</option>
           </select>
-          <button class="save-status-btn" id="btn-${o.order_id}" onclick="updateOrderStatus('${o.order_id}')">Save</button>
-          <span id="ind-${o.order_id}" style="font-size:13px;width:16px;text-align:center;flex-shrink:0"></span>
+          <button class="save-status-btn" id="btn-${esc(o.order_id)}" onclick="updateOrderStatus('${esc(o.order_id)}')">Save</button>
+          <span id="ind-${esc(o.order_id)}" style="font-size:13px;width:16px;text-align:center;flex-shrink:0"></span>
         </div>
       </div>
       <div style="display:flex;align-items:center;gap:6px;margin-top:8px;width:100%">
-        <input type="text" id="cm-${o.order_id}" placeholder="Add a comment — visible to everyone" value="${(o.comment || '').replace(/"/g, '&quot;')}"
+        <input type="text" id="cm-${esc(o.order_id)}" placeholder="Add a comment — visible to everyone" value="${esc(o.comment || '').replace(/"/g, '&quot;')}"
           style="flex:1;min-width:0;border:1px solid var(--border);border-radius:6px;padding:6px 9px;font-size:12px;font-family:'Inter',sans-serif;color:var(--text);background:var(--bg2);outline:none" />
-        <button class="save-status-btn" id="cmbtn-${o.order_id}" onclick="saveOrderComment('${o.order_id}')">Save</button>
-        <span id="cmind-${o.order_id}" style="font-size:13px;width:16px;text-align:center;flex-shrink:0"></span>
+        <button class="save-status-btn" id="cmbtn-${esc(o.order_id)}" onclick="saveOrderComment('${esc(o.order_id)}')">Save</button>
+        <span id="cmind-${esc(o.order_id)}" style="font-size:13px;width:16px;text-align:center;flex-shrink:0"></span>
       </div>
     </div>`).join('');
 }
@@ -237,13 +238,14 @@ async function extractItems() {
 
 function renderExtracted(items) {
   const tbody = document.getElementById('extracted-tbody');
+  const esc = escapeHtml;
   tbody.innerHTML = items.map((it, i) => `<tr>
     <td>${i + 1}</td>
-    <td><input value="${it.name || ''}" data-field="name" data-idx="${i}"/></td>
-    <td><input value="${it.desc || ''}" data-field="desc" data-idx="${i}"/></td>
-    <td><input value="${it.p7 || ''}" data-field="p7" data-idx="${i}" style="width:60px"/></td>
-    <td><input value="${it.p15 || ''}" data-field="p15" data-idx="${i}" style="width:60px"/></td>
-    <td><input value="${it.p30 || ''}" data-field="p30" data-idx="${i}" style="width:60px"/></td>
+    <td><input value="${esc(it.name || '')}" data-field="name" data-idx="${i}"/></td>
+    <td><input value="${esc(it.desc || '')}" data-field="desc" data-idx="${i}"/></td>
+    <td><input value="${esc(it.p7 || '')}" data-field="p7" data-idx="${i}" style="width:60px"/></td>
+    <td><input value="${esc(it.p15 || '')}" data-field="p15" data-idx="${i}" style="width:60px"/></td>
+    <td><input value="${esc(it.p30 || '')}" data-field="p30" data-idx="${i}" style="width:60px"/></td>
   </tr>`).join('');
   document.getElementById('admin-extracted').style.display = 'block';
 }
@@ -283,12 +285,13 @@ async function applyItems() {
 
 function loadShopEditor() {
   const tbody = document.getElementById('shop-editor-tbody');
+  const esc = escapeHtml;
   tbody.innerHTML = ITEMS.map((it, i) => `<tr>
-    <td class="se-td"><input class="se-input" value="${it.name}" data-se="name" data-i="${i}"/></td>
-    <td class="se-td"><input class="se-input" value="${it.desc || ''}" data-se="desc" data-i="${i}"/></td>
-    <td class="se-td"><input class="se-input" value="${it.p[7] || ''}" data-se="p7" data-i="${i}" style="width:56px"/></td>
-    <td class="se-td"><input class="se-input" value="${it.p[15] || ''}" data-se="p15" data-i="${i}" style="width:56px"/></td>
-    <td class="se-td"><input class="se-input" value="${it.p[30] || ''}" data-se="p30" data-i="${i}" style="width:56px"/></td>
+    <td class="se-td"><input class="se-input" value="${esc(it.name)}" data-se="name" data-i="${i}"/></td>
+    <td class="se-td"><input class="se-input" value="${esc(it.desc || '')}" data-se="desc" data-i="${i}"/></td>
+    <td class="se-td"><input class="se-input" value="${esc(it.p[7] || '')}" data-se="p7" data-i="${i}" style="width:56px"/></td>
+    <td class="se-td"><input class="se-input" value="${esc(it.p[15] || '')}" data-se="p15" data-i="${i}" style="width:56px"/></td>
+    <td class="se-td"><input class="se-input" value="${esc(it.p[30] || '')}" data-se="p30" data-i="${i}" style="width:56px"/></td>
     <td class="se-td"><button class="se-rm" onclick="removeShopEditorRow(this)">✕</button></td>
   </tr>`).join('');
   tbody.addEventListener('input', () => { shopEditorDirty = true; }, { once: false });

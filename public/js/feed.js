@@ -11,8 +11,8 @@ function renderFeed(orders) {
 
   visible.forEach((o, i) => {
     const [bg, fg] = AVC[i % AVC.length];
-    const ini = o.name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
-    const ts = o.timestamp || '', oid = o.order_id || '';
+    const ini = escapeHtml(o.name).split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+    const ts = o.timestamp || '', oid = escapeHtml(o.order_id || '');
     const tot = parseFloat(o.total || 0);
     const actualStatus = (!o.status && isToday(ts)) ? 'New' : (o.status || 'New');
     const sc = statusClass(actualStatus);
@@ -24,21 +24,21 @@ function renderFeed(orders) {
 
     const commentHtml = adminUnlocked
       ? `<div class="fi" style="margin-top:4px;display:flex;align-items:center;gap:6px">
-          <input type="text" id="feedcm-${oid}" value="${(o.comment || '').replace(/"/g, '&quot;')}" placeholder="Add comment — visible to everyone"
+          <input type="text" id="feedcm-${oid}" value="${escapeHtml(o.comment || '').replace(/"/g, '&quot;')}" placeholder="Add comment — visible to everyone"
             style="flex:1;min-width:0;border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:11px;font-family:'Inter',sans-serif;color:var(--text);background:var(--bg3);outline:none" />
           <button class="pay-btn" id="feedcmbtn-${oid}" onclick="saveFeedComment('${oid}')" style="cursor:pointer;border:none">💬 Save</button>
           <span id="feedcmind-${oid}" style="font-size:12px;width:14px;text-align:center;flex-shrink:0"></span>
         </div>`
-      : (o.comment ? `<div class="fi" style="color:var(--accent)">💬 <strong>Admin:</strong> ${o.comment}</div>` : '');
+      : (o.comment ? `<div class="fi" style="color:var(--accent)">💬 <strong>Admin:</strong> ${escapeHtml(o.comment)}</div>` : '');
 
     const html = `<div class="fcard" data-fp="${fp}">
       <div class="av" style="background:${bg};color:${fg}">${ini}</div>
       <div class="fb">
-        <div class="fn2">${o.name}</div>
-        <div class="fi">${o.items}</div>
-        ${o.note ? `<div class="fi" style="font-style:italic;color:var(--text3)">${o.note}</div>` : ''}
+        <div class="fn2">${escapeHtml(o.name)}</div>
+        <div class="fi">${escapeHtml(o.items)}</div>
+        ${o.note ? `<div class="fi" style="font-style:italic;color:var(--text3)">${escapeHtml(o.note)}</div>` : ''}
         ${commentHtml}
-        <span class="pill ${sc}">${actualStatus}</span>${showNewBadge ? `<span class="pill p-new" style="margin-left:4px">New</span>` : ''}${isPayable(o.status) ? `<button class="pay-btn" data-tot="${tot}" data-oid="${oid}" data-ts="${ts || new Date().toISOString()}" onclick="openModal(this)">Pay</button>` : ''}
+        <span class="pill ${sc}">${escapeHtml(actualStatus)}</span>${showNewBadge ? `<span class="pill p-new" style="margin-left:4px">New</span>` : ''}${isPayable(o.status) ? `<button class="pay-btn" data-tot="${tot}" data-oid="${oid}" data-ts="${ts || new Date().toISOString()}" onclick="openModal(this)">Pay</button>` : ''}
       </div>
       <div class="fr"><div class="ft">${fmt(tot)}</div><div class="fa">${timeAgo(ts)}</div></div>
     </div>`;
@@ -60,13 +60,13 @@ async function saveFeedComment(orderId) {
     await adminFetch({ action: 'updateOrderComment', order_id: orderId, comment: inp.value });
     const o = allOrders.find(x => x.order_id === orderId);
     if (o) o.comment = inp.value;
-    ind.textContent = '✓'; ind.style.color = 'var(--green)';
+    ind.textContent = '✔'; ind.style.color = 'var(--green)';
     btn.textContent = '💬 Save'; btn.disabled = false;
     setTimeout(() => { if (ind) ind.textContent = ''; }, 3000);
     _lastFeedData = '';
     fetchSheet();
   } catch (e) {
-    ind.textContent = '✕'; ind.style.color = 'var(--red)';
+    ind.textContent = '✘'; ind.style.color = 'var(--red)';
     btn.textContent = '💬 Save'; btn.disabled = false;
     setTimeout(() => { if (ind) ind.textContent = ''; }, 4000);
   }

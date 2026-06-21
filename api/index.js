@@ -1,4 +1,5 @@
 import { getAuth } from './lib/auth.js';
+import crypto from 'crypto';
 import {
   handleGetOrders, handleNewOrder, handleAccountPurchase,
   handleUpdateOrderStatus, handleUpdateOrderComment, handleUploadProofItem,
@@ -22,7 +23,7 @@ import {
 // ══════════════════════════════════════════
 export default async function handler(req, res) {
   // ── CORS ──────────────────────────────────────────────
-  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Origin', 'https://suddenattack.safie.cc');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') return res.status(200).end();
@@ -45,7 +46,9 @@ export default async function handler(req, res) {
 
     // ── Public actions (no token) ──────────────────────
     if (action === 'adminAuth') {
-      if (body.password !== process.env.ADMIN_PASSWORD) {
+      const a = Buffer.from(body.password || '');
+      const b = Buffer.from(process.env.ADMIN_PASSWORD || '');
+      if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) {
         return res.status(200).json({ error: 'unauthorized' });
       }
       return res.json({ token: process.env.ADMIN_TOKEN });
