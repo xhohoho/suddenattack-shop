@@ -166,7 +166,40 @@
               id="acc-form-label">New account</div>
 
             <div class="form-grid">
-              <div class="field"><label>Rank *</label><input id="f-rank" placeholder="e.g. Diamond 1" /></div>
+              <div class="field"><label>Rank *</label><input id="f-rank" list="rank-options" placeholder="e.g. 1 Diamond, or 1 Major 3 Paku" autocomplete="off" />
+                <datalist id="rank-options">
+                  <option value="Skull"></option>
+                  <option value="1 Bar"></option>
+                  <option value="2 Bar"></option>
+                  <option value="3 Bar"></option>
+                  <option value="4 Bar"></option>
+                  <option value="1V"></option>
+                  <option value="2V"></option>
+                  <option value="3V"></option>
+                  <option value="1 Diamond"></option>
+                  <option value="2 Diamond"></option>
+                  <option value="3 Diamond"></option>
+                  <option value="1 Major"></option>
+                  <option value="1 Major 1 Paku"></option>
+                  <option value="1 Major 2 Paku"></option>
+                  <option value="1 Major 3 Paku"></option>
+                  <option value="2 Major"></option>
+                  <option value="2 Major 1 Paku"></option>
+                  <option value="2 Major 2 Paku"></option>
+                  <option value="2 Major 3 Paku"></option>
+                  <option value="3 Major"></option>
+                  <option value="3 Major 1 Paku"></option>
+                  <option value="3 Major 2 Paku"></option>
+                  <option value="3 Major 3 Paku"></option>
+                  <option value="1 Star"></option>
+                  <option value="2 Star"></option>
+                  <option value="3 Star"></option>
+                  <option value="4 Star"></option>
+                  <option value="5 Star"></option>
+                  <option value="5 Star Kotak"></option>
+                  <option value="Supreme General of the Army"></option>
+                </datalist>
+              </div>
               <div class="field"><label>Price (RM) *</label><input id="f-price" type="number" placeholder="e.g. 350" />
               </div>
             </div>

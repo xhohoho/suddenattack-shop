@@ -15,26 +15,41 @@ const _blobCacheOrder = [];
 const _BLOB_CACHE_MAX = 20;
 
 // ── Rank helpers ───────────────────────────────
-
-const RANK_ICONS = { bronze: '🥉', silver: '🥈', gold: '🥇', platinum: '💎', diamond: '💎', master: '👑', grandmaster: '👑', challenger: '🏆', default: '🎮' };
+// Canonical Sudden Attack rank order, lowest to highest (used for sorting/reference)
+const RANK_ORDER = [
+  'skull', '1 bar', '2 bar', '3 bar', '4 bar',
+  '1v', '2v', '3v',
+  '1 diamond', '2 diamond', '3 diamond',
+  '1 major', '2 major', '3 major',
+  '1 star', '2 star', '3 star', '4 star', '5 star', '5 star kotak',
+  'supreme general of the army'
+];
 
 function getRankIcon(rank) {
-  if (!rank) return RANK_ICONS.default;
+  if (!rank) return '🎮';
   const r = rank.toLowerCase();
-  for (const [k, v] of Object.entries(RANK_ICONS)) { if (r.includes(k)) return v; }
-  return RANK_ICONS.default;
+  if (r.includes('supreme')) return '👑';
+  if (r.includes('kotak')) return '🌟';
+  if (r.includes('star')) return '⭐';
+  if (r.includes('major')) return '🪖';
+  if (r.includes('diamond')) return '💎';
+  if (/\bskull\b/.test(r)) return '💀';
+  if (/\d\s*v\b/.test(r)) return '🔰';
+  if (r.includes('bar')) return '🎖️';
+  return '🎮';
 }
 
 function getRankColor(rank) {
   if (!rank) return 'var(--text2)';
   const r = rank.toLowerCase();
-  if (r.includes('challenger') || r.includes('grandmaster')) return '#e8b84b';
-  if (r.includes('master')) return '#9b7fe8';
+  if (r.includes('supreme')) return '#ff4d6d';
+  if (r.includes('kotak')) return '#ff8a3d';
+  if (r.includes('star')) return '#e8b84b';
+  if (r.includes('major')) return '#9b7fe8';
   if (r.includes('diamond')) return '#4a9eff';
-  if (r.includes('platinum')) return '#2ecc8a';
-  if (r.includes('gold')) return '#f0c040';
-  if (r.includes('silver')) return '#9099a8';
-  if (r.includes('bronze')) return '#cd7f32';
+  if (/\d\s*v\b/.test(r)) return '#2ecc8a';
+  if (r.includes('bar')) return '#9099a8';
+  if (/\bskull\b/.test(r)) return 'var(--text3)';
   return 'var(--text2)';
 }
 
