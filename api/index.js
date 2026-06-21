@@ -71,6 +71,7 @@ export default async function handler(req, res) {
     if (action === 'accountPurchase')          return handleAccountPurchase(auth, body, res);
     if (action === 'saveAccount' && body.isNew) return handleSaveAccount(auth, body, res);
     if (action === 'uploadPublicAccountImage') return handleUploadPublicAccountImage(auth, body, res);
+    if (action === 'uploadProofItem')          return handleUploadProofItem(auth, body, res);
 
     // ── Direct upload (browser → Drive) ───────────────
     if (action === 'getDirectUploadUrl')       return handleGetDirectUploadUrl(body, res);
@@ -79,7 +80,6 @@ export default async function handler(req, res) {
     // ── Admin-only actions (centralized token guard) ──
     if (action === 'updateOrderStatus')        { if (!requireAdmin(body, res)) return; return handleUpdateOrderStatus(auth, body, res); }
     if (action === 'updateOrderComment')       { if (!requireAdmin(body, res)) return; return handleUpdateOrderComment(auth, body, res); }
-    if (action === 'uploadProofItem')          { if (!requireAdmin(body, res)) return; return handleUploadProofItem(auth, body, res); }
     if (action === 'saveItems')                { if (!requireAdmin(body, res)) return; return handleSaveItems(auth, body, res); }
     if (action === 'extractItems')             { if (!requireAdmin(body, res)) return; return handleExtractItems(auth, body, res); }
     if (action === 'extractAccountStats')      { if (!requireAdmin(body, res)) return; return handleExtractAccountStats(body, res); }
