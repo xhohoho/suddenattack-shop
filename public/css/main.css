@@ -20,10 +20,16 @@
       --green: #2ecc8a;
       --blue: #4a9eff;
       --red: #e24b4a;
+      --sa-bg: #1a1a14;
+      --sa-border: #4a4a42;
+      --sa-highlight: #6b6b5e;
+      --sa-text: #d4c59a;
     }
 
     body {
       font-family: 'Inter', sans-serif;
+      padding-bottom: 30px;
+      background-color: #000;
       background: var(--bg);
       color: var(--text)
     }
@@ -1228,18 +1234,6 @@
       .img-area {
         height: 260px
       }
-    }
-
-    :root {
-      --sa-bg: #1a1a14;
-      --sa-border: #4a4a42;
-      --sa-highlight: #6b6b5e;
-      --sa-text: #d4c59a;
-    }
-
-    body {
-      padding-bottom: 30px;
-      background-color: #000;
     }
 
     .bottom-ticker {

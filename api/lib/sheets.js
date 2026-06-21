@@ -55,6 +55,16 @@ export async function getSheetData(auth, sheetName) {
 
 // ── Utility ─────────────────────────────────────────────────────────────────
 
+/** Sanitize a value before writing to Google Sheets to prevent formula injection.
+ *  Values starting with =, +, -, @ are prefixed with a single quote so Sheets
+ *  treats them as plain text instead of evaluating them as formulas. */
+export function sanitizeSheetValue(val) {
+  if (val == null) return '';
+  const s = String(val);
+  if (/^[=+\-@]/.test(s)) return "'" + s;
+  return s;
+}
+
 /** Converts a 0-based column index to a spreadsheet letter (A, B, …, AA, …). */
 export function colLetter(idx) {
   let letter = '';

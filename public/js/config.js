@@ -29,6 +29,10 @@ function renderManageList() { _callRegistered('renderManageList'); }
 // ── Shared account state ─────────────────────────────
 let accounts = [];
 
+// ── Business constants ────────────────────────────────
+const SERVICE_CHARGE = 0.50;          // RM service fee for item orders
+const ACCOUNT_SERVICE_RATE = 0.10;    // 10% service charge for account listings
+
 // ── Admin auth state ─────────────────────────────────
 let adminUnlocked = false;
 let adminToken = null;

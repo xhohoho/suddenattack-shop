@@ -3,6 +3,7 @@ import { sheetsRead, sheetsAppend, sheetsWrite } from '../lib/sheets.js';
 import { uploadToDrive, driveUrl } from '../lib/drive.js';
 import { callGemini, parseGeminiJson } from '../lib/gemini.js';
 import { requireToken } from '../lib/auth.js';
+import { sanitizeSheetValue } from '../lib/sheets.js';
 
 export async function handleGetShopItems(auth, res) {
   const rows = await sheetsRead(auth, 'CurrentShop!A1:F1000');
@@ -25,7 +26,7 @@ export async function handleSaveItems(auth, body, res) {
   requireToken(body);
   const sheets = google.sheets({ version: 'v4', auth });
   await sheets.spreadsheets.values.clear({ spreadsheetId: process.env.SHEET_ID, range: 'CurrentShop!A2:Z1000' });
-  const rows = body.items.map(it => [it.id, it.name, it.desc || '', it.p[7] || '', it.p[15] || '', it.p[30] || '']);
+  const rows = body.items.map(it => [it.id, sanitizeSheetValue(it.name), sanitizeSheetValue(it.desc || ''), it.p[7] || '', it.p[15] || '', it.p[30] || '']);
   await sheetsAppend(auth, 'CurrentShop!A2', rows);
   return res.json({ result: 'ok' });
 }

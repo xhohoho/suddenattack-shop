@@ -7,7 +7,6 @@ DAYS.forEach(d => { qtys[`1_${d}`] = 0; });
 
 let currentOrderId = null;
 let currentOrderTimestamp = null;
-const SERVICE_CHARGE = 0.50;
 
 // ── Table render ───────────────────────────
 

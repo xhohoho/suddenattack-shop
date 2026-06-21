@@ -1,5 +1,5 @@
 import { google } from 'googleapis';
-import { getSheetData, sheetsWrite, sheetsAppend, colLetter } from '../lib/sheets.js';
+import { getSheetData, sheetsWrite, sheetsAppend, colLetter, sanitizeSheetValue } from '../lib/sheets.js';
 import { uploadToDrive, driveUrl, findOrCreateFolder } from '../lib/drive.js';
 import { getDriveAuth, requireToken } from '../lib/auth.js';
 
@@ -14,7 +14,7 @@ export async function handleSaveAccount(auth, body, res) {
   const { headers, data } = await getSheetData(auth, 'AccountList');
   const row = headers.map(h => {
     const key = h.toLowerCase().trim();
-    return acc[key] !== undefined ? acc[key] : '';
+    return acc[key] !== undefined ? sanitizeSheetValue(acc[key]) : '';
   });
   const rowIdx = data.findIndex(r => String(r.id) === String(acc.id));
   if (rowIdx >= 0) {

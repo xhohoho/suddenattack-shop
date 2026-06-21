@@ -128,7 +128,7 @@ function renderGrid() {
     const isSold = status === 'sold';
     const isReserved = status === 'reserved';
     const isPending = status === 'pending';
-    const displayPrice = a.price * 1.10;
+    const displayPrice = a.price * (1 + ACCOUNT_SERVICE_RATE);
     const statusPill = isSold ? '<span class="acc-status-pill s-sold">Sold</span>'
       : isReserved ? '<span class="acc-status-pill s-reserved">Reserved</span>'
       : isPending ? '<span class="acc-status-pill s-pending">Pending Review</span>'
@@ -215,7 +215,7 @@ function openDetail(id) {
   if (a.exp) rows.push(['EXP Progress', esc(a.exp) + '%']);
   if (a.ach) rows.push(['Achievement', esc(a.ach) + '%']);
   const tags = a.notes ? a.notes.split(',').filter(t => t.trim()).map(t => `<span class="tag">${esc(t.trim())}</span>`).join('') : '';
-  const displayPrice = a.price * 1.10;
+  const displayPrice = a.price * (1 + ACCOUNT_SERVICE_RATE);
   const statusPill = isSold ? '<span class="acc-status-pill s-sold" style="font-size:11px;padding:3px 10px">Sold</span>' : isReserved ? '<span class="acc-status-pill s-reserved" style="font-size:11px;padding:3px 10px">Reserved</span>' : isPending ? '<span class="acc-status-pill s-pending" style="font-size:11px;padding:3px 10px">Pending Review</span>' : '<span class="acc-status-pill s-available" style="font-size:11px;padding:3px 10px">Available</span>';
 
   _lastDetailHTML = `
@@ -246,7 +246,7 @@ function closeDetail() {
 function openPay(id) {
   const a = accounts.find(x => x.id === id); if (!a) return;
   currentAccId = id;
-  const finalPrice = a.price * 1.10;
+  const finalPrice = a.price * (1 + ACCOUNT_SERVICE_RATE);
   document.getElementById('modal-acc-info').textContent = a.rank + (a.ign ? ' · ' + a.ign : '') + (a.accid ? ' · ID ' + a.accid : '');
   document.getElementById('modal-amt-acc').textContent = fmt(finalPrice);
   document.getElementById('pay-overlay').classList.add('open');
@@ -364,7 +364,7 @@ function renderManageList() {
   const esc = escapeHtml;
   el.innerHTML = sortedAccounts.map(a => {
     const sellerInfo = a.sellername ? `<div style="font-size:11px;color:var(--text3);margin-top:2px">Seller: ${esc(a.sellername)}${a.sellercontact ? ' · ' + esc(a.sellercontact) : ''}</div>` : '';
-    const publicPrice = a.price * 1.10;
+    const publicPrice = a.price * (1 + ACCOUNT_SERVICE_RATE);
     return `<div class="acc-list-item" id="acc-row-${esc(a.id)}">
       <div class="acc-list-info">
         <div style="display:flex; align-items:center; gap:8px"><strong>${esc(a.rank)}</strong><span style="color:var(--text3); font-size:11px;">(Net: ${fmt(a.price)} → Sell: ${fmt(publicPrice)})</span></div>

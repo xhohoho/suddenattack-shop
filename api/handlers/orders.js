@@ -1,5 +1,5 @@
 import { google } from 'googleapis';
-import { getSheetData, sheetsWrite, sheetsAppend, colLetter } from '../lib/sheets.js';
+import { getSheetData, sheetsWrite, sheetsAppend, colLetter, sanitizeSheetValue } from '../lib/sheets.js';
 import { uploadToDrive, driveUrl } from '../lib/drive.js';
 import { requireToken } from '../lib/auth.js';
 
@@ -20,9 +20,9 @@ export async function handleNewOrder(auth, body, res) {
   }
   const kl = new Date(body.timestamp).toLocaleString('en-US', KL_LOCALE);
   const row = [
-    body.order_id, kl, body.name, body.phone || '',
-    body.email || '', body.items, body.total,
-    body.note || '', body.status || 'New', proofFormula,
+    sanitizeSheetValue(body.order_id), kl, sanitizeSheetValue(body.name), sanitizeSheetValue(body.phone || ''),
+    sanitizeSheetValue(body.email || ''), sanitizeSheetValue(body.items), body.total,
+    sanitizeSheetValue(body.note || ''), sanitizeSheetValue(body.status || 'New'), proofFormula,
   ];
 
   const { data } = await getSheetData(auth, 'Orders');
@@ -43,9 +43,9 @@ export async function handleAccountPurchase(auth, body, res) {
     : `=IMAGE("${driveUrl(fileId, body.mimeType)}")`;
   const kl = new Date(body.timestamp).toLocaleString('en-US', KL_LOCALE);
   const row = [
-    body.order_id, kl, body.name, body.phone || '',
-    body.email || '', body.items, body.total,
-    body.note || '', 'Paid', proofFormula,
+    sanitizeSheetValue(body.order_id), kl, sanitizeSheetValue(body.name), sanitizeSheetValue(body.phone || ''),
+    sanitizeSheetValue(body.email || ''), sanitizeSheetValue(body.items), body.total,
+    sanitizeSheetValue(body.note || ''), 'Paid', proofFormula,
   ];
   await sheetsAppend(auth, 'Orders!A1', [row]);
   return res.json({ result: 'ok' });
@@ -59,7 +59,7 @@ export async function handleUpdateOrderStatus(auth, body, res) {
   if (rowIdx === -1) throw new Error('Order not found');
   const rowNum = rowIdx + 2;
   const statusCol = colLetter(headers.indexOf('status'));
-  await sheetsWrite(auth, `Orders!${statusCol}${rowNum}`, [[body.status]]);
+  await sheetsWrite(auth, `Orders!${statusCol}${rowNum}`, [[sanitizeSheetValue(body.status)]]);
   return res.json({ result: 'ok' });
 }
 
@@ -75,7 +75,7 @@ export async function handleUpdateOrderComment(auth, body, res) {
     commentColIdx = headers.length;
     await sheetsWrite(auth, `Orders!${colLetter(commentColIdx)}1`, [['Comment']]);
   }
-  await sheetsWrite(auth, `Orders!${colLetter(commentColIdx)}${rowNum}`, [[body.comment || '']]);
+  await sheetsWrite(auth, `Orders!${colLetter(commentColIdx)}${rowNum}`, [[sanitizeSheetValue(body.comment || '')]]);
   console.log(`✅ comment saved for ${body.order_id}`);
   return res.json({ result: 'ok' });
 }

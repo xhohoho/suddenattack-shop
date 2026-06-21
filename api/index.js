@@ -1,5 +1,14 @@
 import { getAuth } from './lib/auth.js';
 import crypto from 'crypto';
+
+/** Check admin token and return 401 if missing/invalid. */
+function requireAdmin(body, res) {
+  if (!body._token || body._token !== process.env.ADMIN_TOKEN) {
+    res.status(401).json({ error: 'unauthorized' });
+    return false;
+  }
+  return true;
+}
 import {
   handleGetOrders, handleNewOrder, handleAccountPurchase,
   handleUpdateOrderStatus, handleUpdateOrderComment, handleUploadProofItem,
@@ -67,18 +76,18 @@ export default async function handler(req, res) {
     if (action === 'getDirectUploadUrl')       return handleGetDirectUploadUrl(body, res);
     if (action === 'finalizeUpload')           return handleFinalizeUpload(body, res);
 
-    // ── Admin-only actions (token checked in handlers) ─
-    if (action === 'updateOrderStatus')        return handleUpdateOrderStatus(auth, body, res);
-    if (action === 'updateOrderComment')       return handleUpdateOrderComment(auth, body, res);
-    if (action === 'uploadProofItem')          return handleUploadProofItem(auth, body, res);
-    if (action === 'saveItems')                return handleSaveItems(auth, body, res);
-    if (action === 'extractItems')             return handleExtractItems(auth, body, res);
-    if (action === 'extractAccountStats')      return handleExtractAccountStats(body, res);
-    if (action === 'uploadAccountImage')       return handleUploadAccountImage(auth, body, res);
-    if (action === 'saveAccount')              return handleSaveAccount(auth, body, res);
-    if (action === 'deleteAccount')            return handleDeleteAccount(auth, body, res);
-    if (action === 'updateAccountStatus')      return handleUpdateAccountStatus(auth, body, res);
-    if (action === 'uploadSlideImg')           return handleUploadSlideImg(auth, body, res);
+    // ── Admin-only actions (centralized token guard) ──
+    if (action === 'updateOrderStatus')        { if (!requireAdmin(body, res)) return; return handleUpdateOrderStatus(auth, body, res); }
+    if (action === 'updateOrderComment')       { if (!requireAdmin(body, res)) return; return handleUpdateOrderComment(auth, body, res); }
+    if (action === 'uploadProofItem')          { if (!requireAdmin(body, res)) return; return handleUploadProofItem(auth, body, res); }
+    if (action === 'saveItems')                { if (!requireAdmin(body, res)) return; return handleSaveItems(auth, body, res); }
+    if (action === 'extractItems')             { if (!requireAdmin(body, res)) return; return handleExtractItems(auth, body, res); }
+    if (action === 'extractAccountStats')      { if (!requireAdmin(body, res)) return; return handleExtractAccountStats(body, res); }
+    if (action === 'uploadAccountImage')       { if (!requireAdmin(body, res)) return; return handleUploadAccountImage(auth, body, res); }
+    if (action === 'saveAccount')              { if (!requireAdmin(body, res)) return; return handleSaveAccount(auth, body, res); }
+    if (action === 'deleteAccount')            { if (!requireAdmin(body, res)) return; return handleDeleteAccount(auth, body, res); }
+    if (action === 'updateAccountStatus')      { if (!requireAdmin(body, res)) return; return handleUpdateAccountStatus(auth, body, res); }
+    if (action === 'uploadSlideImg')           { if (!requireAdmin(body, res)) return; return handleUploadSlideImg(auth, body, res); }
 
     return res.status(400).json({ error: `Unknown action: ${action}` });
   } catch (err) {
