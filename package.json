@@ -13,7 +13,6 @@
   },
   "dependencies": {
     "@google-cloud/local-auth": "^3.0.1",
-    "googleapis": "^140.0.1",
-    "playwright": "^1.61.0"
+    "googleapis": "^140.0.1"
   }
 }
