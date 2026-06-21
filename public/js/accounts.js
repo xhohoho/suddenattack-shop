@@ -27,28 +27,37 @@ const RANK_ORDER = [
 
 function getRankIcon(rank) {
   if (!rank) return '🎮';
-  const r = rank.toLowerCase();
+  const r = rank.toLowerCase().trim();
   if (r.includes('supreme')) return '👑';
-  if (r.includes('kotak')) return '🌟';
-  if (r.includes('star')) return '⭐';
-  if (r.includes('major')) return '🪖';
-  if (r.includes('diamond')) return '💎';
+  const lead = r.match(/^(\d+)/);
+  const n = lead ? parseInt(lead[1], 10) : 1;
+  if (r.includes('kotak')) return '⭐⭐⭐⭐⭐📦';
+  if (r.includes('star')) return '⭐'.repeat(Math.min(n, 5));
+  if (r.includes('major')) {
+    let icon = '✳️'.repeat(Math.min(n, 3));
+    const paku = r.match(/(\d+)\s*paku/);
+    if (paku) icon += ' ' + '📌'.repeat(Math.min(parseInt(paku[1], 10), 3));
+    return icon;
+  }
+  if (r.includes('diamond')) return '💎'.repeat(Math.min(n, 3));
+  if (/\d\s*v\b/.test(r)) return 'V'.repeat(Math.min(n, 3));
+  if (r.includes('bar')) return '▬'.repeat(Math.min(n, 4));
   if (/\bskull\b/.test(r)) return '💀';
-  if (/\d\s*v\b/.test(r)) return '🔰';
-  if (r.includes('bar')) return '🎖️';
   return '🎮';
 }
 
 function getRankColor(rank) {
   if (!rank) return 'var(--text2)';
-  const r = rank.toLowerCase();
+  const r = rank.toLowerCase().trim();
+  const lead = r.match(/^(\d+)/);
+  const n = lead ? parseInt(lead[1], 10) : 1;
   if (r.includes('supreme')) return '#ff4d6d';
   if (r.includes('kotak')) return '#ff8a3d';
-  if (r.includes('star')) return '#e8b84b';
-  if (r.includes('major')) return '#9b7fe8';
-  if (r.includes('diamond')) return '#4a9eff';
-  if (/\d\s*v\b/.test(r)) return '#2ecc8a';
-  if (r.includes('bar')) return '#9099a8';
+  if (r.includes('star')) return ['#f5d98c', '#f0c873', '#e8b84b', '#d9a233', '#c78a1d'][Math.min(n, 5) - 1];
+  if (r.includes('major')) return ['#c7b8f5', '#9b7fe8', '#7a56d6'][Math.min(n, 3) - 1];
+  if (r.includes('diamond')) return ['#7ec8ff', '#4a9eff', '#1f6fcc'][Math.min(n, 3) - 1];
+  if (/\d\s*v\b/.test(r)) return ['#7be0ae', '#2ecc8a', '#1f9e68'][Math.min(n, 3) - 1];
+  if (r.includes('bar')) return ['#b9c0cc', '#9099a8', '#717a87', '#545b66'][Math.min(n, 4) - 1];
   if (/\bskull\b/.test(r)) return 'var(--text3)';
   return 'var(--text2)';
 }
