@@ -83,7 +83,8 @@ setInterval(fetchAccounts, 60000);
   const SPEED = 3;
 
   let charWidths = [], totalWidth = 0, offset = 0, animId = null;
-  let baseText = 'Joe Kontol';
+  let baseText = '';
+  let hasRealText = false;
   window._tickerBaseText = baseText;
 
   function setup() {
@@ -127,6 +128,7 @@ setInterval(fetchAccounts, 60000);
   }
 
   function start() {
+    if (!baseText) return; // nothing to show yet — wait for real text
     if (animId) cancelAnimationFrame(animId);
     offset = 0;
     setup(); draw();
@@ -134,13 +136,21 @@ setInterval(fetchAccounts, 60000);
 
   window.setTickerText = function(text) {
     const clean = (text || '').toString().trim();
-    baseText = clean || 'Joe Kontol';
+    if (!clean && hasRealText) return; // don't blank out a value we already have
+    baseText = clean || (hasRealText ? baseText : 'Sudden Attack Shop');
+    hasRealText = true;
     window._tickerBaseText = baseText;
+    wrap.style.visibility = 'visible';
     start();
   };
 
+  // Keep canvas hidden until we have real (or fallback) text, so nothing flashes on load
+  wrap.style.visibility = 'hidden';
+
   window.addEventListener('resize', start);
-  start();
+
+  // Safety fallback: if initData hasn't responded in 4s, show a default instead of staying blank
+  setTimeout(() => { if (!hasRealText) window.setTickerText('Sudden Attack Shop'); }, 4000);
 })();
 
 // ── Audio player ──────────────────────────────
