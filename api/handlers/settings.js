@@ -1,4 +1,4 @@
-import { getSheetData, sheetsRead, sheetsWrite } from '../lib/sheets.js';
+import { getSheetData, sheetsRead, sheetsWrite, sanitizeSheetValue } from '../lib/sheets.js';
 import { uploadToDrive, driveUrl } from '../lib/drive.js';
 import { requireToken } from '../lib/auth.js';
 
@@ -7,7 +7,9 @@ export async function handleGetSettings(auth, res) {
     const { data } = await getSheetData(auth, 'Settings');
     const slideshowRow = data.find(r => r.key === 'slideshow');
     const urls = slideshowRow ? [slideshowRow.slide1, slideshowRow.slide2] : ['', ''];
-    return res.json({ slides: urls });
+    const tickerRaw = await sheetsRead(auth, 'Settings!D2');
+    const ticker = tickerRaw[0]?.[0] || '';
+    return res.json({ slides: urls, ticker });
   } catch {
     return res.status(500).json({ error: 'Settings fetch failed' });
   }
@@ -17,13 +19,22 @@ export async function handleInitData(auth, res) {
   const [ordersResult, itemsResult, settingsRaw] = await Promise.all([
     getSheetData(auth, 'Orders'),
     getSheetData(auth, 'CurrentShop'),
-    sheetsRead(auth, 'Settings!B2:C2'),
+    sheetsRead(auth, 'Settings!B2:D2'),
   ]);
+  const settingsRow = settingsRaw[0] || [];
   return res.json({
     orders: ordersResult.data,
     items: itemsResult.data,
-    slides: settingsRaw[0] || ['', ''],
+    slides: [settingsRow[0] || '', settingsRow[1] || ''],
+    ticker: settingsRow[2] || '',
   });
+}
+
+export async function handleUpdateTicker(auth, body, res) {
+  requireToken(body);
+  const text = sanitizeSheetValue((body.text || '').toString().slice(0, 500));
+  await sheetsWrite(auth, 'Settings!D2', [[text]]);
+  return res.json({ result: 'ok', text });
 }
 
 export async function handleUploadSlideImg(auth, body, res) {

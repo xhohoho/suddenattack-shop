@@ -84,6 +84,7 @@ function switchTab(tab, btn) {
   _lastAdminTab = tab;
   if (tab === 'edit-shop') { loadShopEditor(); shopEditorDirty = false; }
   if (tab === 'orders') loadOrderMgmt();
+  if (tab === 'ticker') loadTickerEditor();
 }
 
 // ── Order management (admin) ───────────────────
@@ -333,6 +334,32 @@ async function saveShopEdit() {
     st.textContent = 'Saved!'; st.style.color = 'var(--green)';
     setTimeout(() => { st.textContent = ''; }, 3000);
   } catch (e) { st.textContent = 'Save failed'; st.style.color = 'var(--red)'; }
+}
+
+// ── Ticker text (admin) ────────────────────────
+
+function loadTickerEditor() {
+  const inp = document.getElementById('ticker-text-input');
+  if (!inp) return;
+  inp.value = window._tickerBaseText || '';
+}
+
+async function saveTickerText() {
+  const inp = document.getElementById('ticker-text-input');
+  const st = document.getElementById('ticker-status');
+  const text = inp.value.trim();
+  if (!text) { st.textContent = 'Enter some ticker text.'; st.style.color = 'var(--red)'; return; }
+  st.textContent = 'Saving...'; st.style.color = 'var(--text2)';
+  try {
+    const resp = await adminFetch({ action: 'updateTicker', text });
+    const result = await resp.json();
+    if (result.error) throw new Error(result.error);
+    if (typeof window.setTickerText === 'function') window.setTickerText(text);
+    st.textContent = 'Saved!'; st.style.color = 'var(--green)';
+    setTimeout(() => { st.textContent = ''; }, 3000);
+  } catch (e) {
+    st.textContent = 'Save failed: ' + e.message; st.style.color = 'var(--red)';
+  }
 }
 
 // ── Slideshow ──────────────────────────────────

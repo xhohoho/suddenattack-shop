@@ -50,6 +50,7 @@
           <button class="admin-tab" onclick="switchTab('orders',this)">Orders</button>
           <button class="admin-tab" onclick="switchTab('manage-accounts',this)">Accounts</button>
           <button class="admin-tab" onclick="switchTab('slideshow',this)">Slideshow</button>
+          <button class="admin-tab" onclick="switchTab('ticker',this)">Ticker</button>
         </div>
 
         <!-- Tab: Extract items -->
@@ -356,6 +357,17 @@
             </div>
           </div>
           <div class="admin-status" id="slide-status"></div>
+        </div>
+
+        <!-- Tab: Ticker -->
+        <div class="admin-tab-content" id="tab-ticker">
+          <div class="admin-hint">Edit the scrolling ticker text shown at the bottom of the page</div>
+          <div class="field">
+            <label>Ticker text</label>
+            <textarea id="ticker-text-input" placeholder="e.g. Welcome to Hohoh0 Shop — fast delivery, trusted seller!" style="min-height:60px"></textarea>
+          </div>
+          <button class="admin-btn" onclick="saveTickerText()">Save ticker</button>
+          <div class="admin-status" id="ticker-status"></div>
         </div>
 
         <!-- Tab: Orders -->

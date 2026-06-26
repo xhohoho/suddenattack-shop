@@ -21,7 +21,7 @@ import {
   handleGetShopItems, handleSaveItems, handleExtractItems, handleExtractAccountStats,
 } from './handlers/shop.js';
 import {
-  handleGetSettings, handleInitData, handleUploadSlideImg,
+  handleGetSettings, handleInitData, handleUploadSlideImg, handleUpdateTicker,
 } from './handlers/settings.js';
 import {
   handleGetDirectUploadUrl, handleFinalizeUpload,
@@ -89,6 +89,7 @@ export default async function handler(req, res) {
     if (action === 'deleteAccount')            { if (!requireAdmin(body, res)) return; return handleDeleteAccount(auth, body, res); }
     if (action === 'updateAccountStatus')      { if (!requireAdmin(body, res)) return; return handleUpdateAccountStatus(auth, body, res); }
     if (action === 'uploadSlideImg')           { if (!requireAdmin(body, res)) return; return handleUploadSlideImg(auth, body, res); }
+    if (action === 'updateTicker')             { if (!requireAdmin(body, res)) return; return handleUpdateTicker(auth, body, res); }
 
     return res.status(400).json({ error: `Unknown action: ${action}` });
   } catch (err) {

@@ -56,6 +56,11 @@ async function unifiedBoot() {
     // 4. Load Accounts
     if (typeof fetchAccounts === 'function') fetchAccounts();
 
+    // 5. Load Ticker text
+    if (d.ticker && typeof window.setTickerText === 'function') {
+      window.setTickerText(d.ticker);
+    }
+
   } catch (e) {
     console.error("Critical Boot Error:", e);
   }
@@ -72,25 +77,24 @@ setInterval(fetchAccounts, 60000);
   const ctx = canvas.getContext('2d');
   const wrap = document.getElementById('tickerContainer');
 
-  const TICKER_TEXT = 'Joe Kontol';
   const FONT = 'bold 13px "Courier New", Courier, monospace';
   const COLOR = '#d4c59a';
   const BG = '#0d0d08';
   const SPEED = 3;
 
   let charWidths = [], totalWidth = 0, offset = 0, animId = null;
+  let baseText = 'Joe Kontol';
+  window._tickerBaseText = baseText;
 
   function setup() {
     canvas.width = wrap.offsetWidth;
     canvas.height = 28;
     ctx.font = FONT;
-    const base = 'Joe Kontol';
-    ctx.font = FONT;
     const spaceW = ctx.measureText(' ').width;
-    const textW = ctx.measureText(base).width;
+    const textW = ctx.measureText(baseText).width;
     const gapNeeded = Math.max(canvas.width, canvas.width - textW + 80);
     const spacesNeeded = Math.ceil(gapNeeded / spaceW);
-    const padded = base + ' '.repeat(spacesNeeded);
+    const padded = baseText + ' '.repeat(spacesNeeded);
     charWidths = Array.from(padded).map(c => ctx.measureText(c).width);
     totalWidth = charWidths.reduce((a, b) => a + b, 0);
     window._tickerText = padded;
@@ -124,8 +128,16 @@ setInterval(fetchAccounts, 60000);
 
   function start() {
     if (animId) cancelAnimationFrame(animId);
+    offset = 0;
     setup(); draw();
   }
+
+  window.setTickerText = function(text) {
+    const clean = (text || '').toString().trim();
+    baseText = clean || 'Joe Kontol';
+    window._tickerBaseText = baseText;
+    start();
+  };
 
   window.addEventListener('resize', start);
   start();
