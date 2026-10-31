@@ -6,3 +6,4 @@ CLAUDE.md
 .env
 node_modules/
 debug.cjs
+.env*

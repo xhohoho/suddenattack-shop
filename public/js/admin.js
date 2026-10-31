@@ -8,6 +8,64 @@ function adminFetch(payload) {
   });
 }
 
+// ── Shared constants ────────────────────────────
+// (Moved to config.js: MAX_IMAGE_SIZE_MB, MAX_VIDEO_SIZE_MB, ALLOWED_IMAGE_TYPES, ALLOWED_VIDEO_TYPES, validateFile)
+
+function showFieldError(inputId, message) {
+  const input = document.getElementById(inputId);
+  if (!input) return;
+  let err = input.parentNode.querySelector('.field-error');
+  if (!err) {
+    err = document.createElement('div');
+    err.className = 'field-error';
+    err.style.cssText = 'font-size:11px;color:var(--red);margin-top:4px;font-family:Inter,sans-serif';
+    input.parentNode.appendChild(err);
+  }
+  err.textContent = message;
+  input.style.borderColor = 'var(--red)';
+}
+
+function clearFieldError(inputId) {
+  const input = document.getElementById(inputId);
+  if (!input) return;
+  const err = input.parentNode.querySelector('.field-error');
+  if (err) err.remove();
+  input.style.borderColor = '';
+}
+
+// ── Loading skeletons ──────────────────────────
+function renderOrderSkeleton(count = 5) {
+  return Array(count).fill(`<div class="admin-skeleton order-skeleton" style="flex-direction:column;align-items:stretch;padding:12px;gap:8px">
+    <div style="display:flex;gap:10px;align-items:center;width:100%">
+      <div style="flex:1"><div class="skel-line short"></div><div class="skel-line med"></div></div>
+      <div style="display:flex;gap:6px"><div class="skel-line" style="width:80px"></div><div class="skel-line" style="width:100px"></div></div>
+    </div>
+    <div class="skel-line" style="width:60%"></div>
+  </div>`).join('');
+}
+
+function renderAccountSkeleton(count = 4) {
+  return Array(count).fill(`<div class="admin-skeleton" style="flex-direction:column;align-items:stretch;padding:10px;gap:6px">
+    <div style="display:flex;gap:8px;align-items:center"><div class="skel-line short"></div><div class="skel-line med"></div></div>
+    <div class="skel-line" style="width:40%"></div>
+    <div style="display:flex;gap:6px"><div class="skel-line" style="width:80px"></div><div class="skel-line" style="width:60px"></div></div>
+  </div>`).join('');
+}
+
+function renderSlideSkeleton() {
+  return `<div class="admin-skeleton" style="aspect-ratio:16/9;border-radius:8px"></div>`;
+}
+
+function setTabLoading(tabId, loading) {
+  const content = document.getElementById('tab-' + tabId);
+  if (!content) return;
+  if (loading) {
+    content.classList.add('tab-loading');
+  } else {
+    content.classList.remove('tab-loading');
+  }
+}
+
 // ── Admin panel ────────────────────────────────
 
 let _lastAdminTab = 'extract';
@@ -49,6 +107,7 @@ async function checkPass() {
 
       loadShopEditor();
       renderManageList();
+      initTickerSpeedControl();
 
       // Re-render the public feed now so inline comment boxes appear immediately
       _lastFeedData = '';
@@ -77,9 +136,10 @@ function switchTab(tab, btn) {
     if (!confirm('You have unsaved changes in Edit Shop. Leave anyway?')) return;
     shopEditorDirty = false;
   }
-  document.querySelectorAll('.admin-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.admin-tab').forEach(t => t.classList.remove('active', 'dirty'));
   document.querySelectorAll('.admin-tab-content').forEach(t => t.classList.remove('active'));
   btn.classList.add('active');
+  if (shopEditorDirty && tab === 'edit-shop') btn.classList.add('dirty');
   document.getElementById('tab-' + tab).classList.add('active');
   _lastAdminTab = tab;
   if (tab === 'edit-shop') { loadShopEditor(); shopEditorDirty = false; }
@@ -87,13 +147,25 @@ function switchTab(tab, btn) {
   if (tab === 'ticker') loadTickerEditor();
 }
 
+// Call this when edit shop inputs change
+function markShopEditorDirty() {
+  shopEditorDirty = true;
+  const editShopTab = document.querySelector(`.admin-tab[onclick*="'edit-shop'"]`);
+  if (editShopTab) editShopTab.classList.add('dirty');
+}
+
 // ── Order management (admin) ───────────────────
 
 let allOrders = [];
+let ordersPageSize = 30;
+let ordersLoaded = 0;
+let selectedOrderIds = new Set();
 
 async function loadOrderMgmt() {
   const el = document.getElementById('order-mgmt-list');
-  el.innerHTML = '<div class="admin-loading">Loading...</div>';
+  el.innerHTML = renderOrderSkeleton(5);
+  selectedOrderIds.clear();
+  ordersLoaded = 0;
   if (allOrders.length) { renderOrderMgmt(); return; }
   await fetchSheet();
   renderOrderMgmt();
@@ -103,33 +175,137 @@ function renderOrderMgmt() {
   const el = document.getElementById('order-mgmt-list');
   if (!allOrders.length) { el.innerHTML = '<div class="admin-loading">No orders</div>'; return; }
   const esc = escapeHtml;
-  el.innerHTML = allOrders.slice(0, 30).map(o => `
-    <div class="order-mgmt-item" id="row-${esc(o.order_id)}" style="flex-direction:column;align-items:stretch">
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;width:100%">
-        <div class="order-mgmt-info">
-          <div class="order-mgmt-id">${esc(o.order_id)}</div>
-          <div class="order-mgmt-name">${esc(o.name)}</div>
-          <div class="order-mgmt-items">${esc(o.items)}</div>
+  const pageOrders = allOrders.slice(0, ordersLoaded + ordersPageSize);
+  const hasMore = ordersLoaded + ordersPageSize < allOrders.length;
+
+  el.innerHTML = `
+    ${pageOrders.map(o => `
+      <div class="order-mgmt-item" id="row-${esc(o.order_id)}" style="flex-direction:column;align-items:stretch">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;width:100%">
+          <div style="display:flex;align-items:center;gap:10px;width:100%">
+            <input type="checkbox" class="order-bulk-check" data-order-id="${esc(o.order_id)}" style="width:16px;height:16px;accent-color:var(--accent);flex-shrink:0" />
+            <div class="order-mgmt-info">
+              <div class="order-mgmt-id">${esc(o.order_id)}</div>
+              <div class="order-mgmt-name">${esc(o.name)}</div>
+              <div class="order-mgmt-items">${esc(o.items)}</div>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
+            <span class="order-mgmt-total">${o.total ? 'RM ' + parseFloat(o.total).toFixed(2) : ''}</span>
+            <select class="status-select" id="st-${esc(o.order_id)}" onchange="inlineUpdateOrderStatus('${esc(o.order_id)}')">
+              <option ${o.status === 'New' ? 'selected' : ''}>New</option>
+              <option ${o.status === 'Paid' ? 'selected' : ''}>Paid</option>
+              <option ${o.status === 'Verified' ? 'selected' : ''}>Verified</option>
+              <option ${o.status === 'Completed' ? 'selected' : ''}>Completed</option>
+            </select>
+            <span id="ind-${esc(o.order_id)}" style="font-size:13px;width:16px;text-align:center;flex-shrink:0"></span>
+          </div>
         </div>
-        <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
-          <span class="order-mgmt-total">${o.total ? 'RM ' + parseFloat(o.total).toFixed(2) : ''}</span>
-          <select class="status-select" id="st-${esc(o.order_id)}">
-            <option ${o.status === 'New' ? 'selected' : ''}>New</option>
-            <option ${o.status === 'Paid' ? 'selected' : ''}>Paid</option>
-            <option ${o.status === 'Verified' ? 'selected' : ''}>Verified</option>
-            <option ${o.status === 'Completed' ? 'selected' : ''}>Completed</option>
-          </select>
-          <button class="save-status-btn" id="btn-${esc(o.order_id)}" onclick="updateOrderStatus('${esc(o.order_id)}')">Save</button>
-          <span id="ind-${esc(o.order_id)}" style="font-size:13px;width:16px;text-align:center;flex-shrink:0"></span>
+        <div style="display:flex;align-items:center;gap:6px;margin-top:8px;width:100%">
+          <input type="text" id="cm-${esc(o.order_id)}" placeholder="Add a comment — visible to everyone" value="${esc(o.comment || '').replace(/"/g, '"')}"
+            style="flex:1;min-width:0;border:1px solid var(--border);border-radius:6px;padding:6px 9px;font-size:12px;font-family:'Inter',sans-serif;color:var(--text);background:var(--bg2);outline:none" />
+          <button class="save-status-btn" id="cmbtn-${esc(o.order_id)}" onclick="saveOrderComment('${esc(o.order_id)}')">Save</button>
+          <span id="cmind-${esc(o.order_id)}" style="font-size:13px;width:16px;text-align:center;flex-shrink:0"></span>
         </div>
-      </div>
-      <div style="display:flex;align-items:center;gap:6px;margin-top:8px;width:100%">
-        <input type="text" id="cm-${esc(o.order_id)}" placeholder="Add a comment — visible to everyone" value="${esc(o.comment || '').replace(/"/g, '&quot;')}"
-          style="flex:1;min-width:0;border:1px solid var(--border);border-radius:6px;padding:6px 9px;font-size:12px;font-family:'Inter',sans-serif;color:var(--text);background:var(--bg2);outline:none" />
-        <button class="save-status-btn" id="cmbtn-${esc(o.order_id)}" onclick="saveOrderComment('${esc(o.order_id)}')">Save</button>
-        <span id="cmind-${esc(o.order_id)}" style="font-size:13px;width:16px;text-align:center;flex-shrink:0"></span>
-      </div>
-    </div>`).join('');
+      </div>`).join('')}
+    ${hasMore ? `
+      <div class="admin-row" style="justify-content:center;margin-top:12px">
+        <button class="admin-btn sec" onclick="loadMoreOrders()" style="width:auto">Load more (${allOrders.length - pageOrders.length} remaining)</button>
+      </div>` : ''}
+    <div id="bulk-actions-bar" style="display:none;margin-top:12px;padding:10px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;gap:8px;flex-wrap:wrap">
+      <span style="font-size:12px;color:var(--text2);font-family:Rajdhani,sans-serif">Selected: <strong id="bulk-count">0</strong> orders</span>
+      <select id="bulk-status-select" class="status-select" style="width:auto">
+        <option value="">— Set status —</option>
+        <option value="Paid">Paid</option>
+        <option value="Verified">Verified</option>
+        <option value="Completed">Completed</option>
+      </select>
+      <button class="admin-btn" onclick="applyBulkStatus()">Apply to selected</button>
+      <button class="admin-btn sec" onclick="clearBulkSelection()">Clear selection</button>
+    </div>`;
+
+  // Attach checkbox listeners
+  pageOrders.forEach(o => {
+    const cb = document.querySelector(`.order-bulk-check[data-order-id="${esc(o.order_id)}"]`);
+    if (cb) cb.addEventListener('change', () => toggleBulkSelect(esc(o.order_id), cb.checked));
+  });
+
+  updateBulkBar();
+}
+
+function loadMoreOrders() {
+  ordersLoaded += ordersPageSize;
+  renderOrderMgmt();
+}
+
+function toggleBulkSelect(orderId, checked) {
+  if (checked) selectedOrderIds.add(orderId);
+  else selectedOrderIds.delete(orderId);
+  updateBulkBar();
+}
+
+function updateBulkBar() {
+  const bar = document.getElementById('bulk-actions-bar');
+  const count = document.getElementById('bulk-count');
+  if (!bar || !count) return;
+  if (selectedOrderIds.size > 0) {
+    bar.style.display = 'flex';
+    count.textContent = selectedOrderIds.size;
+  } else {
+    bar.style.display = 'none';
+  }
+}
+
+function clearBulkSelection() {
+  selectedOrderIds.clear();
+  document.querySelectorAll('.order-bulk-check').forEach(cb => cb.checked = false);
+  updateBulkBar();
+}
+
+async function applyBulkStatus() {
+  const sel = document.getElementById('bulk-status-select');
+  const status = sel.value;
+  if (!status) { showToast('Select a status'); return; }
+  if (selectedOrderIds.size === 0) { showToast('No orders selected'); return; }
+
+  const btn = event.target;
+  btn.disabled = true; btn.textContent = 'Applying...';
+  let success = 0, failed = 0;
+  for (const orderId of selectedOrderIds) {
+    try {
+      await adminFetch({ action: 'updateOrderStatus', order_id: orderId, status });
+      const o = allOrders.find(x => x.order_id === orderId);
+      if (o) o.status = status;
+      success++;
+    } catch (e) { failed++; }
+  }
+  showToast(`Bulk update: ${success} updated${failed ? `, ${failed} failed` : ''}`);
+  btn.disabled = false; btn.textContent = 'Apply to selected';
+  clearBulkSelection();
+  renderOrderMgmt();
+  fetchSheet();
+}
+
+async function inlineUpdateOrderStatus(orderId) {
+  const sel = document.getElementById('st-' + orderId);
+  const ind = document.getElementById('ind-' + orderId);
+  const original = sel.dataset?.original || '';
+  if (!original) { sel.dataset.original = sel.value; return; }
+  if (sel.value === original) return;
+  ind.textContent = '...'; ind.style.color = 'var(--text2)';
+  try {
+    await adminFetch({ action: 'updateOrderStatus', order_id: orderId, status: sel.value });
+    const o = allOrders.find(x => x.order_id === orderId);
+    if (o) o.status = sel.value;
+    sel.dataset.original = sel.value;
+    ind.textContent = '✓'; ind.style.color = 'var(--green)';
+    setTimeout(() => { if (ind) ind.textContent = ''; }, 2000);
+    fetchSheet();
+  } catch (e) {
+    ind.textContent = '✕'; ind.style.color = 'var(--red)';
+    sel.value = original;
+    setTimeout(() => { if (ind) ind.textContent = ''; }, 3000);
+  }
 }
 
 async function updateOrderStatus(orderId) {
@@ -178,6 +354,12 @@ let shopExtractFiles = [null, null];
 
 function handleShopSlotFile(input, idx) {
   const file = input.files[0]; if (!file) return;
+  const validation = validateFile(file);
+  if (!validation.ok) {
+    showToast(validation.error);
+    input.value = '';
+    return;
+  }
   shopExtractFiles[idx] = file;
   const reader = new FileReader();
   reader.onload = e => {
@@ -203,8 +385,10 @@ async function extractItems() {
   if (!shopExtractFiles[0] && !shopExtractFiles[1]) { showToast('Please select at least one shop image.'); return; }
   const btn = document.getElementById('extract-btn');
   const status = document.getElementById('extract-status');
+  const progress = document.getElementById('extract-progress');
   btn.disabled = true; btn.textContent = 'Extracting...';
-  status.textContent = 'Uploading and sending to AI...'; status.style.color = 'var(--text2)';
+  status.textContent = 'Uploading images...'; status.style.color = 'var(--text2)';
+  if (progress) { progress.style.width = '10%'; progress.style.display = 'block'; }
   try {
     const filesToUpload = shopExtractFiles.filter(Boolean);
     const allItems = []; let uploadedUrls = [];
@@ -212,6 +396,8 @@ async function extractItems() {
     for (let i = 0; i < shopExtractFiles.length; i++) {
       const file = shopExtractFiles[i];
       if (!file) continue;
+      status.textContent = `Processing image ${i + 1}/${filesToUpload.length}...`;
+      if (progress) progress.style.width = `${20 + i * 30}%`;
       const base64 = await compressImage(file, 1200, 0.8);
       const dateStr = new Date().toLocaleDateString('en-GB', {timeZone: 'Asia/Kuala_Lumpur'}).replace(/\//g, '');
       const resp = await adminFetch({ action: 'extractItems', fileName: `shop_${i}_${dateStr}.jpg`, base64 });
@@ -223,17 +409,23 @@ async function extractItems() {
         if (slides[i]) slides[i].src = result.url;
       }
     }
+    if (progress) progress.style.width = '80%';
+    status.textContent = 'Saving slides...';
     for (let i = 0; i < uploadedUrls.length; i++) {
       if (slides[i]) slides[i].src = uploadedUrls[i];
       try { await adminFetch({ action: 'uploadSlideImg', slideIndex: i, url: uploadedUrls[i] }); } catch (_) { showToast('Slide ' + (i+1) + ' saved to Drive but sheet update failed'); }
     }
+    if (progress) progress.style.width = '90%';
+    status.textContent = 'Finalizing...';
     startSlideshow();
     const seen = new Set();
     const deduped = allItems.filter(it => { const k = (it.name || '').toLowerCase().trim(); if (seen.has(k)) return false; seen.add(k); return true; });
     renderExtracted(deduped);
+    if (progress) progress.style.width = '100%';
     status.textContent = 'Extracted ' + deduped.length + ' items from ' + filesToUpload.length + ' image(s). Review and apply.';
     status.style.color = 'var(--green)';
-  } catch (e) { status.textContent = 'Failed: ' + e.message; status.style.color = 'var(--red)'; }
+    setTimeout(() => { if (progress) progress.style.display = 'none'; }, 3000);
+  } catch (e) { status.textContent = 'Failed: ' + e.message; status.style.color = 'var(--red)'; if (progress) progress.style.display = 'none'; }
   btn.disabled = false; btn.textContent = 'Upload & Extract items';
 }
 
@@ -242,11 +434,11 @@ function renderExtracted(items) {
   const esc = escapeHtml;
   tbody.innerHTML = items.map((it, i) => `<tr>
     <td>${i + 1}</td>
-    <td><input value="${esc(it.name || '')}" data-field="name" data-idx="${i}"/></td>
-    <td><input value="${esc(it.desc || '')}" data-field="desc" data-idx="${i}"/></td>
-    <td><input value="${esc(it.p7 || '')}" data-field="p7" data-idx="${i}" style="width:60px"/></td>
-    <td><input value="${esc(it.p15 || '')}" data-field="p15" data-idx="${i}" style="width:60px"/></td>
-    <td><input value="${esc(it.p30 || '')}" data-field="p30" data-idx="${i}" style="width:60px"/></td>
+    <td><input id="ext-name-${i}" value="${esc(it.name || '')}" data-field="name" data-idx="${i}"/></td>
+    <td><input id="ext-desc-${i}" value="${esc(it.desc || '')}" data-field="desc" data-idx="${i}"/></td>
+    <td><input id="ext-p7-${i}" value="${esc(it.p7 || '')}" data-field="p7" data-idx="${i}" style="width:60px"/></td>
+    <td><input id="ext-p15-${i}" value="${esc(it.p15 || '')}" data-field="p15" data-idx="${i}" style="width:60px"/></td>
+    <td><input id="ext-p30-${i}" value="${esc(it.p30 || '')}" data-field="p30" data-idx="${i}" style="width:60px"/></td>
   </tr>`).join('');
   document.getElementById('admin-extracted').style.display = 'block';
 }
@@ -255,7 +447,7 @@ function addExtractedRow() {
   const tbody = document.getElementById('extracted-tbody');
   const i = tbody.rows.length;
   const tr = document.createElement('tr');
-  tr.innerHTML = `<td>${i + 1}</td><td><input value="" data-field="name" data-idx="${i}"/></td><td><input value="" data-field="desc" data-idx="${i}"/></td><td><input value="" data-field="p7" data-idx="${i}" style="width:60px"/></td><td><input value="" data-field="p15" data-idx="${i}" style="width:60px"/></td><td><input value="" data-field="p30" data-idx="${i}" style="width:60px"/></td>`;
+  tr.innerHTML = `<td>${i + 1}</td><td><input id="ext-name-${i}" value="" data-field="name" data-idx="${i}"/></td><td><input id="ext-desc-${i}" value="" data-field="desc" data-idx="${i}"/></td><td><input id="ext-p7-${i}" value="" data-field="p7" data-idx="${i}" style="width:60px"/></td><td><input id="ext-p15-${i}" value="" data-field="p15" data-idx="${i}" style="width:60px"/></td><td><input id="ext-p30-${i}" value="" data-field="p30" data-idx="${i}" style="width:60px"/></td>`;
   tbody.appendChild(tr);
 }
 
@@ -271,10 +463,29 @@ function applyNewItems(items) {
 async function applyItems() {
   const rows = document.querySelectorAll('#extracted-tbody tr');
   const newItems = [];
+  let hasErrors = false;
   rows.forEach((row, i) => {
     const get = f => row.querySelector(`[data-field="${f}"]`)?.value.trim() || '';
-    if (get('name')) newItems.push({ id: i + 1, name: get('name'), desc: get('desc'), p: { 7: parseFloat(get('p7')) || 0, 15: parseFloat(get('p15')) || 0, 30: parseFloat(get('p30')) || 0 } });
+    const name = get('name');
+    if (!name) return;
+    const p7 = parseFloat(get('p7'));
+    const p15 = parseFloat(get('p15'));
+    const p30 = parseFloat(get('p30'));
+    // Validate prices
+    [['p7', p7], ['p15', p15], ['p30', p30]].forEach(([field, val]) => {
+      const input = row.querySelector(`[data-field="${field}"]`);
+      if (input) {
+        if (get(field) && (isNaN(val) || val < 0)) {
+          showFieldError(input.id || '', `Invalid price`);
+          hasErrors = true;
+        } else {
+          clearFieldError(input.id || '');
+        }
+      }
+    });
+    newItems.push({ id: i + 1, name, desc: get('desc'), p: { 7: p7 || 0, 15: p15 || 0, 30: p30 || 0 } });
   });
+  if (hasErrors) { showToast('Please fix invalid prices'); return; }
   if (!newItems.length) return;
   applyNewItems(newItems);
   try { await adminFetch({ action: 'saveItems', items: newItems }); showToast('Items updated & saved!'); }
@@ -288,42 +499,62 @@ function loadShopEditor() {
   const tbody = document.getElementById('shop-editor-tbody');
   const esc = escapeHtml;
   tbody.innerHTML = ITEMS.map((it, i) => `<tr>
-    <td class="se-td"><input class="se-input" value="${esc(it.name)}" data-se="name" data-i="${i}"/></td>
-    <td class="se-td"><input class="se-input" value="${esc(it.desc || '')}" data-se="desc" data-i="${i}"/></td>
-    <td class="se-td"><input class="se-input" value="${esc(it.p[7] || '')}" data-se="p7" data-i="${i}" style="width:56px"/></td>
-    <td class="se-td"><input class="se-input" value="${esc(it.p[15] || '')}" data-se="p15" data-i="${i}" style="width:56px"/></td>
-    <td class="se-td"><input class="se-input" value="${esc(it.p[30] || '')}" data-se="p30" data-i="${i}" style="width:56px"/></td>
+    <td class="se-td"><input id="se-name-${i}" class="se-input" value="${esc(it.name)}" data-se="name" data-i="${i}"/></td>
+    <td class="se-td"><input id="se-desc-${i}" class="se-input" value="${esc(it.desc || '')}" data-se="desc" data-i="${i}"/></td>
+    <td class="se-td"><input id="se-p7-${i}" class="se-input" value="${esc(it.p[7] || '')}" data-se="p7" data-i="${i}" style="width:56px"/></td>
+    <td class="se-td"><input id="se-p15-${i}" class="se-input" value="${esc(it.p[15] || '')}" data-se="p15" data-i="${i}" style="width:56px"/></td>
+    <td class="se-td"><input id="se-p30-${i}" class="se-input" value="${esc(it.p[30] || '')}" data-se="p30" data-i="${i}" style="width:56px"/></td>
     <td class="se-td"><button class="se-rm" onclick="removeShopEditorRow(this)">✕</button></td>
   </tr>`).join('');
-  tbody.addEventListener('input', () => { shopEditorDirty = true; }, { once: false });
+  tbody.addEventListener('input', markShopEditorDirty, { once: false });
 }
 
 function addShopEditorRow() {
   const tbody = document.getElementById('shop-editor-tbody');
+  const i = tbody.rows.length;
   const tr = document.createElement('tr');
   tr.innerHTML = `
-    <td class="se-td"><input class="se-input" value="" data-se="name"/></td>
-    <td class="se-td"><input class="se-input" value="" data-se="desc"/></td>
-    <td class="se-td"><input class="se-input" value="" data-se="p7" style="width:56px"/></td>
-    <td class="se-td"><input class="se-input" value="" data-se="p15" style="width:56px"/></td>
-    <td class="se-td"><input class="se-input" value="" data-se="p30" style="width:56px"/></td>
+    <td class="se-td"><input id="se-name-${i}" class="se-input" value="" data-se="name"/></td>
+    <td class="se-td"><input id="se-desc-${i}" class="se-input" value="" data-se="desc"/></td>
+    <td class="se-td"><input id="se-p7-${i}" class="se-input" value="" data-se="p7" style="width:56px"/></td>
+    <td class="se-td"><input id="se-p15-${i}" class="se-input" value="" data-se="p15" style="width:56px"/></td>
+    <td class="se-td"><input id="se-p30-${i}" class="se-input" value="" data-se="p30" style="width:56px"/></td>
     <td class="se-td"><button class="se-rm" onclick="removeShopEditorRow(this)">✕</button></td>`;
   tbody.appendChild(tr);
-  shopEditorDirty = true;
+  markShopEditorDirty();
 }
 
 function removeShopEditorRow(btn) {
   btn.closest('tr').remove();
-  shopEditorDirty = true;
+  markShopEditorDirty();
 }
 
 async function saveShopEdit() {
   const rows = document.querySelectorAll('#shop-editor-tbody tr');
   const newItems = [];
+  let hasErrors = false;
   rows.forEach((row, i) => {
     const get = f => row.querySelector(`[data-se="${f}"]`)?.value.trim() || '';
-    if (get('name')) newItems.push({ id: i + 1, name: get('name'), desc: get('desc'), p: { 7: parseFloat(get('p7')) || 0, 15: parseFloat(get('p15')) || 0, 30: parseFloat(get('p30')) || 0 } });
+    const name = get('name');
+    if (!name) return;
+    const p7 = parseFloat(get('p7'));
+    const p15 = parseFloat(get('p15'));
+    const p30 = parseFloat(get('p30'));
+    // Validate prices
+    [['p7', p7], ['p15', p15], ['p30', p30]].forEach(([field, val]) => {
+      const input = row.querySelector(`[data-se="${field}"]`);
+      if (input) {
+        if (get(field) && (isNaN(val) || val < 0)) {
+          showFieldError(input.id || '', `Invalid price`);
+          hasErrors = true;
+        } else {
+          clearFieldError(input.id || '');
+        }
+      }
+    });
+    newItems.push({ id: i + 1, name, desc: get('desc'), p: { 7: p7 || 0, 15: p15 || 0, 30: p30 || 0 } });
   });
+  if (hasErrors) { showToast('Please fix invalid prices'); return; }
   if (!newItems.length) return;
   const st = document.getElementById('shop-edit-status');
   st.textContent = 'Saving...'; st.style.color = 'var(--text2)';
@@ -342,6 +573,35 @@ function loadTickerEditor() {
   const inp = document.getElementById('ticker-text-input');
   if (!inp) return;
   inp.value = window._tickerBaseText || '';
+  updateTickerCharCount(inp);
+  // Add live character count
+  inp.removeEventListener('input', onTickerInput);
+  inp.addEventListener('input', onTickerInput);
+  // Load saved speed
+  const sel = document.getElementById('ticker-speed-select');
+  if (sel) {
+    const saved = localStorage.getItem('tickerSpeed') || '2';
+    sel.value = saved;
+    if (typeof window.setTickerSpeed === 'function') window.setTickerSpeed(parseFloat(saved));
+  }
+}
+
+function onTickerInput(e) {
+  updateTickerCharCount(e.target);
+}
+
+function updateTickerCharCount(inp) {
+  let counter = document.getElementById('ticker-char-count');
+  if (!counter) {
+    counter = document.createElement('div');
+    counter.id = 'ticker-char-count';
+    counter.style.cssText = 'font-size:11px;color:var(--text3);font-family:Rajdhani,sans-serif;letter-spacing:.05em;text-align:right;margin-top:4px';
+    inp.parentNode.appendChild(counter);
+  }
+  const len = inp.value.length;
+  const max = 500; // reasonable limit
+  counter.textContent = `${len} / ${max} characters`;
+  counter.style.color = len > max ? 'var(--red)' : len > max * 0.8 ? 'var(--accent)' : 'var(--text3)';
 }
 
 async function saveTickerText() {
@@ -362,11 +622,39 @@ async function saveTickerText() {
   }
 }
 
+function resetTickerText() {
+  const inp = document.getElementById('ticker-text-input');
+  const st = document.getElementById('ticker-status');
+  const defaultText = 'Welcome to Hohoh0 Shop — fast delivery, trusted seller!';
+  if (!confirm('Reset ticker to default text?')) return;
+  inp.value = defaultText;
+  updateTickerCharCount(inp);
+  saveTickerText();
+}
+
+// Ticker speed control
+function initTickerSpeedControl() {
+  const sel = document.getElementById('ticker-speed-select');
+  if (!sel) return;
+  // Load saved speed
+  const saved = localStorage.getItem('tickerSpeed') || '2';
+  sel.value = saved;
+  sel.addEventListener('change', () => {
+    localStorage.setItem('tickerSpeed', sel.value);
+    if (typeof window.setTickerSpeed === 'function') window.setTickerSpeed(parseFloat(sel.value));
+    showToast('Ticker speed updated');
+  });
+}
+
+// Call init on admin unlock - add to checkPass() after adminUnlocked = true
+// initTickerSpeedControl();
+
 // ── Slideshow ──────────────────────────────────
 
 let slideshowTimer = null;
 let slideshowIdx = 0;
-let slideUrls = ['', ''];
+let slideUrls = []; // Dynamic array - populated from settings
+let slideDragSrc = null; // For drag-to-reorder
 
 function startSlideshow() {
   if (slideshowTimer) { clearInterval(slideshowTimer); slideshowTimer = null; }
@@ -420,9 +708,10 @@ async function fetchSlideUrls() {
     const d = await r.json();
     const row = d.slides || [];
     const slides = document.querySelectorAll('#slideshow img');
+    // Reset slideUrls to match actual data
+    slideUrls = row.filter(u => u);
     row.forEach((url, i) => {
       if (!url) return;
-      slideUrls[i] = url;
       if (slides[i]) slides[i].src = url;
       if (adminUnlocked) {
         const thumb = document.getElementById('ss-img-' + i);
@@ -431,6 +720,8 @@ async function fetchSlideUrls() {
         if (lbl) lbl.style.display = 'none';
       }
     });
+    // Rebuild admin slideshow tab with current slides
+    if (adminUnlocked) rebuildSlideshowTab();
     document.getElementById('slideshow-area')?.classList.remove('loading');
     slideshowIdx = 0;
     startSlideshow();
@@ -438,8 +729,162 @@ async function fetchSlideUrls() {
   } catch (e) { console.error('Failed to load slides:', e); }
 }
 
+// Rebuild slideshow admin tab with current slides + drag-to-reorder
+function rebuildSlideshowTab() {
+  const container = document.querySelector('#tab-slideshow .slide-grid') || createSlideshowGrid();
+  const esc = escapeHtml;
+  container.innerHTML = slideUrls.map((url, i) => `
+    <div class="slide-item" draggable="true" data-index="${i}" id="slide-item-${i}"
+      style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:10px;display:flex;flex-direction:column;gap:8px;position:relative">
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <span class="slide-label">Slide ${i + 1}</span>
+        <span class="drag-handle" style="cursor:grab;color:var(--text3);font-size:18px;user-select:none" title="Drag to reorder">⋮⋮</span>
+      </div>
+      <div class="img-slot" id="ss-slot-${i}"
+        style="aspect-ratio:16/9;border:1px dashed var(--border2);border-radius:8px;cursor:pointer;position:relative;overflow:hidden;background:var(--bg2);display:flex;align-items:center;justify-content:center;transition:border-color .2s">
+        <input type="file" accept="image/*" onchange="uploadSlide(this,${i})"
+          style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;z-index:5" />
+        <img id="ss-img-${i}" src="${url}" style="width:100%;height:100%;object-fit:cover;display:block;border-radius:7px" />
+        <div id="ss-lbl-${i}" style="text-align:center;pointer-events:none;display:none">
+          <div style="font-size:22px;margin-bottom:4px">📷</div>
+          <div style="font-size:11px;color:var(--text3);font-family:'Rajdhani',sans-serif;letter-spacing:.04em">Tap to upload</div>
+        </div>
+        <div id="ss-prog-${i}" style="position:absolute;bottom:0;left:0;height:3px;background:var(--accent);width:0%;transition:width .3s"></div>
+        <div id="ss-overlay-${i}" style="position:absolute;inset:0;background:rgba(10,11,15,.6);display:none;align-items:center;justify-content:center;font-family:'Rajdhani',sans-serif;font-size:12px;color:var(--text2);letter-spacing:.05em">Uploading…</div>
+      </div>
+      <div style="display:flex;gap:6px;justify-content:flex-end">
+        <button class="admin-btn sec" onclick="clearSlideUpload(${i})" style="font-size:11px;padding:5px 10px">✕ Clear</button>
+      </div>
+    </div>`).join('') + `
+    <div class="slide-item slide-add" id="slide-add-btn"
+      style="background:var(--bg3);border:1px dashed var(--border2);border-radius:8px;padding:20px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;cursor:pointer;min-height:200px"
+      onclick="addSlideSlot()">
+      <div style="font-size:32px;color:var(--accent);opacity:.5">+</div>
+      <div style="font-size:11px;color:var(--text3);font-family:'Rajdhani',sans-serif;letter-spacing:.05em;text-transform:uppercase">Add Slide</div>
+    </div>`;
+
+  // Attach drag events
+  attachSlideDragEvents();
+}
+
+function createSlideshowGrid() {
+  const hint = document.querySelector('#tab-slideshow > div[style*="text-transform:uppercase"]');
+  const grid = document.createElement('div');
+  grid.className = 'slide-grid';
+  grid.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px;margin-bottom:12px';
+  hint.insertAdjacentElement('afterend', grid);
+  return grid;
+}
+
+function attachSlideDragEvents() {
+  document.querySelectorAll('.slide-item[data-index]').forEach(item => {
+    item.addEventListener('dragstart', handleSlideDragStart);
+    item.addEventListener('dragend', handleSlideDragEnd);
+    item.addEventListener('dragover', handleSlideDragOver);
+    item.addEventListener('drop', handleSlideDrop);
+    item.addEventListener('dragenter', handleSlideDragEnter);
+    item.addEventListener('dragleave', handleSlideDragLeave);
+  });
+}
+
+function handleSlideDragStart(e) {
+  if (e.target.closest('.slide-add')) return;
+  slideDragSrc = this;
+  this.classList.add('dragging');
+  e.dataTransfer.effectAllowed = 'move';
+  e.dataTransfer.setData('text/plain', this.dataset.index);
+}
+
+function handleSlideDragEnd(e) {
+  this.classList.remove('dragging');
+  document.querySelectorAll('.slide-item').forEach(el => el.classList.remove('drag-over'));
+  slideDragSrc = null;
+}
+
+function handleSlideDragOver(e) {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  if (this !== slideDragSrc && !this.classList.contains('slide-add')) {
+    this.classList.add('drag-over');
+  }
+}
+
+function handleSlideDragLeave(e) {
+  if (!this.contains(e.relatedTarget)) this.classList.remove('drag-over');
+}
+
+function handleSlideDrop(e) {
+  e.preventDefault();
+  this.classList.remove('drag-over');
+  if (this === slideDragSrc || this.classList.contains('slide-add')) return;
+
+  const fromIdx = parseInt(slideDragSrc.dataset.index);
+  const toIdx = parseInt(this.dataset.index);
+  if (fromIdx === toIdx) return;
+
+  // Reorder slideUrls array
+  const [moved] = slideUrls.splice(fromIdx, 1);
+  slideUrls.splice(toIdx, 0, moved);
+
+  // Save new order to backend
+  saveSlideOrder();
+
+  // Rebuild UI
+  rebuildSlideshowTab();
+  startSlideshow();
+}
+
+async function saveSlideOrder() {
+  try {
+    await adminFetch({ action: 'uploadSlideImg', slideIndex: -1, urls: slideUrls });
+  } catch (e) {
+    showToast('Failed to save slide order: ' + e.message);
+  }
+}
+
+function addSlideSlot() {
+  slideUrls.push('');
+  rebuildSlideshowTab();
+  // Focus the new file input
+  setTimeout(() => {
+    const newIdx = slideUrls.length - 1;
+    const input = document.getElementById(`ss-slot-${newIdx}`)?.querySelector('input');
+    if (input) input.click();
+  }, 100);
+}
+
+// Preview live slides in a modal
+function previewLiveSlides() {
+  const loaded = slideUrls.filter(u => u);
+  if (!loaded.length) { showToast('No slides to preview'); return; }
+
+  const modal = document.createElement('div');
+  modal.className = 'modal-overlay open';
+  modal.style.zIndex = '2000';
+  modal.innerHTML = `
+    <div class="modal" style="max-width:90vw;max-height:90vh;padding:20px">
+      <button class="modal-close" onclick="this.closest('.modal-overlay').remove()">✕</button>
+      <div style="font-family:'Rajdhani',sans-serif;font-size:16px;font-weight:700;color:var(--accent);letter-spacing:.05em;text-transform:uppercase;margin-bottom:16px">Live Slides Preview</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px;max-height:70vh;overflow-y:auto">
+        ${loaded.map((url, i) => `
+          <div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;overflow:hidden">
+            <img src="${url}" style="width:100%;aspect-ratio:16/9;object-fit:cover;display:block" />
+            <div style="padding:8px;font-size:11px;color:var(--text2);font-family:'Rajdhani',sans-serif;text-align:center">Slide ${slideUrls.indexOf(url) + 1}</div>
+          </div>`).join('')}
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+  modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+}
+
 async function uploadSlide(input, idx) {
   const file = input.files[0]; if (!file) return;
+  const validation = validateFile(file);
+  if (!validation.ok) {
+    showToast(validation.error);
+    input.value = '';
+    return;
+  }
   const prog = document.getElementById('ss-prog-' + idx);
   const overlay = document.getElementById('ss-overlay-' + idx);
   const ssImg = document.getElementById('ss-img-' + idx);
@@ -493,7 +938,7 @@ function showSlideStatus(msg, ok) {
   setTimeout(() => { el.textContent = ''; }, 4000);
 }
 
-// ── Admin account form ─────────────────────────
+// ── Admin account form ────────────────────────
 
 // ── Clock ──────────────────────────────────────
 

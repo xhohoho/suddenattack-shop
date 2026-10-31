@@ -99,6 +99,7 @@ async function fetchAccounts() {
     if (adminUnlocked) renderManageList();
   } catch (e) { console.error('Fetch error:', e); }
 }
+window.fetchAccounts = fetchAccounts;
 
 function setFilter(f, btn) {
   currentFilter = f;
@@ -309,6 +310,13 @@ function closeSellModal() { document.getElementById('sell-overlay').classList.re
 
 function handleSellSlot(input, idx) {
   const file = input.files[0]; if (!file) return;
+  // Public sell form: all slots accept image or video
+  const validation = validateFile(file, { maxSizeMB: MAX_VIDEO_SIZE_MB, allowedTypes: [...ALLOWED_IMAGE_TYPES, ...ALLOWED_VIDEO_TYPES] });
+  if (!validation.ok) {
+    showToast(validation.error);
+    input.value = '';
+    return;
+  }
   sellTempFiles[idx] = file;
   const reader = new FileReader();
   reader.onload = e => { const img = document.getElementById('ss-slot-img-' + idx); if (img) { img.src = e.target.result; img.style.display = 'block'; } const lbl = document.getElementById('ss-slot-lbl-' + idx); if (lbl) lbl.style.display = 'none'; const rm = document.getElementById('ss-slot-rm-' + idx); if (rm) rm.style.display = 'block'; };
@@ -372,31 +380,73 @@ function renderManageList() {
         ${sellerInfo}<div class="acc-mgmt-id" style="margin-top:3px">${esc(a.id)}</div>
       </div>
       <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end">
-        <select class="status-select" id="acc-st-${esc(a.id)}">
+        <select class="status-select" id="acc-st-${esc(a.id)}" onchange="inlineUpdateAccStatus('${esc(a.id)}')">
           <option value="pending" ${a.status === 'pending' ? 'selected' : ''}>Pending</option>
           <option value="available" ${a.status === 'available' ? 'selected' : ''}>Available</option>
           <option value="reserved" ${a.status === 'reserved' ? 'selected' : ''}>Reserved</option>
           <option value="sold" ${a.status === 'sold' ? 'selected' : ''}>Sold</option>
         </select>
-        <button class="save-status-btn" id="acc-btn-${esc(a.id)}" onclick="updateAccStatus('${esc(a.id)}')">Save</button>
         <span id="acc-ind-${esc(a.id)}" style="font-size:13px;width:16px;text-align:center;flex-shrink:0"></span>
         <button class="icon-btn" onclick="showAddForm('${esc(a.id)}')" title="Edit">✎</button>
-        <button class="icon-btn danger" onclick="deleteAccount('${esc(a.id)}')" title="Delete">✕</button>
+        <button class="icon-btn danger" onclick="confirmDeleteAccount('${esc(a.id)}', '${esc(a.rank)}')" title="Delete">✕</button>
       </div>
     </div>`;
   }).join('');
+
+  // Store original status for inline update revert
+  sortedAccounts.forEach(a => {
+    const sel = document.getElementById('acc-st-' + esc(a.id));
+    if (sel) sel.dataset.original = a.status;
+  });
 }
 
-async function updateAccStatus(id) {
-  const sel = document.getElementById('acc-st-' + id); const btn = document.getElementById('acc-btn-' + id); const ind = document.getElementById('acc-ind-' + id);
-  btn.disabled = true; btn.textContent = '...'; ind.textContent = '';
+async function inlineUpdateAccStatus(id) {
+  const sel = document.getElementById('acc-st-' + id);
+  const ind = document.getElementById('acc-ind-' + id);
+  const original = sel.dataset?.original || '';
+  if (!original) { sel.dataset.original = sel.value; return; }
+  if (sel.value === original) return;
+  ind.textContent = '...'; ind.style.color = 'var(--text2)';
   try {
     await adminFetch({ action: 'updateAccountStatus', account: { id, status: sel.value } });
     const a = accounts.find(x => x.id === id); if (a) a.status = sel.value;
-    ind.textContent = '✓'; ind.style.color = 'var(--green)'; btn.textContent = 'Save'; btn.disabled = false;
-    setTimeout(() => { if (ind) ind.textContent = ''; }, 3000);
+    sel.dataset.original = sel.value;
+    ind.textContent = '✓'; ind.style.color = 'var(--green)';
+    setTimeout(() => { if (ind) ind.textContent = ''; }, 2000);
     renderGrid();
-  } catch (e) { ind.textContent = '✕'; ind.style.color = 'var(--red)'; btn.textContent = 'Save'; btn.disabled = false; setTimeout(() => { if (ind) ind.textContent = ''; }, 4000); }
+  } catch (e) {
+    ind.textContent = '✕'; ind.style.color = 'var(--red)';
+    sel.value = original;
+    setTimeout(() => { if (ind) ind.textContent = ''; }, 3000);
+  }
+}
+
+// Keep old function for compatibility (not used in new render)
+async function updateAccStatus(id) {
+  return inlineUpdateAccStatus(id);
+}
+
+function confirmDeleteAccount(id, rank) {
+  const account = accounts.find(x => x.id === id);
+  if (!account) return;
+  const confirmText = `Type "${account.rank}" to confirm deletion:`;
+  const input = prompt(confirmText);
+  if (input !== account.rank) {
+    showToast('Deletion cancelled — name did not match');
+    return;
+  }
+  deleteAccount(id);
+}
+
+async function deleteAccount(id) {
+  const a = accounts.find(x => x.id === id); if (!a) return;
+  try {
+    const resp = await adminFetch({ action: 'deleteAccount', acc_id: id, ign: a.ign }); const result = await resp.json();
+    if (result.error) throw new Error(result.error);
+    _lastDetailId = null; _lastDetailHTML = '';
+    const detailEl = document.getElementById('detail-content'); if (detailEl) detailEl.innerHTML = '';
+    _lastAccountData = ''; showToast('Account deleted successfully.'); await fetchAccounts();
+  } catch (e) { showToast('Delete failed: ' + e.message); }
 }
 
 // ── Admin: account form ────────────────────
@@ -417,6 +467,11 @@ function showAddForm(id = null) {
       populateSlots(a);
     }
   }
+  // Mark required fields
+  ['f-rank', 'f-price'].forEach(id => {
+    const field = document.getElementById(id)?.closest('.field');
+    if (field) field.classList.add('required');
+  });
   document.getElementById('acc-form').style.display = 'block';
   document.getElementById('acc-form').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
@@ -453,6 +508,15 @@ function applyStatsToForm() {
 
 async function handleSlotFile(input, idx) {
   const file = input.files[0]; if (!file) return;
+  // Slot 0 = stats screenshot (image only), slots 1-3 = image or video
+  const allowedTypes = idx === 0 ? ALLOWED_IMAGE_TYPES : [...ALLOWED_IMAGE_TYPES, ...ALLOWED_VIDEO_TYPES];
+  const maxSizeMB = idx === 0 ? MAX_IMAGE_SIZE_MB : MAX_VIDEO_SIZE_MB;
+  const validation = validateFile(file, { maxSizeMB, allowedTypes });
+  if (!validation.ok) {
+    showToast(validation.error);
+    input.value = '';
+    return;
+  }
   tempFiles[idx] = file;
   const reader = new FileReader();
   reader.onload = e => {

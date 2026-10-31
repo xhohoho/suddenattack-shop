@@ -1236,6 +1236,155 @@
       }
     }
 
+    /* ── Admin tab loading skeletons ── */
+    .tab-loading > *:not(.admin-skeleton) {
+      opacity: 0.3;
+      pointer-events: none;
+    }
+
+    .admin-skeleton {
+      background: linear-gradient(90deg, var(--bg2) 25%, var(--bg3) 50%, var(--bg2) 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s infinite;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+    }
+
+    .order-skeleton {
+      flex-direction: column !important;
+      align-items: stretch !important;
+      padding: 12px !important;
+      gap: 8px !important;
+    }
+
+    .skel-line {
+      background: var(--bg3);
+      border-radius: 4px;
+      height: 12px;
+      animation: shimmer 1.5s infinite;
+    }
+    .skel-line.short { width: 40% }
+    .skel-line.med { width: 65% }
+    .skel-line.full { width: 100% }
+
+    @keyframes shimmer {
+      0%, 100% { opacity: 0.4; background-position: 200% 0; }
+      50% { opacity: 0.9; background-position: -200% 0; }
+    }
+
+    /* ── Required field indicator ── */
+    .field label::after {
+      content: '';
+      display: inline-block;
+      margin-left: 4px;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: transparent;
+    }
+    .field.required label::after {
+      background: var(--red);
+    }
+
+    /* ── Tab dirty indicator ── */
+    .admin-tab.dirty::after {
+      content: '●';
+      display: inline-block;
+      margin-left: 6px;
+      font-size: 10px;
+      color: var(--red);
+      animation: pulse 1s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    /* ── Drag-to-reorder slides ── */
+    .slide-item.dragging { opacity: 0.5; border-color: var(--accent); }
+    .slide-item.drag-over { border-color: var(--accent); background: var(--accent); background: #e8b84b10; }
+    .slide-item.drag-over::before { content: ''; position: absolute; top: -2px; left: 0; right: 0; height: 2px; background: var(--accent); }
+    .drag-handle:hover { color: var(--accent) !important; cursor: grab; }
+    .drag-handle:active { cursor: grabbing; }
+
+    /* ── Mobile responsive admin panel ── */
+    @media (max-width: 680px) {
+      .admin-panel.open {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        border-radius: 0;
+        max-height: 100vh;
+        padding: 1rem;
+        z-index: 200;
+        overflow-y: auto;
+      }
+      .admin-tabs {
+        overflow-x: auto;
+        flex-wrap: nowrap;
+        -webkit-overflow-scrolling: touch;
+        padding-bottom: 4px;
+      }
+      .admin-tab {
+        white-space: nowrap;
+        padding: 8px 12px;
+        font-size: 11px;
+      }
+      .admin-row {
+        flex-direction: column;
+        align-items: stretch;
+      }
+      .admin-row > * { width: 100%; }
+      .form-grid, .form-grid-3 {
+        grid-template-columns: 1fr;
+      }
+      .img-slots {
+        grid-template-columns: repeat(2, 1fr);
+      }
+      .slide-grid {
+        grid-template-columns: 1fr !important;
+      }
+      .order-mgmt-item {
+        padding: 10px !important;
+      }
+      .order-mgmt-info { min-width: 0; }
+      .order-mgmt-items { max-width: 180px; }
+      .bulk-actions-bar {
+        flex-direction: column;
+        align-items: stretch;
+      }
+      .bulk-actions-bar > * { width: 100%; }
+      .acc-list-item {
+        flex-direction: column;
+        align-items: stretch;
+      }
+      .acc-list-item > div:last-child {
+        justify-content: flex-end;
+      }
+      .status-select { width: 100%; }
+      .buy-btn { width: 100%; }
+      .carousel-arrow { width: 28px; height: 28px; font-size: 12px; }
+      .carousel-arrow.prev { left: 4px; }
+      .carousel-arrow.next { right: 4px; }
+      .modal { margin: 8px; max-height: 95vh; }
+    }
+
+    @media (max-width: 480px) {
+      .topbar { padding: 0.5rem; }
+      .page-title { font-size: 18px; }
+      .admin-toggle { font-size: 10px; padding: 2px 6px; }
+      .banner-info { padding: 10px; }
+      .seller-name { font-size: 14px; }
+      .section-title { font-size: 12px; }
+      .acc-grid { grid-template-columns: 1fr; }
+      .slide-grid { grid-template-columns: 1fr; }
+      .filter-bar { flex-direction: column; align-items: stretch; }
+      .search-wrap { min-width: 0; }
+      .results-count { margin-left: 0; margin-top: 8px; }
+    }
+
     .bottom-ticker {
       position: fixed;
       bottom: 0;

@@ -95,3 +95,4 @@ async function fetchSheet() {
     document.getElementById('sync-lbl').textContent = 'Synced ' + new Date().toLocaleTimeString();
   } catch (e) { document.getElementById('sync-lbl').textContent = 'Sync failed'; }
 }
+window.fetchSheet = fetchSheet;

@@ -88,6 +88,7 @@
               items</button>
           </div>
           <div class="admin-status" id="extract-status"></div>
+          <div id="extract-progress" style="height:4px;background:var(--bg3);border-radius:2px;overflow:hidden;display:none;margin-top:6px"><div style="height:100%;width:0%;background:var(--accent);transition:width .3s"></div></div>
           <div class="admin-extracted" id="admin-extracted">
             <div
               style="font-size:11px;color:var(--text3);font-family:'Rajdhani',sans-serif;letter-spacing:.05em;text-transform:uppercase;margin-bottom:8px">
@@ -309,52 +310,12 @@
         <div class="admin-tab-content" id="tab-slideshow">
           <div
             style="font-size:11px;color:var(--text3);font-family:'Rajdhani',sans-serif;letter-spacing:.05em;margin-bottom:14px;text-transform:uppercase">
-            Upload images — slideshow updates automatically</div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
-            <div>
-              <div class="slide-label">Slide 1</div>
-              <div class="img-slot" id="ss-slot-0"
-                style="aspect-ratio:16/9;border:1px dashed var(--border2);border-radius:8px;cursor:pointer;position:relative;overflow:hidden;background:var(--bg2);display:flex;align-items:center;justify-content:center;transition:border-color .2s">
-                <input type="file" accept="image/*" onchange="uploadSlide(this,0)"
-                  style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;z-index:5" />
-                <img id="ss-img-0" style="width:100%;height:100%;object-fit:cover;display:none;border-radius:7px" />
-                <div id="ss-lbl-0" style="text-align:center;pointer-events:none">
-                  <div style="font-size:22px;margin-bottom:4px">📷</div>
-                  <div style="font-size:11px;color:var(--text3);font-family:'Rajdhani',sans-serif;letter-spacing:.04em">
-                    Tap to upload</div>
-                </div>
-                <div id="ss-prog-0"
-                  style="position:absolute;bottom:0;left:0;height:3px;background:var(--accent);width:0%;transition:width .3s">
-                </div>
-                <div id="ss-overlay-0"
-                  style="position:absolute;inset:0;background:rgba(10,11,15,.6);display:none;align-items:center;justify-content:center;font-family:'Rajdhani',sans-serif;font-size:12px;color:var(--text2);letter-spacing:.05em">
-                  Uploading…</div>
-              </div>
-              <button class="admin-btn sec" onclick="clearSlideUpload(0)"
-                style="width:100%;margin-top:6px;font-size:11px;padding:5px">✕ Clear</button>
-            </div>
-            <div>
-              <div class="slide-label">Slide 2</div>
-              <div class="img-slot" id="ss-slot-1"
-                style="aspect-ratio:16/9;border:1px dashed var(--border2);border-radius:8px;cursor:pointer;position:relative;overflow:hidden;background:var(--bg2);display:flex;align-items:center;justify-content:center;transition:border-color .2s">
-                <input type="file" accept="image/*" onchange="uploadSlide(this,1)"
-                  style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;z-index:5" />
-                <img id="ss-img-1" style="width:100%;height:100%;object-fit:cover;display:none;border-radius:7px" />
-                <div id="ss-lbl-1" style="text-align:center;pointer-events:none">
-                  <div style="font-size:22px;margin-bottom:4px">📷</div>
-                  <div style="font-size:11px;color:var(--text3);font-family:'Rajdhani',sans-serif;letter-spacing:.04em">
-                    Tap to upload</div>
-                </div>
-                <div id="ss-prog-1"
-                  style="position:absolute;bottom:0;left:0;height:3px;background:var(--accent);width:0%;transition:width .3s">
-                </div>
-                <div id="ss-overlay-1"
-                  style="position:absolute;inset:0;background:rgba(10,11,15,.6);display:none;align-items:center;justify-content:center;font-family:'Rajdhani',sans-serif;font-size:12px;color:var(--text2);letter-spacing:.05em">
-                  Uploading…</div>
-              </div>
-              <button class="admin-btn sec" onclick="clearSlideUpload(1)"
-                style="width:100%;margin-top:6px;font-size:11px;padding:5px">✕ Clear</button>
-            </div>
+            Upload images — slideshow updates automatically. Drag ⋮⋮ to reorder.</div>
+          <div class="admin-row" style="margin-bottom:12px;justify-content:flex-end">
+            <button class="admin-btn sec" onclick="previewLiveSlides()" style="font-size:11px;padding:6px 12px">👁 Preview Live Slides</button>
+          </div>
+          <div class="slide-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px;margin-bottom:12px">
+            <!-- Dynamically populated by rebuildSlideshowTab() -->
           </div>
           <div class="admin-status" id="slide-status"></div>
         </div>
@@ -366,7 +327,20 @@
             <label>Ticker text</label>
             <textarea id="ticker-text-input" placeholder="e.g. Welcome to Hohoh0 Shop — fast delivery, trusted seller!" style="min-height:60px"></textarea>
           </div>
-          <button class="admin-btn" onclick="saveTickerText()">Save ticker</button>
+          <div class="admin-row" style="margin-top:12px;gap:8px;flex-wrap:wrap">
+            <button class="admin-btn" onclick="saveTickerText()">Save ticker</button>
+            <button class="admin-btn sec" onclick="resetTickerText()">↺ Reset to default</button>
+          </div>
+          <div class="field" style="margin-top:12px">
+            <label>Scroll speed</label>
+            <select id="ticker-speed-select" style="width:auto;padding:8px 11px">
+              <option value="0.5">Very slow</option>
+              <option value="1">Slow</option>
+              <option value="2" selected>Normal</option>
+              <option value="3">Fast</option>
+              <option value="5">Very fast</option>
+            </select>
+          </div>
           <div class="admin-status" id="ticker-status"></div>
         </div>
 

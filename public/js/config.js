@@ -33,6 +33,23 @@ let accounts = [];
 const SERVICE_CHARGE = 0.50;          // RM service fee for item orders
 const ACCOUNT_SERVICE_RATE = 0.10;    // 10% service charge for account listings
 
+// ── Shared validation constants ──────────────────────
+const MAX_IMAGE_SIZE_MB = 5;
+const MAX_VIDEO_SIZE_MB = 50;
+const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+const ALLOWED_VIDEO_TYPES = ['video/mp4', 'video/webm', 'video/quicktime'];
+
+function validateFile(file, { maxSizeMB = MAX_IMAGE_SIZE_MB, allowedTypes = ALLOWED_IMAGE_TYPES } = {}) {
+  if (!file) return { ok: false, error: 'No file selected' };
+  if (file.size > maxSizeMB * 1024 * 1024) {
+    return { ok: false, error: `File too large (max ${maxSizeMB}MB)` };
+  }
+  if (!allowedTypes.includes(file.type)) {
+    return { ok: false, error: `Invalid file type. Allowed: ${allowedTypes.join(', ')}` };
+  }
+  return { ok: true };
+}
+
 // ── Admin auth state ─────────────────────────────────
 let adminUnlocked = false;
 let adminToken = null;
