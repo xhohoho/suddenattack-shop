@@ -34,14 +34,11 @@ export async function handleInitData(auth, res) {
     sheetsRead(auth, 'Settings!B2:D2'),
   ]);
 
-  // Mask orders for public
+  // Return orders for public (show full name publicly)
   const publicOrders = ordersResult.data.map(row => {
     const filtered = {};
     for (const field of PUBLIC_ORDER_FIELDS) {
       filtered[field] = row[field];
-    }
-    if (filtered.name) {
-      filtered.name = filtered.name.charAt(0) + '*'.repeat(Math.max(0, filtered.name.length - 1));
     }
     return filtered;
   });

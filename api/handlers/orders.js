@@ -59,15 +59,11 @@ function computeOrderTotal(items, prices) {
 
 export async function handleGetOrders(auth, res) {
   const { data } = await getSheetData(auth, 'Orders');
-  // Return only whitelisted fields for public callers
+  // Return only whitelisted fields for public callers (show full name publicly)
   const publicData = data.map(row => {
     const filtered = {};
     for (const field of PUBLIC_ORDER_FIELDS) {
       filtered[field] = row[field];
-    }
-    // Mask name: show first letter + asterisks
-    if (filtered.name) {
-      filtered.name = filtered.name.charAt(0) + '*'.repeat(Math.max(0, filtered.name.length - 1));
     }
     return filtered;
   });
