@@ -47,12 +47,6 @@ export default async function handler(req, res) {
 
   // ── Origin validation for write actions ───────────────
   const origin = req.headers.origin || req.headers.referer;
-  const action = req.body?.action;
-  if (req.method === 'POST' && WRITE_ACTIONS.has(action)) {
-    if (!origin || !origin.startsWith(ALLOWED_ORIGIN)) {
-      return res.status(403).json({ error: 'Forbidden: Invalid origin' });
-    }
-  }
 
   // ── GET → default to getOrders ────────────────────────
   if (req.method === 'GET') {
@@ -63,6 +57,13 @@ export default async function handler(req, res) {
   // ── POST → route by action ────────────────────────────
   const body = req.body;
   const { action } = body;
+
+  // Origin validation for write actions
+  if (WRITE_ACTIONS.has(action)) {
+    if (!origin || !origin.startsWith(ALLOWED_ORIGIN)) {
+      return res.status(403).json({ error: 'Forbidden: Invalid origin' });
+    }
+  }
 
   try {
     const auth = await getAuth().getClient();
