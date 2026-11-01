@@ -7,3 +7,6 @@ CLAUDE.md
 node_modules/
 debug.cjs
 .env*
+debug-*.png
+playwright-*.js
+public/js/*.bak
