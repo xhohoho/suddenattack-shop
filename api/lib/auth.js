@@ -1,4 +1,5 @@
 import { google } from 'googleapis';
+import crypto from 'crypto';
 
 /**
  * Returns a GoogleAuth client using the service account credentials.
@@ -56,4 +57,45 @@ export function requireToken(body) {
   if (!body._token || body._token !== process.env.ADMIN_TOKEN) {
     throw new Error('Unauthorized');
   }
+}
+
+/**
+ * Admin token verification for middleware use.
+ * Returns true if valid, false otherwise (and sends 401).
+ */
+export function requireAdminToken(body, res) {
+  if (!body._token || body._token !== process.env.ADMIN_TOKEN) {
+    res.status(401).json({ error: 'unauthorized' });
+    return false;
+  }
+  return true;
+}
+
+/**
+ * Generates an order token (HMAC) for proof upload authorization.
+ * The token binds an order_id to a server secret.
+ */
+export function generateOrderToken(orderId) {
+  const secret = process.env.ORDER_TOKEN_SECRET || process.env.ADMIN_TOKEN;
+  return crypto.createHmac('sha256', secret).update(orderId).digest('hex');
+}
+
+/**
+ * Verifies an order token for proof upload.
+ * Returns true if valid, false otherwise (and sends 401).
+ */
+export function verifyOrderToken(body, res) {
+  const { order_id, order_token } = body;
+  if (!order_id || !order_token) {
+    res.status(401).json({ error: 'missing order_token' });
+    return false;
+  }
+  const expected = generateOrderToken(order_id);
+  const provided = Buffer.from(order_token);
+  const expectedBuf = Buffer.from(expected);
+  if (provided.length !== expectedBuf.length || !crypto.timingSafeEqual(provided, expectedBuf)) {
+    res.status(401).json({ error: 'invalid order_token' });
+    return false;
+  }
+  return true;
 }

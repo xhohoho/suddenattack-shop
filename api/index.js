@@ -1,13 +1,9 @@
-import { getAuth } from './lib/auth.js';
+import { getAuth, requireAdminToken, verifyOrderToken } from './lib/auth.js';
 import crypto from 'crypto';
 
 /** Check admin token and return 401 if missing/invalid. */
 function requireAdmin(body, res) {
-  if (!body._token || body._token !== process.env.ADMIN_TOKEN) {
-    res.status(401).json({ error: 'unauthorized' });
-    return false;
-  }
-  return true;
+  return requireAdminToken(body, res);
 }
 import {
   handleGetOrders, handleNewOrder, handleAccountPurchase,
@@ -15,7 +11,7 @@ import {
 } from './handlers/orders.js';
 import {
   handleGetAccounts, handleSaveAccount, handleDeleteAccount,
-  handleUpdateAccountStatus, handleUploadAccountImage, handleUploadPublicAccountImage, handleReserveAccount,
+  handleUpdateAccountStatus, handleUploadAccountImage, handleUploadPublicAccountImage, handleSubmitListing,
 } from './handlers/accounts.js';
 import {
   handleGetShopItems, handleSaveItems, handleExtractItems, handleExtractAccountStats,
@@ -30,14 +26,32 @@ import {
 // ══════════════════════════════════════════
 // MAIN HANDLER — slim router
 // ══════════════════════════════════════════
+const ALLOWED_ORIGIN = 'https://suddenattack.safie.cc';
+const WRITE_ACTIONS = new Set([
+  'newOrder', 'accountPurchase', 'submitListing', 'uploadPublicAccountImage',
+  'uploadProofItem', 'getDirectUploadUrl', 'finalizeUpload',
+  'adminAuth', 'updateOrderStatus', 'updateOrderComment', 'saveItems',
+  'extractItems', 'extractAccountStats', 'uploadAccountImage', 'saveAccount',
+  'deleteAccount', 'updateAccountStatus', 'uploadSlideImg', 'updateTicker'
+]);
+
 export default async function handler(req, res) {
   // ── CORS ──────────────────────────────────────────────
-  res.setHeader('Access-Control-Allow-Origin', 'https://suddenattack.safie.cc');
+  res.setHeader('Access-Control-Allow-Origin', ALLOWED_ORIGIN);
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'GET' && req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  // ── Origin validation for write actions ───────────────
+  const origin = req.headers.origin || req.headers.referer;
+  const action = req.body?.action;
+  if (req.method === 'POST' && WRITE_ACTIONS.has(action)) {
+    if (!origin || !origin.startsWith(ALLOWED_ORIGIN)) {
+      return res.status(403).json({ error: 'Forbidden: Invalid origin' });
+    }
   }
 
   // ── GET → default to getOrders ────────────────────────
@@ -69,10 +83,11 @@ export default async function handler(req, res) {
     if (action === 'initData')                 return handleInitData(auth, res);
     if (action === 'newOrder')                 return handleNewOrder(auth, body, res);
     if (action === 'accountPurchase')          return handleAccountPurchase(auth, body, res);
-    if (action === 'saveAccount' && body.isNew) return handleSaveAccount(auth, body, res);
+    if (action === 'submitListing')            return handleSubmitListing(auth, body, res);
     if (action === 'uploadPublicAccountImage') return handleUploadPublicAccountImage(auth, body, res);
     if (action === 'uploadProofItem')          return handleUploadProofItem(auth, body, res);
-    if (action === 'reserveAccount')           return handleReserveAccount(auth, body, res);
+    // REMOVED: reserveAccount (folded into accountPurchase)
+    // REMOVED: saveAccount with isNew (replaced by submitListing)
 
     // ── Direct upload (browser → Drive) ───────────────
     if (action === 'getDirectUploadUrl')       return handleGetDirectUploadUrl(body, res);
@@ -94,6 +109,11 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: `Unknown action: ${action}` });
   } catch (err) {
     console.error('❌ API error:', err);
-    return res.status(500).json({ error: 'Internal Server Error', details: err.message });
+    // Don't expose internal error details in production
+    const isDev = process.env.NODE_ENV === 'development';
+    return res.status(500).json({
+      error: 'Internal Server Error',
+      ...(isDev && { details: err.message })
+    });
   }
 }

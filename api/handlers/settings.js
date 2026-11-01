@@ -2,6 +2,9 @@ import { getSheetData, sheetsRead, sheetsWrite, sanitizeSheetValue } from '../li
 import { uploadToDrive, driveUrl } from '../lib/drive.js';
 import { requireToken } from '../lib/auth.js';
 
+// Whitelist for public settings reads
+const PUBLIC_SETTINGS_FIELDS = ['slides', 'ticker'];
+
 export async function handleGetSettings(auth, res) {
   try {
     const { data } = await getSheetData(auth, 'Settings');
@@ -15,15 +18,37 @@ export async function handleGetSettings(auth, res) {
   }
 }
 
+/**
+ * Public: initData - returns only public-safe data
+ * - Orders: whitelisted fields, masked names
+ * - Items: CurrentShop data
+ * - Settings: slides + ticker
+ * Does NOT return phone, email, seller info, or pending accounts
+ */
 export async function handleInitData(auth, res) {
+  const PUBLIC_ORDER_FIELDS = ['order_id', 'timestamp', 'name', 'items', 'total', 'status', 'comment', 'proof'];
+
   const [ordersResult, itemsResult, settingsRaw] = await Promise.all([
     getSheetData(auth, 'Orders'),
     getSheetData(auth, 'CurrentShop'),
     sheetsRead(auth, 'Settings!B2:D2'),
   ]);
+
+  // Mask orders for public
+  const publicOrders = ordersResult.data.map(row => {
+    const filtered = {};
+    for (const field of PUBLIC_ORDER_FIELDS) {
+      filtered[field] = row[field];
+    }
+    if (filtered.name) {
+      filtered.name = filtered.name.charAt(0) + '*'.repeat(Math.max(0, filtered.name.length - 1));
+    }
+    return filtered;
+  });
+
   const settingsRow = settingsRaw[0] || [];
   return res.json({
-    orders: ordersResult.data,
+    orders: publicOrders,
     items: itemsResult.data,
     slides: [settingsRow[0] || '', settingsRow[1] || ''],
     ticker: settingsRow[2] || '',
