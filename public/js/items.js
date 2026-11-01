@@ -7,6 +7,7 @@ DAYS.forEach(d => { qtys[`1_${d}`] = 0; });
 
 let currentOrderId = null;
 let currentOrderTimestamp = null;
+let currentOrderToken = null;
 
 // ── Table render ───────────────────────────
 
@@ -66,6 +67,15 @@ function getLines() {
   return l.join('; ');
 }
 
+function getOrderItems() {
+  const items = [];
+  ITEMS.forEach(it => DAYS.forEach(d => {
+    const q = qtys[`${it.id}_${d}`];
+    if (q > 0) items.push({ id: it.id, days: d, qty: q });
+  }));
+  return items;
+}
+
 function getTotal() {
   return ITEMS.reduce((s, it) => s + DAYS.reduce((ss, d) => ss + qtys[`${it.id}_${d}`] * it.p[d], 0), 0);
 }
@@ -85,23 +95,29 @@ async function submitOrder() {
   const name = document.getElementById('fn').value.trim();
   if (!name) { showToast('Please enter your in-game name.'); return; }
   if (!Object.values(qtys).some(v => v > 0)) { showToast('Add at least one item.'); return; }
+  const items = getOrderItems();
+  const total = (getTotal() + SERVICE_CHARGE).toFixed(2);
   const payload = {
-    order_id: genId('ORD'), timestamp: new Date().toISOString(),
-    name, phone: '', email: '', items: getLines(),
-    total: (getTotal() + SERVICE_CHARGE).toFixed(2),
+    timestamp: new Date().toISOString(),
+    name, phone: '', email: '', items,
+    total,
     note: document.getElementById('fno').value.trim(),
     status: 'New', proof: ''
   };
   const btn = document.getElementById('sbtn');
   btn.disabled = true; btn.textContent = 'Submitting...';
   try {
-    await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...payload, action: 'newOrder' }) });
+    const resp = await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...payload, action: 'newOrder' }) });
+    const result = await resp.json();
+    if (result.error) throw new Error(result.error);
+    // Store order_token for proof upload
+    currentOrderToken = result.order_token;
     ['fn', 'fno'].forEach(id => document.getElementById(id).value = '');
     ITEMS.forEach(it => DAYS.forEach(d => { qtys[`${it.id}_${d}`] = 0; }));
     document.querySelectorAll('.qty-num').forEach(el => { el.textContent = '0'; el.className = 'qty-num zero'; });
     recalc();
     await fetchSheet();
-    openModal(payload.total, payload.order_id, payload.timestamp);
+    openModal(total, result.order_id, payload.timestamp);
   } catch (e) { showToast('Failed to submit. Check your connection.'); }
   btn.disabled = false; btn.textContent = 'Place order';
 }
@@ -151,7 +167,7 @@ async function uploadProofItem() {
   const btn = document.getElementById('upload-btn-item');
   btn.disabled = true; btn.textContent = 'Uploading...';
   try {
-    await uploadProofFile(file, currentOrderId, 'uploadProofItem');
+    await uploadProofFile(file, currentOrderId, 'uploadProofItem', {}, currentOrderToken);
     document.getElementById('upload-status-item').textContent = 'Submitted!';
     btn.textContent = 'Submitted ✓';
     setTimeout(() => { closeModal(); fetchSheet(); }, 3000);
