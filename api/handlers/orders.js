@@ -16,7 +16,8 @@ export const SERVICE_CHARGE = 0.50;
 export const ACCOUNT_SERVICE_RATE = 0.10;
 
 // Fields the public may see. Never phone, email or proof links.
-export const PUBLIC_ORDER_FIELDS = ['order_id', 'timestamp', 'name', 'items', 'total', 'status', 'comment'];
+// `note` (the buyer's own note) is shown in the public feed, as it always was.
+export const PUBLIC_ORDER_FIELDS = ['order_id', 'timestamp', 'name', 'items', 'total', 'status', 'note', 'comment'];
 export const publicOrders = rows => rows.map(r => publicRow(r, PUBLIC_ORDER_FIELDS));
 
 const round2 = n => Math.round(n * 100) / 100;
