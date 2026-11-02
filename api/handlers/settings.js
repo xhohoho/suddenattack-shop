@@ -1,52 +1,36 @@
 import { getSheetData, sheetsRead, sheetsWrite, sanitizeSheetValue } from '../lib/sheets.js';
-import { uploadToDrive, driveUrl } from '../lib/drive.js';
+import { uploadToDrive, driveUrl, decodeUpload, extForMime } from '../lib/drive.js';
 import { requireToken } from '../lib/auth.js';
+import { badRequest, cleanText } from '../lib/http.js';
+import { publicOrders } from './orders.js';
+import { getShopItems } from './shop.js';
 
-// Whitelist for public settings reads
-const PUBLIC_SETTINGS_FIELDS = ['slides', 'ticker'];
+const CACHE_MS = 10_000;
 
 export async function handleGetSettings(auth, res) {
-  try {
-    const { data } = await getSheetData(auth, 'Settings');
-    const slideshowRow = data.find(r => r.key === 'slideshow');
-    const urls = slideshowRow ? [slideshowRow.slide1, slideshowRow.slide2] : ['', ''];
-    const tickerRaw = await sheetsRead(auth, 'Settings!D2');
-    const ticker = tickerRaw[0]?.[0] || '';
-    return res.json({ slides: urls, ticker });
-  } catch {
-    return res.status(500).json({ error: 'Settings fetch failed' });
-  }
+  const { data } = await getSheetData(auth, 'Settings', { ttl: CACHE_MS });
+  const slideshowRow = data.find(r => r.key === 'slideshow');
+  const urls = slideshowRow ? [slideshowRow.slide1, slideshowRow.slide2] : ['', ''];
+  const tickerRaw = await sheetsRead(auth, 'Settings!D2', { ttl: CACHE_MS });
+  const ticker = tickerRaw[0]?.[0] || '';
+  return res.json({ slides: urls, ticker });
 }
 
 /**
- * Public: initData - returns only public-safe data
- * - Orders: whitelisted fields, masked names
- * - Items: CurrentShop data
- * - Settings: slides + ticker
- * Does NOT return phone, email, seller info, or pending accounts
+ * Public: everything the page needs on first load.
+ * - orders: whitelisted fields only (no phone / email / proof)
+ * - items:  canonical { id, name, desc, p7, p15, p30 } (same parser the order endpoint prices with)
  */
 export async function handleInitData(auth, res) {
-  const PUBLIC_ORDER_FIELDS = ['order_id', 'timestamp', 'name', 'items', 'total', 'status', 'comment', 'proof'];
-
-  const [ordersResult, itemsResult, settingsRaw] = await Promise.all([
-    getSheetData(auth, 'Orders'),
-    getSheetData(auth, 'CurrentShop'),
-    sheetsRead(auth, 'Settings!B2:D2'),
+  const [ordersResult, items, settingsRaw] = await Promise.all([
+    getSheetData(auth, 'Orders', { ttl: 5000 }),
+    getShopItems(auth),
+    sheetsRead(auth, 'Settings!B2:D2', { ttl: CACHE_MS }),
   ]);
-
-  // Return orders for public (show full name publicly)
-  const publicOrders = ordersResult.data.map(row => {
-    const filtered = {};
-    for (const field of PUBLIC_ORDER_FIELDS) {
-      filtered[field] = row[field];
-    }
-    return filtered;
-  });
-
   const settingsRow = settingsRaw[0] || [];
   return res.json({
-    orders: publicOrders,
-    items: itemsResult.data,
+    orders: publicOrders(ordersResult.data),
+    items,
     slides: [settingsRow[0] || '', settingsRow[1] || ''],
     ticker: settingsRow[2] || '',
   });
@@ -54,31 +38,46 @@ export async function handleInitData(auth, res) {
 
 export async function handleUpdateTicker(auth, body, res) {
   requireToken(body);
-  const text = sanitizeSheetValue((body.text || '').toString().slice(0, 500));
+  const text = sanitizeSheetValue(cleanText(body.text, 500));
   await sheetsWrite(auth, 'Settings!D2', [[text]]);
   return res.json({ result: 'ok', text });
 }
 
+// Only two slide cells exist in the sheet (Settings!B2 and C2).
+const SLIDE_COLS = ['B', 'C'];
+const SLIDE_URL = /^https:\/\/(?:lh3\.googleusercontent\.com\/d\/[\w-]+(?:=[\w-]+)?|drive\.google\.com\/uc\?export=(?:download|view)&id=[\w-]+(?:&confirm=t)?)$/;
+
 export async function handleUploadSlideImg(auth, body, res) {
   requireToken(body);
-  const idx = body.slideIndex;
-  if (idx === undefined || idx === null) throw new Error('Missing slideIndex');
+  const idx = Number(body.slideIndex);
+
+  // Drag-to-reorder sends slideIndex -1 + the new ordered list of urls.
+  if (idx === -1 && Array.isArray(body.urls)) {
+    const urls = body.urls.slice(0, 2).map(u => {
+      const s = String(u || '').trim();
+      if (s && !SLIDE_URL.test(s)) throw badRequest('Invalid slide URL');
+      return s;
+    });
+    while (urls.length < 2) urls.push('');
+    await sheetsWrite(auth, 'Settings!B2:C2', [urls]);
+    return res.json({ result: 'ok' });
+  }
+
+  if (!Number.isInteger(idx) || idx < 0 || idx >= SLIDE_COLS.length) {
+    throw badRequest(`Only ${SLIDE_COLS.length} slides are supported (slide index 0-${SLIDE_COLS.length - 1}).`);
+  }
 
   let url = body.url;
   if (body.base64) {
-    console.log(`📤 uploadSlideImg: Uploading file to Drive for slide ${idx}`);
-    const fileId = await uploadToDrive(
-      body.base64,
-      body.mimeType || 'image/jpeg',
-      body.fileName || `shop_${idx}.jpg`,
-      process.env.DRIVE_FOLDER_SA,
-    );
-    url = driveUrl(fileId, body.mimeType);
+    const { buffer, mimeType } = decodeUpload(body.base64, ['image/jpeg', 'image/png', 'image/webp'], 4 * 1024 * 1024);
+    console.log(`📤 uploadSlideImg: uploading file for slide ${idx}`);
+    const fileId = await uploadToDrive(buffer, mimeType, `shop_${idx}_${Date.now()}.${extForMime(mimeType)}`, process.env.DRIVE_FOLDER_SA);
+    url = driveUrl(fileId, mimeType);
+  } else if (typeof url === 'string' && url !== '' && !SLIDE_URL.test(url)) {
+    throw badRequest('Invalid slide URL');
   }
-  if (url === undefined || url === null) throw new Error('No URL or Base64 provided');
+  if (url === undefined || url === null) throw badRequest('No URL or file provided');
 
-  console.log(`📝 uploadSlideImg: slide ${idx} → "${url}"`);
-  const col = parseInt(idx) === 0 ? 'B' : 'C';
-  await sheetsWrite(auth, `Settings!${col}2`, [[url]]);
+  await sheetsWrite(auth, `Settings!${SLIDE_COLS[idx]}2`, [[url]]);
   return res.json({ result: 'ok', url });
 }

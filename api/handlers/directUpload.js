@@ -1,59 +1,60 @@
 import { google } from 'googleapis';
-import { getDriveAuth } from '../lib/auth.js';
-import { findOrCreateFolder, driveUrl } from '../lib/drive.js';
 import crypto from 'crypto';
+import { getDriveAuth, requireToken, signToken, verifyToken } from '../lib/auth.js';
+import { findOrCreateFolder, driveUrl, extForMime, escapeDriveQuery } from '../lib/drive.js';
+import { badRequest, notFound, cleanText } from '../lib/http.js';
 
 /**
- * Upload limits and type restrictions
+ * Browser -> Google Drive direct upload (bypasses Vercel's 4.5MB body limit).
+ *
+ *   1. getDirectUploadUrl  -> server validates type/size, creates a Drive resumable session
+ *                             and returns { uploadUrl, sessionToken }.
+ *   2. browser PUTs the file straight to uploadUrl.
+ *   3. finalizeUpload      -> server verifies the signed sessionToken, finds the file,
+ *                             checks its size, makes it viewable and returns the display URL.
+ *
+ * The sessionToken is HMAC-signed and expires, so the browser can no longer choose the
+ * folder or file name (the old version trusted those from the client).
  */
+
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50 MB
 const ALLOWED_MIME_TYPES = [
   'image/jpeg', 'image/png', 'image/webp', 'image/gif',
   'video/mp4', 'video/webm', 'video/quicktime',
-  'application/pdf'
 ];
+const SESSION_TTL_MS = 15 * 60 * 1000;
 
-/**
- * Step 1: Browser-to-Drive direct upload flow
- * Returns a single-use resumable upload session URL
- * Validates file type/size server-side
- */
 export async function handleGetDirectUploadUrl(body, res) {
-  const { fileName, mimeType, folderContext, ign } = body;
-  if (!fileName || !mimeType) throw new Error('fileName and mimeType are required');
+  const mimeType = String(body.mimeType || '');
+  const fileSize = Number(body.fileSize);
+  const context = String(body.folderContext || '');
 
-  // Validate file type
-  if (!ALLOWED_MIME_TYPES.includes(mimeType)) {
-    throw new Error(`File type not allowed: ${mimeType}`);
-  }
+  if (!ALLOWED_MIME_TYPES.includes(mimeType)) throw badRequest(`File type not allowed: ${mimeType || 'unknown'}`);
+  if (!Number.isFinite(fileSize) || fileSize <= 0) throw badRequest('fileSize is required');
+  if (fileSize > MAX_FILE_SIZE) throw badRequest('File too large (max 50MB)');
 
-  // Note: File size validated at finalizeUpload via Drive's built-in limits
-  // and by checking Content-Length on the PUT request
+  // 'account' is the admin form; 'account_public' is the seller form. Nothing else is allowed.
+  if (context === 'account') requireToken(body);
+  else if (context !== 'account_public') throw badRequest('Invalid upload context');
+  if (!process.env.DRIVE_FOLDER_ACCOUNTS) throw new Error('DRIVE_FOLDER_ACCOUNTS is not set');
 
   const oauthClient = getDriveAuth();
-  const { credentials } = await oauthClient.refreshAccessToken();
-  const accessToken = credentials.access_token;
+  const { token: accessToken } = await oauthClient.getAccessToken();
   const drive = google.drive({ version: 'v3', auth: oauthClient });
+  const folderId = await findOrCreateFolder(drive, cleanText(body.ign, 40) || 'unknown', process.env.DRIVE_FOLDER_ACCOUNTS);
 
-  let folderId;
-  if (folderContext === 'account' || folderContext === 'account_public') {
-    folderId = await findOrCreateFolder(drive, ign || 'unknown', process.env.DRIVE_FOLDER_ACCOUNTS);
-  } else if (folderContext === 'receipt') {
-    folderId = process.env.DRIVE_FOLDER_RECEIPT;
-  } else if (folderContext === 'payment') {
-    folderId = process.env.DRIVE_FOLDER_PAYMENT;
-  } else {
-    folderId = process.env.DRIVE_FOLDER_SA;
-  }
+  // File name is chosen by the SERVER (the client-provided name is ignored).
+  const fileName = `acc_${Date.now()}_${crypto.randomBytes(4).toString('hex')}.${extForMime(mimeType)}`;
 
   const initResp = await fetch(
-    'https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable&fields=id',
+    'https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable&fields=id&supportsAllDrives=true',
     {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${accessToken}`,
         'Content-Type': 'application/json',
         'X-Upload-Content-Type': mimeType,
+        'X-Upload-Content-Length': String(fileSize), // Drive rejects uploads that don't match this
         Origin: process.env.SITE_URL || 'https://suddenattack.safie.cc',
       },
       body: JSON.stringify({ name: fileName, parents: [folderId] }),
@@ -64,79 +65,47 @@ export async function handleGetDirectUploadUrl(body, res) {
     const err = await initResp.text();
     throw new Error(`Drive resumable init failed: ${err}`);
   }
-
   const uploadUrl = initResp.headers.get('location');
   if (!uploadUrl) throw new Error('No upload URL returned from Drive');
 
-  // Return session ID instead of folderId - server stores the mapping
-  const sessionId = crypto.randomUUID();
-  // In production, store sessionId -> { folderId, fileName, mimeType } in KV/Redis
-  // For now, encode in a signed token
-  const sessionToken = Buffer.from(JSON.stringify({ sessionId, folderId, fileName, mimeType, createdAt: Date.now() })).toString('base64');
-
+  const sessionToken = signToken({ folderId, fileName, mimeType, fileSize }, SESSION_TTL_MS);
   return res.json({ uploadUrl, sessionToken });
 }
 
-/**
- * Step 2: Finalize upload
- * - Does NOT accept folderId or fileName from client
- * - Verifies file using sessionToken
- * - Makes file private (not public)
- * - Returns display URL
- */
 export async function handleFinalizeUpload(body, res) {
-  const { sessionToken } = body;
-  if (!sessionToken) throw new Error('sessionToken is required');
-
-  // Decode and validate session
-  let session;
-  try {
-    session = JSON.parse(Buffer.from(sessionToken, 'base64').toString());
-  } catch {
-    throw new Error('Invalid sessionToken');
-  }
-
-  const { sessionId, folderId, fileName, mimeType, createdAt } = session;
-  if (!folderId || !fileName) throw new Error('Invalid session data');
-
-  // Check session age (max 10 minutes)
-  if (Date.now() - createdAt > 10 * 60 * 1000) {
-    throw new Error('Upload session expired');
-  }
+  const session = verifyToken(body.sessionToken); // throws 401 if forged/expired
+  const { folderId, fileName, mimeType, fileSize } = session;
 
   const drive = google.drive({ version: 'v3', auth: getDriveAuth() });
-  const escapedFileName = fileName.replace(/'/g, "\\'");
 
-  let fileId = null;
-  for (let attempt = 0; attempt < 6; attempt++) {
+  let file = null;
+  for (let attempt = 0; attempt < 8 && !file; attempt++) {
     const search = await drive.files.list({
-      q: `name='${escapedFileName}' and '${folderId}' in parents and trashed=false`,
-      fields: 'files(id,createdTime,size)',
-      orderBy: 'createdTime desc',
-      pageSize: 5,
+      q: `name='${escapeDriveQuery(fileName)}' and '${folderId}' in parents and trashed=false`,
+      fields: 'files(id,size)',
+      pageSize: 1,
       supportsAllDrives: true,
       includeItemsFromAllDrives: true,
     });
-    if (search.data.files.length > 0) {
-      // Verify file size (additional check)
-      const file = search.data.files[0];
-      if (file.size > MAX_FILE_SIZE) {
-        await drive.files.delete({ fileId: file.id, supportsAllDrives: true });
-        throw new Error('File exceeds maximum size');
-      }
-      fileId = file.id;
-      break;
-    }
-    await new Promise(r => setTimeout(r, 500));
+    file = search.data.files?.[0] || null;
+    if (!file) await new Promise(r => setTimeout(r, 600));
+  }
+  if (!file) throw notFound('Uploaded file not found yet. Please try again.');
+
+  // Verify what actually landed in Drive.
+  if (Number(file.size) > MAX_FILE_SIZE || (fileSize && Number(file.size) !== Number(fileSize))) {
+    await drive.files.delete({ fileId: file.id, supportsAllDrives: true }).catch(() => {});
+    throw badRequest('Uploaded file size did not match. Please try again.');
   }
 
-  if (!fileId) throw new Error('Uploaded file not found in Drive after polling');
+  // Listing media must be viewable by visitors.
+  await drive.permissions.create({
+    fileId: file.id,
+    supportsAllDrives: true,
+    requestBody: { role: 'reader', type: 'anyone' },
+  });
 
-  // DO NOT make file public - keep it private
-  // Admins can view via authenticated route
-  // If public URL needed, use a separate signed URL or proxy
-
-  const url = driveUrl(fileId, mimeType);
-  console.log(`✅ finalizeUpload: ${fileName} → ${fileId} → ${url}`);
-  return res.json({ url, fileId, private: true });
+  const url = driveUrl(file.id, mimeType);
+  console.log(`✅ finalizeUpload: ${fileName} → ${file.id}`);
+  return res.json({ url, fileId: file.id });
 }

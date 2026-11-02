@@ -1,78 +1,52 @@
 import fs from 'fs';
-import https from 'https';
+import path from 'path';
+import crypto from 'crypto';
 
-// --- CONFIG -------------------------------------------------
-const OUTPUT_DIR = 'dist';                 // where the site builds
-const IMG_DIR    = `${OUTPUT_DIR}/images`; // folder for cached Drive images
-// -----------------------------------------------------------------
+const OUTPUT_DIR = 'dist';
 
-// Ensure output folders exist
+// Start from a clean output folder so stale files from older builds never ship.
+fs.rmSync(OUTPUT_DIR, { recursive: true, force: true });
 fs.mkdirSync(OUTPUT_DIR, { recursive: true });
-fs.mkdirSync(IMG_DIR, { recursive: true });
 
 // Read source HTML fragments
-const main    = fs.readFileSync('public/main.html', 'utf8');
-const items   = fs.readFileSync('public/item.html', 'utf8');
-const accounts= fs.readFileSync('public/account.html', 'utf8');
+const main     = fs.readFileSync('public/main.html', 'utf8');
+const items    = fs.readFileSync('public/item.html', 'utf8');
+const accounts = fs.readFileSync('public/account.html', 'utf8');
 
 // Merge fragments
-const merged = main
+let html = main
   .replace('<!-- INJECT:ITEMS -->', items)
   .replace('<!-- INJECT:ACCOUNTS -->', accounts);
 
-// -----------------------------------------------------------------
-// Helper: download a Google-Drive "direct link" into the local cache
-// -----------------------------------------------------------------
-function cacheGoogleDriveImage(url, destPath) {
-  // Skip if we already cached it
-  if (fs.existsSync(destPath)) return;
-
-  return new Promise((resolve, reject) => {
-    const file = fs.createWriteStream(destPath);
-    https.get(url, response => {
-      response.pipe(file);
-      file.on('finish', () => {
-        file.close();
-        resolve();
-      });
-    }).on('error', err => {
-      file.close();
-      reject(err);
-    });
-  });
-}
-
-// -----------------------------------------------------------------
-// Extract all Google-Drive image URLs from the final HTML
-// -----------------------------------------------------------------
-const driveImgPattern = /https?:\/\/(?:lh3|go\.googleusercontent\.com)\/d\/([\w-_]+)/gi;
-const imageUrls = [...merged.matchAll(driveImgPattern)].map(m => m[0]);
-
-Promise.all(
-  imageUrls.map(async (url, i) => {
-    const match   = url.match(/\/d\/([\w-_]+)/);
-    const fileId  = match ? match[1] : `img${i}`;
-    const ext     = url.split('.').pop().split(/[?#]/)[0];
-    const dest    = `${IMG_DIR}/${fileId}.${ext}`;
-
-    try {
-      await cacheGoogleDriveImage(url, dest);
-      console.log(`Cached ${url} -> ${dest}`);
-    } catch (e) {
-      console.error(`Failed to cache ${url}:`, e.message);
-    }
-  })
-).finally(async () => {
-  // -----------------------------------------------------------------
-  // Write the merged HTML (with placeholders still intact) to /dist
-  // -----------------------------------------------------------------
-  fs.mkdirSync(OUTPUT_DIR, { recursive: true });
-  fs.writeFileSync(`${OUTPUT_DIR}/index.html`, merged);
-
-  // Copy static assets (audio, css, js) that aren't Drive images
-  fs.cpSync('public/audio', `${OUTPUT_DIR}/audio`, { recursive: true });
-  fs.cpSync('public/css', `${OUTPUT_DIR}/css`, { recursive: true });
-  fs.cpSync('public/js', `${OUTPUT_DIR}/js`, { recursive: true });
-
-  console.log('Built dist/index.html');
+// ── Cache busting ────────────────────────────────────────────────────────────
+// /js and /css files have fixed names, so browsers can keep an old copy for a long time.
+// Appending ?v=<hash of the file's content> makes every changed file a brand-new URL,
+// and an unchanged file keeps its URL (so it stays cached). Fixes "half old / half new" sites.
+const hashes = [];
+html = html.replace(/(src|href)="(\.?\/?(?:js|css)\/[^"?#]+)"/g, (full, attr, url) => {
+  const file = path.join('public', url.replace(/^\.?\//, ''));
+  if (!fs.existsSync(file)) return full;
+  const hash = crypto.createHash('sha1').update(fs.readFileSync(file)).digest('hex').slice(0, 10);
+  hashes.push(hash);
+  return `${attr}="${url}?v=${hash}"`;
 });
+
+fs.writeFileSync(`${OUTPUT_DIR}/index.html`, html);
+
+// ── Static assets ────────────────────────────────────────────────────────────
+// Skip editor backups / scratch files so they are never publicly downloadable.
+const SKIP = /\.(bak|orig|tmp|map)$|backup|\.emoji-/i;
+const copyDir = dir => {
+  if (!fs.existsSync(`public/${dir}`)) return;
+  fs.cpSync(`public/${dir}`, `${OUTPUT_DIR}/${dir}`, {
+    recursive: true,
+    filter: src => !SKIP.test(path.basename(src)),
+  });
+};
+['audio', 'css', 'js'].forEach(copyDir);
+
+// Tiny version stamp so you can check which build is live: https://yoursite/version.json
+const build = crypto.createHash('sha1').update(hashes.join('')).digest('hex').slice(0, 10);
+fs.writeFileSync(`${OUTPUT_DIR}/version.json`, JSON.stringify({ build, builtAt: new Date().toISOString() }));
+
+console.log(`Built dist/index.html (build ${build})`);

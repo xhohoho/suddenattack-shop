@@ -8,12 +8,12 @@
     "node": "24.x"
   },
   "scripts": {
-    "build": "node build.js",
-    "_comment": "node build.js && npx serve dist"
+    "build": "node build.js"
   },
   "dependencies": {
-    "@google-cloud/local-auth": "^3.0.1",
-    "googleapis": "^140.0.1",
+    "googleapis": "^140.0.1"
+  },
+  "devDependencies": {
     "playwright": "^1.64.1"
   }
 }

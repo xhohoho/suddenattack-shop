@@ -1,16 +1,18 @@
 /**
  * Calls Gemini 2.5 Flash with a prompt + base64 image and returns the text response.
+ * The API key goes in a header (not the URL) so it can't end up in logs.
  */
-export async function callGemini(base64, prompt) {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`;
+export async function callGemini(base64, prompt, mimeType = 'image/jpeg') {
+  const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
   const r = await fetch(url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': process.env.GEMINI_API_KEY || '' },
+    signal: AbortSignal.timeout(25000),
     body: JSON.stringify({
       contents: [{
         parts: [
           { text: prompt },
-          { inline_data: { mime_type: 'image/jpeg', data: base64 } },
+          { inline_data: { mime_type: mimeType, data: base64 } },
         ],
       }],
     }),

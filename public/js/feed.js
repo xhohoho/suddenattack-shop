@@ -17,7 +17,10 @@ function renderFeed(orders) {
     const actualStatus = (!o.status && isToday(ts)) ? 'New' : (o.status || 'New');
     const sc = statusClass(actualStatus);
     const showNewBadge = isToday(ts) && o.status && o.status !== 'New';
-    const fp = `${oid}|${actualStatus}|${tot}|${o.comment || ''}|${adminUnlocked ? 1 : 0}`;
+    // The Pay button only appears in the browser that placed the order (it holds the order_token).
+    const canPay = isPayable(o.status) && hasOrderToken(o.order_id);
+    const statusLabel = actualStatus === 'ProofSubmitted' ? 'Proof sent' : actualStatus;
+    const fp = `${oid}|${actualStatus}|${tot}|${o.comment || ''}|${adminUnlocked ? 1 : 0}|${canPay ? 1 : 0}`;
 
     let card = el.children[i];
     if (card && card.dataset.fp === fp) return; // unchanged, skip
@@ -38,7 +41,7 @@ function renderFeed(orders) {
         <div class="fi">${escapeHtml(o.items)}</div>
         ${o.note ? `<div class="fi" style="font-style:italic;color:var(--text3)">${escapeHtml(o.note)}</div>` : ''}
         ${commentHtml}
-        <span class="pill ${sc}">${escapeHtml(actualStatus)}</span>${showNewBadge ? `<span class="pill p-new" style="margin-left:4px">New</span>` : ''}${isPayable(o.status) ? `<button class="pay-btn" data-tot="${tot}" data-oid="${oid}" data-ts="${ts || new Date().toISOString()}" onclick="openModal(this)">Pay</button>` : ''}
+        <span class="pill ${sc}">${escapeHtml(statusLabel)}</span>${showNewBadge ? `<span class="pill p-new" style="margin-left:4px">New</span>` : ''}${canPay ? `<button class="pay-btn" data-tot="${tot}" data-oid="${oid}" data-ts="${escapeHtml(ts || new Date().toISOString())}" onclick="openModal(this)">Pay</button>` : ''}
       </div>
       <div class="fr"><div class="ft">${fmt(tot)}</div><div class="fa">${timeAgo(ts)}</div></div>
     </div>`;
@@ -75,14 +78,9 @@ async function saveFeedComment(orderId) {
 let _lastFeedData = '';
 async function fetchSheet() {
   try {
-    const r = await fetch(API_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'getOrders' })
-    });
-    const d = await r.json();
+    const d = await apiPost({ action: 'getOrders' });
     const rows = (d.values || []).reverse();
-    const fp = rows.length + '|' + (rows[0]?.order_id || '') + '|' + (rows[rows.length - 1]?.order_id || '') + '|' + (rows[0]?.status || '');
+    const fp = rows.length + '|' + rows.slice(0, 8).map(r => `${r.order_id}:${r.status}:${r.comment || ''}`).join(',');
     if (_lastFeedData !== fp) {
       _lastFeedData = fp;
       renderFeed(rows);

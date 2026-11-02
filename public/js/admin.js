@@ -1,11 +1,24 @@
 // ── Admin fetch helper ─────────────────────────
 
-function adminFetch(payload) {
-  return fetch(API_URL, {
+// Throws on ANY failure (401 expired session, 400 bad input, 500 ...) so the UI can never
+// show a green ✓ for a request the server rejected.
+async function adminFetch(payload) {
+  const resp = await fetch(API_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ ...payload, _token: adminToken })
   });
+  if (!resp.ok) {
+    let msg = 'Request failed (' + resp.status + ')';
+    try { const j = await resp.clone().json(); if (j && j.error) msg = j.error; } catch { /* non-JSON */ }
+    if (resp.status === 401) {
+      adminUnlocked = false; adminToken = null;
+      msg = 'Admin session expired. Please unlock again.';
+      showToast(msg);
+    }
+    throw new Error(msg);
+  }
+  return resp;
 }
 
 // ── Shared constants ────────────────────────────
@@ -107,13 +120,16 @@ async function checkPass() {
 
       loadShopEditor();
       renderManageList();
+      // Reload accounts with the admin token so pending listings + seller details appear.
+      _lastAccountData = '';
+      if (typeof fetchAccounts === 'function') fetchAccounts();
       initTickerSpeedControl();
 
       // Re-render the public feed now so inline comment boxes appear immediately
       _lastFeedData = '';
       fetchSheet();
     } else {
-      st.textContent = 'Wrong password.'; st.style.color = 'var(--red)';
+      st.textContent = (result.error && /too many/i.test(result.error)) ? result.error : 'Wrong password.'; st.style.color = 'var(--red)';
     }
   } catch (e) {
     st.textContent = 'Auth failed. Check connection.'; st.style.color = 'var(--red)';
@@ -192,12 +208,15 @@ function renderOrderMgmt() {
           </div>
           <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
             <span class="order-mgmt-total">${o.total ? 'RM ' + parseFloat(o.total).toFixed(2) : ''}</span>
-            <select class="status-select" id="st-${esc(o.order_id)}" onchange="inlineUpdateOrderStatus('${esc(o.order_id)}')">
+            <select class="status-select" id="st-${esc(o.order_id)}">
               <option ${o.status === 'New' ? 'selected' : ''}>New</option>
+              <option value="ProofSubmitted" ${o.status === 'ProofSubmitted' ? 'selected' : ''}>Proof sent</option>
               <option ${o.status === 'Paid' ? 'selected' : ''}>Paid</option>
               <option ${o.status === 'Verified' ? 'selected' : ''}>Verified</option>
               <option ${o.status === 'Completed' ? 'selected' : ''}>Completed</option>
+              <option ${o.status === 'Cancelled' ? 'selected' : ''}>Cancelled</option>
             </select>
+            <button class="save-status-btn" id="stbtn-${esc(o.order_id)}" onclick="saveOrderStatus('${esc(o.order_id)}')">Save</button>
             <span id="ind-${esc(o.order_id)}" style="font-size:13px;width:16px;text-align:center;flex-shrink:0"></span>
           </div>
         </div>
@@ -219,6 +238,7 @@ function renderOrderMgmt() {
         <option value="Paid">Paid</option>
         <option value="Verified">Verified</option>
         <option value="Completed">Completed</option>
+        <option value="Cancelled">Cancelled</option>
       </select>
       <button class="admin-btn" onclick="applyBulkStatus()">Apply to selected</button>
       <button class="admin-btn sec" onclick="clearBulkSelection()">Clear selection</button>
@@ -286,24 +306,22 @@ async function applyBulkStatus() {
   fetchSheet();
 }
 
-async function inlineUpdateOrderStatus(orderId) {
+async function saveOrderStatus(orderId) {
   const sel = document.getElementById('st-' + orderId);
+  const btn = document.getElementById('stbtn-' + orderId);
   const ind = document.getElementById('ind-' + orderId);
-  const original = sel.dataset?.original || '';
-  if (!original) { sel.dataset.original = sel.value; return; }
-  if (sel.value === original) return;
-  ind.textContent = '...'; ind.style.color = 'var(--text2)';
+  btn.disabled = true; btn.textContent = '...'; ind.textContent = '';
   try {
     await adminFetch({ action: 'updateOrderStatus', order_id: orderId, status: sel.value });
     const o = allOrders.find(x => x.order_id === orderId);
     if (o) o.status = sel.value;
-    sel.dataset.original = sel.value;
     ind.textContent = '✓'; ind.style.color = 'var(--green)';
+    btn.textContent = 'Save'; btn.disabled = false;
     setTimeout(() => { if (ind) ind.textContent = ''; }, 2000);
     fetchSheet();
   } catch (e) {
     ind.textContent = '✕'; ind.style.color = 'var(--red)';
-    sel.value = original;
+    btn.textContent = 'Save'; btn.disabled = false;
     setTimeout(() => { if (ind) ind.textContent = ''; }, 3000);
   }
 }
@@ -483,7 +501,7 @@ async function applyItems() {
         }
       }
     });
-    newItems.push({ id: i + 1, name, desc: get('desc'), p: { 7: p7 || 0, 15: p15 || 0, 30: p30 || 0 } });
+    newItems.push({ id: newItems.length + 1, name, desc: get('desc'), p: { 7: p7 || 0, 15: p15 || 0, 30: p30 || 0 } });
   });
   if (hasErrors) { showToast('Please fix invalid prices'); return; }
   if (!newItems.length) return;
@@ -552,7 +570,7 @@ async function saveShopEdit() {
         }
       }
     });
-    newItems.push({ id: i + 1, name, desc: get('desc'), p: { 7: p7 || 0, 15: p15 || 0, 30: p30 || 0 } });
+    newItems.push({ id: newItems.length + 1, name, desc: get('desc'), p: { 7: p7 || 0, 15: p15 || 0, 30: p30 || 0 } });
   });
   if (hasErrors) { showToast('Please fix invalid prices'); return; }
   if (!newItems.length) return;
@@ -744,7 +762,7 @@ function rebuildSlideshowTab() {
         style="aspect-ratio:16/9;border:1px dashed var(--border2);border-radius:8px;cursor:pointer;position:relative;overflow:hidden;background:var(--bg2);display:flex;align-items:center;justify-content:center;transition:border-color .2s">
         <input type="file" accept="image/*" onchange="uploadSlide(this,${i})"
           style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;z-index:5" />
-        <img id="ss-img-${i}" src="${url}" style="width:100%;height:100%;object-fit:cover;display:block;border-radius:7px" />
+        <img id="ss-img-${i}" src="${esc(url)}" style="width:100%;height:100%;object-fit:cover;display:block;border-radius:7px" />
         <div id="ss-lbl-${i}" style="text-align:center;pointer-events:none;display:none">
           <div style="font-size:22px;margin-bottom:4px">📷</div>
           <div style="font-size:11px;color:var(--text3);font-family:'Rajdhani',sans-serif;letter-spacing:.04em">Tap to upload</div>
@@ -868,7 +886,7 @@ function previewLiveSlides() {
       <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px;max-height:70vh;overflow-y:auto">
         ${loaded.map((url, i) => `
           <div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;overflow:hidden">
-            <img src="${url}" style="width:100%;aspect-ratio:16/9;object-fit:cover;display:block" />
+            <img src="${escapeHtml(url)}" style="width:100%;aspect-ratio:16/9;object-fit:cover;display:block" />
             <div style="padding:8px;font-size:11px;color:var(--text2);font-family:'Rajdhani',sans-serif;text-align:center">Slide ${slideUrls.indexOf(url) + 1}</div>
           </div>`).join('')}
       </div>

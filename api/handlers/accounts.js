@@ -1,143 +1,144 @@
 import { google } from 'googleapis';
-import { getSheetData, sheetsWrite, sheetsAppend, colLetter, sanitizeSheetValue } from '../lib/sheets.js';
-import { uploadToDrive, driveUrl, findOrCreateFolder } from '../lib/drive.js';
-import { getDriveAuth, requireToken, generateOrderToken } from '../lib/auth.js';
+import {
+  getSheetData, sheetsWrite, sheetsAppend, colLetter, sanitizeSheetValue, publicRow, invalidateCache,
+} from '../lib/sheets.js';
+import {
+  uploadToDrive, driveUrl, findOrCreateFolder, decodeUpload, extForMime, escapeDriveQuery, safeFolderName,
+} from '../lib/drive.js';
+import { getDriveAuth, requireToken } from '../lib/auth.js';
+import { badRequest, notFound, conflict, cleanText, requiredText } from '../lib/http.js';
 import crypto from 'crypto';
 
-// Whitelist of fields returned to public callers
-const PUBLIC_ACCOUNT_FIELDS = ['id', 'rank', 'price', 'ign', 'accid', 'kda', 'winRate', 'exp', 'ach', 'notes', 'status', 'img1', 'img2', 'img3', 'img4'];
+// Column keys are the sheet headers, lower-cased with spaces removed (see getSheetData).
+// NOTE: they must be lowercase: `winrate`, `achievement`, `createdat` (NOT winRate / ach).
+// Seller name / contact / ign are intentionally NOT public.
+const PUBLIC_ACCOUNT_FIELDS = [
+  'id', 'rank', 'price', 'ign', 'accid', 'kda', 'winrate', 'exp', 'achievement',
+  'notes', 'status', 'createdat', 'img1', 'img2', 'img3', 'img4',
+];
 
-// Allowed image URL patterns (Drive direct links)
-const ALLOWED_IMAGE_URL_PATTERN = /^https:\/\/lh3\.googleusercontent\.com\/d\/[\w-]+$/;
-const ALLOWED_DRIVE_PREVIEW_PATTERN = /^https:\/\/drive\.google\.com\/file\/d\/[\w-]+\/preview$/;
+const STATUSES = ['pending', 'available', 'reserved', 'sold'];
 
-export async function handleGetAccounts(auth, res) {
-  const { data } = await getSheetData(auth, 'AccountList');
-  // Return only whitelisted fields; hide seller info and pending listings
-  const publicData = data
-    .filter(row => row.status !== 'pending') // Hide pending from public
-    .map(row => {
-      const filtered = {};
-      for (const field of PUBLIC_ACCOUNT_FIELDS) {
-        filtered[field] = row[field];
-      }
-      return filtered;
-    });
-  return res.json({ values: publicData });
+// Only these media URL shapes may ever be stored (they are later put into HTML, so this also blocks XSS).
+// Accepts the formats already in your sheet, e.g. ...googleusercontent.com/d/ID=w1200 and drive.google.com/uc?export=download&id=ID
+const MEDIA_URL = /^https:\/\/(?:lh3\.googleusercontent\.com\/d\/[\w-]+(?:=[\w-]+)?|drive\.google\.com\/(?:file\/d\/[\w-]+\/(?:preview|view)|uc\?export=(?:download|view)&id=[\w-]+(?:&confirm=t)?))$/;
+
+function cleanMediaUrl(val, label) {
+  const u = String(val ?? '').trim();
+  if (!u) return '';
+  if (!MEDIA_URL.test(u)) throw badRequest(`Invalid media URL for ${label}`);
+  return u;
 }
 
-/**
- * Admin: save account (create or update)
- * - Requires admin token
- * - Whitelists fields, validates image URLs
- * - Cannot update existing row via public API
- */
+const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+
+// ── Reads ────────────────────────────────────────────────────────────────────
+
+export async function handleGetAccounts(auth, res, isAdmin = false) {
+  const { data } = await getSheetData(auth, 'AccountList', { ttl: 5000 });
+  if (isAdmin) return res.json({ values: data.map(r => publicRow(r)) });
+  const visible = data
+    .filter(r => String(r.status).trim().toLowerCase() !== 'pending') // pending listings are admin-only
+    .map(r => publicRow(r, PUBLIC_ACCOUNT_FIELDS));
+  return res.json({ values: visible });
+}
+
+// ── Admin: create / update an account ────────────────────────────────────────
+
 export async function handleSaveAccount(auth, body, res) {
   requireToken(body);
   const acc = body.account;
-  const { headers, data } = await getSheetData(auth, 'AccountList');
+  if (!acc || typeof acc !== 'object') throw badRequest('Missing account data');
 
-  // Whitelist allowed fields
-  const allowedFields = ['id', 'rank', 'price', 'ign', 'accid', 'kda', 'winRate', 'exp', 'ach', 'notes', 'status', 'img1', 'img2', 'img3', 'img4', 'sellername', 'sellercontact', 'sellerign'];
+  const id = requiredText(acc.id, 'id', 80);
+  const price = Number(acc.price);
+  if (!Number.isFinite(price) || price <= 0 || price > 1_000_000) throw badRequest('Invalid price');
+  const status = String(acc.status || 'available').toLowerCase().trim();
+  if (!STATUSES.includes(status)) throw badRequest('Invalid status');
+
+  const { headers, data } = await getSheetData(auth, 'AccountList'); // fresh read
+  const existing = data.find(r => String(r.id) === id);
+  if (body.isNew && existing) throw conflict('An account with this ID already exists');
+  if (!body.isNew && !existing) throw notFound('Account not found');
+
+  // Only include a field when the request actually carries it, so an edit never
+  // wipes columns the form didn't send.
+  const has = k => acc[k] !== undefined;
+  const incoming = { id, rank: requiredText(acc.rank, 'rank', 40), price, status };
+  const text = (key, max, ...aliases) => {
+    for (const k of [key, ...aliases]) if (has(k)) { incoming[key] = cleanText(acc[k], max); return; }
+  };
+  text('ign', 40); text('accid', 40); text('kda', 20); text('exp', 20); text('notes', 300);
+  text('winrate', 20, 'winRate'); text('achievement', 20, 'ach');
+  text('sellername', 60); text('sellercontact', 40); text('sellerign', 40);
+  for (let i = 1; i <= 4; i++) if (has(`img${i}`)) incoming[`img${i}`] = cleanMediaUrl(acc[`img${i}`], `img${i}`);
+
+  // createdat is set once and never overwritten by later edits.
+  incoming.createdat = existing?.createdat || String(Number(acc.createdat) || Date.now());
+
   const row = headers.map(h => {
-    const key = h.toLowerCase().trim();
-    if (!allowedFields.includes(key)) return '';
-    const val = acc[key];
-    if (val === undefined) return '';
-    // Validate image URLs
-    if (['img1', 'img2', 'img3', 'img4'].includes(key) && val) {
-      if (!ALLOWED_IMAGE_URL_PATTERN.test(val) && !ALLOWED_DRIVE_PREVIEW_PATTERN.test(val)) {
-        return ''; // Reject invalid URLs
-      }
+    if (Object.prototype.hasOwnProperty.call(incoming, h)) {
+      const v = incoming[h];
+      return typeof v === 'number' ? v : sanitizeSheetValue(v);
     }
-    return val !== undefined ? sanitizeSheetValue(val) : '';
+    return existing ? (existing[h] ?? '') : '';
   });
 
-  const rowIdx = data.findIndex(r => String(r.id) === String(acc.id));
-  if (rowIdx >= 0) {
-    const rowNum = rowIdx + 2;
-    const lastCol = colLetter(headers.length - 1);
-    await sheetsWrite(auth, `AccountList!A${rowNum}:${lastCol}${rowNum}`, [row]);
+  if (existing) {
+    await sheetsWrite(auth, `AccountList!A${existing._row}:${colLetter(headers.length - 1)}${existing._row}`, [row]);
   } else {
     await sheetsAppend(auth, 'AccountList!A1', [row]);
   }
-  console.log(`✅ Account ${acc.id} saved`);
-  return res.json({ result: 'ok' });
+  console.log(`✅ Account ${id} saved`);
+  return res.json({ result: 'ok', id });
 }
 
-/**
- * Public: submit a new account listing (seller form)
- * - Server generates ID
- * - Forces status: 'pending'
- * - Only whitelisted fields accepted
- * - Validates image URLs
- * - Can NEVER update existing row
- */
+// ── Public: seller submits a listing (always starts as "pending") ────────────
+
 export async function handleSubmitListing(auth, body, res) {
   const acc = body.account;
-  if (!acc) return res.status(400).json({ error: 'Missing account data' });
+  if (!acc || typeof acc !== 'object') throw badRequest('Missing account data');
 
-  // Validate required fields
-  const required = ['rank', 'price', 'ign', 'accid', 'sellername', 'sellercontact', 'sellerign'];
-  for (const field of required) {
-    if (!acc[field]) return res.status(400).json({ error: `Missing required field: ${field}` });
-  }
+  const price = Number(acc.price);
+  if (!Number.isFinite(price) || price <= 0 || price > 1_000_000) throw badRequest('Invalid price');
 
-  // Validate price
-  const price = parseFloat(acc.price);
-  if (isNaN(price) || price <= 0) return res.status(400).json({ error: 'Invalid price' });
+  const clean = {
+    rank: requiredText(acc.rank, 'rank', 40),
+    sellername: requiredText(acc.sellername, 'seller name', 60),
+    sellercontact: requiredText(acc.sellercontact, 'seller contact', 40),
+    sellerign: requiredText(acc.sellerign, 'seller in-game name', 40),
+    ign: cleanText(acc.ign, 40),
+    accid: cleanText(acc.accid, 40),
+    kda: cleanText(acc.kda, 20),
+    winrate: cleanText(acc.winrate ?? acc.winRate, 20),
+    exp: cleanText(acc.exp, 20),
+    achievement: cleanText(acc.achievement ?? acc.ach, 20),
+    notes: cleanText(acc.notes, 300),
+  };
+  const imgs = [1, 2, 3, 4].map(i => cleanMediaUrl(acc[`img${i}`], `img${i}`));
 
-  // Validate image URLs
-  for (let i = 1; i <= 4; i++) {
-    const url = acc[`img${i}`];
-    if (url && !ALLOWED_IMAGE_URL_PATTERN.test(url) && !ALLOWED_DRIVE_PREVIEW_PATTERN.test(url)) {
-      return res.status(400).json({ error: `Invalid image URL format for img${i}` });
-    }
-  }
-
-  // Server-generated ID
-  const id = crypto.randomUUID();
-  const createdAt = Date.now();
-
+  const id = `ACC-${Date.now().toString(36).toUpperCase()}-${crypto.randomBytes(2).toString('hex').toUpperCase()}`;
   const { headers } = await getSheetData(auth, 'AccountList');
-  const row = headers.map(h => {
-    const key = h.toLowerCase().trim();
-    switch (key) {
-      case 'id': return id;
-      case 'rank': return sanitizeSheetValue(acc.rank);
-      case 'price': return price;
-      case 'ign': return sanitizeSheetValue(acc.ign);
-      case 'accid': return sanitizeSheetValue(acc.accid);
-      case 'kda': return sanitizeSheetValue(acc.kda || '');
-      case 'winrate': return sanitizeSheetValue(acc.winRate || '');
-      case 'exp': return sanitizeSheetValue(acc.exp || '');
-      case 'achievement': return sanitizeSheetValue(acc.ach || '');
-      case 'notes': return sanitizeSheetValue(acc.notes || '');
-      case 'status': return 'pending'; // Server forces
-      case 'img1': return sanitizeSheetValue(acc.img1 || '');
-      case 'img2': return sanitizeSheetValue(acc.img2 || '');
-      case 'img3': return sanitizeSheetValue(acc.img3 || '');
-      case 'img4': return sanitizeSheetValue(acc.img4 || '');
-      case 'sellername': return sanitizeSheetValue(acc.sellername);
-      case 'sellercontact': return sanitizeSheetValue(acc.sellercontact);
-      case 'sellerign': return sanitizeSheetValue(acc.sellerign);
-      case 'createdat': return createdAt;
-      default: return '';
-    }
-  });
+  const values = {
+    id, price, status: 'pending', createdat: Date.now(),
+    ...Object.fromEntries(Object.entries(clean).map(([k, v]) => [k, sanitizeSheetValue(v)])),
+    img1: imgs[0], img2: imgs[1], img3: imgs[2], img4: imgs[3],
+  };
+  const row = headers.map(h => values[h] ?? '');
 
   await sheetsAppend(auth, 'AccountList!A1', [row]);
   console.log(`✅ Public listing submitted: ${id}`);
   return res.json({ result: 'ok', id });
 }
 
+// ── Admin: delete / status ───────────────────────────────────────────────────
+
 export async function handleDeleteAccount(auth, body, res) {
   requireToken(body);
-  const accountIGN = body.ign;
-  console.log(`🗑 deleteAccount: ${accountIGN}`);
   const { data } = await getSheetData(auth, 'AccountList');
-  const rowIdx = data.findIndex(r => String(r.id) === String(body.acc_id));
-  if (rowIdx === -1) throw new Error('Account not found');
+  const acc = data.find(r => String(r.id) === String(body.acc_id));
+  if (!acc) throw notFound('Account not found');
+  console.log(`🗑 deleteAccount: ${acc.id}`);
 
   const sheets = google.sheets({ version: 'v4', auth });
   const meta = await sheets.spreadsheets.get({ spreadsheetId: process.env.SHEET_ID });
@@ -147,24 +148,32 @@ export async function handleDeleteAccount(auth, body, res) {
     requestBody: {
       requests: [{
         deleteDimension: {
-          range: { sheetId: sheet.properties.sheetId, dimension: 'ROWS', startIndex: rowIdx + 1, endIndex: rowIdx + 2 },
+          range: { sheetId: sheet.properties.sheetId, dimension: 'ROWS', startIndex: acc._row - 1, endIndex: acc._row },
         },
       }],
     },
   });
+  invalidateCache();
 
-  // Delete Drive folder for this IGN (store folderId in sheet in future)
-  const drive = google.drive({ version: 'v3', auth: getDriveAuth() });
-  const escapedIGN = accountIGN.replace(/'/g, "\\'");
-  const search = await drive.files.list({
-    q: `name='${escapedIGN}' and '${process.env.DRIVE_FOLDER_ACCOUNTS}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,
-    fields: 'files(id)',
-    supportsAllDrives: true,
-    includeItemsFromAllDrives: true,
-  });
-  if (search.data.files?.length > 0) {
-    await drive.files.delete({ fileId: search.data.files[0].id, supportsAllDrives: true });
-    console.log(`🗑 Drive folder deleted: ${accountIGN}`);
+  // Remove the Drive folder only if no OTHER account shares this IGN (folders are named by IGN).
+  const ign = safeFolderName(acc.ign, '');
+  const sharedByOthers = data.some(r => r !== acc && safeFolderName(r.ign, '') === ign);
+  if (ign && !sharedByOthers && process.env.DRIVE_FOLDER_ACCOUNTS) {
+    try {
+      const drive = google.drive({ version: 'v3', auth: getDriveAuth() });
+      const search = await drive.files.list({
+        q: `name='${escapeDriveQuery(ign)}' and '${process.env.DRIVE_FOLDER_ACCOUNTS}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,
+        fields: 'files(id)',
+        supportsAllDrives: true,
+        includeItemsFromAllDrives: true,
+      });
+      if (search.data.files?.length > 0) {
+        await drive.files.delete({ fileId: search.data.files[0].id, supportsAllDrives: true });
+        console.log(`🗑 Drive folder deleted: ${ign}`);
+      }
+    } catch (e) {
+      console.error('Drive folder cleanup failed (row already deleted):', e.message);
+    }
   }
   return res.json({ result: 'ok' });
 }
@@ -172,55 +181,38 @@ export async function handleDeleteAccount(auth, body, res) {
 export async function handleUpdateAccountStatus(auth, body, res) {
   requireToken(body);
   const accId = body.id || body.account?.id;
-  const newStatus = body.status || body.account?.status;
+  const newStatus = String(body.status || body.account?.status || '').toLowerCase().trim();
+  if (!STATUSES.includes(newStatus)) throw badRequest('Invalid status');
   const { headers, data } = await getSheetData(auth, 'AccountList');
-  const rowIdx = data.findIndex(r => String(r.id) === String(accId));
-  if (rowIdx === -1) throw new Error('Account not found');
-  const rowNum = rowIdx + 2;
-  const statusCol = colLetter(headers.indexOf('status'));
-  await sheetsWrite(auth, `AccountList!${statusCol}${rowNum}`, [[newStatus]]);
+  const acc = data.find(r => String(r.id) === String(accId));
+  if (!acc) throw notFound('Account not found');
+  const statusIdx = headers.indexOf('status');
+  if (statusIdx < 0) throw new Error('AccountList sheet has no "status" column');
+  await sheetsWrite(auth, `AccountList!${colLetter(statusIdx)}${acc._row}`, [[newStatus]]);
   return res.json({ result: 'ok' });
 }
 
-/**
- * REMOVED: handleReserveAccount - folded into accountPurchase flow in orders.js
- */
+// ── Image uploads (base64, <= ~4MB; larger files use directUpload.js) ────────
+
+async function saveImage(body, maxBytes) {
+  const { buffer, mimeType } = decodeUpload(body.base64, IMAGE_TYPES, maxBytes);
+  const drive = google.drive({ version: 'v3', auth: getDriveAuth() });
+  const folderId = await findOrCreateFolder(drive, body.ign, process.env.DRIVE_FOLDER_ACCOUNTS);
+  const name = `acc_${Date.now()}_${crypto.randomBytes(3).toString('hex')}.${extForMime(mimeType)}`;
+  const fileId = await uploadToDrive(buffer, mimeType, name, folderId);
+  return driveUrl(fileId, mimeType);
+}
 
 export async function handleUploadAccountImage(auth, body, res) {
   requireToken(body);
-  const accountIGN = body.ign;
-  console.log(`📤 uploadAccountImage: ${accountIGN}`);
-  const drive = google.drive({ version: 'v3', auth: getDriveAuth() });
-  const folderId = await findOrCreateFolder(drive, accountIGN, process.env.DRIVE_FOLDER_ACCOUNTS);
-  const fileId = await uploadToDrive(body.base64, body.mimeType, body.fileName, folderId);
-  const url = driveUrl(fileId, body.mimeType);
-  console.log(`✅ uploaded: ${fileId} → ${url}`);
+  const url = await saveImage(body, 4 * 1024 * 1024);
+  console.log(`✅ uploaded (admin): ${url}`);
   return res.json({ url });
 }
 
-/**
- * Public: upload image for account listing (seller form)
- * - Validates file size, type
- * - Returns Drive URL
- */
+/** Public (seller form). Rate limited in the router. */
 export async function handleUploadPublicAccountImage(auth, body, res) {
-  const accountIGN = body.ign;
-  console.log(`📤 uploadPublicAccountImage: ${accountIGN}`);
-
-  // Validate file size (max 5MB) and type
-  if (!body.base64) return res.status(400).json({ error: 'No file data' });
-  const base64Size = body.base64.length * 0.75; // approximate bytes
-  if (base64Size > 5 * 1024 * 1024) return res.status(400).json({ error: 'File too large (max 5MB)' });
-
-  const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
-  if (body.mimeType && !allowedTypes.includes(body.mimeType)) {
-    return res.status(400).json({ error: 'Invalid file type' });
-  }
-
-  const drive = google.drive({ version: 'v3', auth: getDriveAuth() });
-  const folderId = await findOrCreateFolder(drive, accountIGN, process.env.DRIVE_FOLDER_ACCOUNTS);
-  const fileId = await uploadToDrive(body.base64, body.mimeType || 'image/jpeg', body.fileName || `acc_${Date.now()}.jpg`, folderId);
-  const url = driveUrl(fileId, body.mimeType);
-  console.log(`✅ public upload: ${fileId} → ${url}`);
+  const url = await saveImage(body, 4 * 1024 * 1024);
+  console.log(`✅ public upload: ${url}`);
   return res.json({ url });
 }

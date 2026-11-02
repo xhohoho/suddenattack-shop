@@ -14,7 +14,7 @@ let currentOrderToken = null;
 function buildTable() {
   document.getElementById('itbody').innerHTML = ITEMS.map(it => `
     <tr>
-      <td><div class="iname">${it.name}</div><div class="idesc">${it.desc}</div></td>
+      <td><div class="iname">${escapeHtml(it.name)}</div><div class="idesc">${escapeHtml(it.desc)}</div></td>
       ${DAYS.map(d => {
         if (!it.p[d]) return `<td><div style="text-align:center;color:var(--text3);font-size:12px">—</div></td>`;
         return `<td>
@@ -96,29 +96,29 @@ async function submitOrder() {
   if (!name) { showToast('Please enter your in-game name.'); return; }
   if (!Object.values(qtys).some(v => v > 0)) { showToast('Add at least one item.'); return; }
   const items = getOrderItems();
-  const total = (getTotal() + SERVICE_CHARGE).toFixed(2);
-  const payload = {
-    timestamp: new Date().toISOString(),
-    name, phone: '', email: '', items,
-    total,
-    note: document.getElementById('fno').value.trim(),
-    status: 'New', proof: ''
-  };
+  // The server prices the order itself from the shop sheet. `total` is only what the buyer
+  // saw on screen: if prices changed meanwhile, the server refuses instead of charging a surprise.
+  const shownTotal = (getTotal() + SERVICE_CHARGE).toFixed(2);
+  const note = document.getElementById('fno').value.trim();
   const btn = document.getElementById('sbtn');
   btn.disabled = true; btn.textContent = 'Submitting...';
   try {
-    const resp = await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...payload, action: 'newOrder' }) });
-    const result = await resp.json();
-    if (result.error) throw new Error(result.error);
-    // Store order_token for proof upload
+    const result = await apiPost({ action: 'newOrder', name, note, items, total: shownTotal });
+    if (!result.order_id || !result.order_token) throw new Error('Order was not saved. Please try again.');
+    // Remember the token: it is required to upload payment proof (and survives a page refresh).
+    saveOrderToken(result.order_id, result.order_token);
     currentOrderToken = result.order_token;
     ['fn', 'fno'].forEach(id => document.getElementById(id).value = '');
     ITEMS.forEach(it => DAYS.forEach(d => { qtys[`${it.id}_${d}`] = 0; }));
     document.querySelectorAll('.qty-num').forEach(el => { el.textContent = '0'; el.className = 'qty-num zero'; });
     recalc();
+    _lastFeedData = '';
     await fetchSheet();
-    openModal(total, result.order_id, payload.timestamp);
-  } catch (e) { showToast('Failed to submit. Check your connection.'); }
+    openModal(result.total, result.order_id, new Date().toISOString());
+  } catch (e) {
+    const offline = e instanceof TypeError; // fetch() itself failed
+    showToast(offline ? 'Failed to submit. Check your connection.' : e.message);
+  }
   btn.disabled = false; btn.textContent = 'Place order';
 }
 
@@ -134,22 +134,24 @@ function openModal(total, orderId, timestamp) {
     currentOrderTimestamp = timestamp;
     document.getElementById('modal-amt-item').textContent = fmt(+total);
   }
+  // Always look the token up for THIS order (never reuse the previous order's token).
+  currentOrderToken = getOrderToken(currentOrderId);
   const oidEl = document.getElementById('modal-order-id');
   if (oidEl) oidEl.textContent = currentOrderId || '—';
   document.getElementById('modal-overlay').classList.add('open');
-  document.getElementById('upload-status-item').textContent = '';
+  document.getElementById('upload-status-item').textContent = currentOrderToken ? '' : 'This order was placed in another browser, so proof can only be uploaded there. Please contact us with your Order ID.';
   const ubtn = document.getElementById('upload-btn-item');
   ubtn.style.display = 'none'; ubtn.disabled = false; ubtn.textContent = 'Submit proof';
   document.getElementById('preview-img-item').style.display = 'none';
   const pdfTagItem = document.getElementById('preview-pdf-item');
   if (pdfTagItem) pdfTagItem.style.display = 'none';
   const fi = document.getElementById('proof-file-item');
-  fi.value = ''; fi.disabled = false;
+  fi.value = ''; fi.disabled = !currentOrderToken;
 }
 
 function closeModal() {
   document.getElementById('modal-overlay').classList.remove('open');
-  currentOrderId = null; currentOrderTimestamp = null;
+  currentOrderId = null; currentOrderTimestamp = null; currentOrderToken = null;
 }
 
 function copyOrderId() {
@@ -163,15 +165,21 @@ function previewFileItem(input) {
 
 async function uploadProofItem() {
   const file = document.getElementById('proof-file-item').files[0];
-  if (!file || !currentOrderId) { alert("Error: No file selected or Order ID not found. Try clicking 'Pay' again."); return; }
+  const status = document.getElementById('upload-status-item');
+  if (!file || !currentOrderId) { showToast("No file selected or Order ID not found. Try clicking 'Pay' again."); return; }
+  if (!currentOrderToken) { status.textContent = 'Cannot upload from this browser. Please contact us with your Order ID.'; status.style.color = 'var(--red)'; return; }
   const btn = document.getElementById('upload-btn-item');
   btn.disabled = true; btn.textContent = 'Uploading...';
+  status.textContent = ''; status.style.color = '';
   try {
     await uploadProofFile(file, currentOrderId, 'uploadProofItem', {}, currentOrderToken);
-    document.getElementById('upload-status-item').textContent = 'Submitted!';
+    status.textContent = 'Submitted! We will verify your payment soon.'; status.style.color = 'var(--green)';
     btn.textContent = 'Submitted ✓';
-    setTimeout(() => { closeModal(); fetchSheet(); }, 3000);
-  } catch (e) { btn.disabled = false; btn.textContent = 'Submit proof'; }
+    setTimeout(() => { closeModal(); _lastFeedData = ''; fetchSheet(); }, 3000);
+  } catch (e) {
+    btn.disabled = false; btn.textContent = 'Submit proof';
+    status.textContent = 'Failed: ' + e.message; status.style.color = 'var(--red)';
+  }
 }
 
 document.getElementById('modal-overlay').addEventListener('click', function (e) { if (e.target === this) closeModal(); });
@@ -180,8 +188,7 @@ document.getElementById('modal-overlay').addEventListener('click', function (e) 
 
 async function fetchItems() {
   try {
-    const r = await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'getShopItems' }) });
-    const d = await r.json();
+    const d = await apiPost({ action: 'getShopItems' });
     if (!d.values || !d.values.length) return;
     const loaded = d.values.map((row, i) => ({
       id: parseInt(row.id) || i + 1,

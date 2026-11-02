@@ -67,10 +67,23 @@ let _lastAccountData = '';
 async function fetchAccounts() {
   if (!accounts.length) showGridSkeleton();
   try {
-    const r = await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'getAccounts' }) });
-    const d = await r.json();
+    // When the admin is unlocked the server also returns pending listings + seller details.
+    const payload = { action: 'getAccounts' };
+    if (adminUnlocked && adminToken) payload._token = adminToken;
+    let d;
+    try { d = await apiPost(payload); }
+    catch (err) {
+      if (payload._token && /unauthorized/i.test(err.message)) { d = await apiPost({ action: 'getAccounts' }); } // admin session expired: fall back to public view
+      else throw err;
+    }
     const rows = d.values || [];
-    if (!rows.length) return;
+    if (!rows.length) {
+      accounts = []; _lastAccountData = '';
+      document.getElementById('results-count').textContent = '0 accounts';
+      document.getElementById('acc-grid').innerHTML = '<div style="text-align:center;padding:24px;font-size:12px;color:var(--text3);font-family:Rajdhani,sans-serif">No accounts found</div>';
+      if (adminUnlocked) renderManageList();
+      return;
+    }
 
     const newData = rows.map(item => ({
       id: item['id'] || '',
@@ -162,7 +175,8 @@ function renderGrid() {
 
 // ── Carousel ───────────────────────────────
 function _buildCarouselItems(a) {
-  return [a.img1, a.img2, a.img3, a.img4].filter(Boolean).map((url, i) => ({ url, type: isVideoUrl(url) ? 'video' : 'img', isStats: i === 0 }));
+  // Only https URLs are ever rendered (anything else, e.g. javascript:, is dropped).
+  return [a.img1, a.img2, a.img3, a.img4].filter(u => /^https:\/\//i.test(u || '')).map((url, i) => ({ url, type: isVideoUrl(url) ? 'video' : 'img', isStats: i === 0 }));
 }
 
 function _renderCarousel(items) {
@@ -173,14 +187,14 @@ function _renderCarousel(items) {
     const counter = total > 1 ? `<span class="carousel-counter">${i + 1} / ${total}</span>` : '';
     const isDrive = item.url.includes('drive.google.com');
     const isVid = item.type === 'video' || isDrive;
-    const fileId = item.url.match(/\/d\/([^/?]+)/)?.[1] || item.url.match(/[?&]id=([^&]+)/)?.[1] || '';
+    const fileId = item.url.match(/\/d\/([\w-]+)/)?.[1] || item.url.match(/[?&]id=([\w-]+)/)?.[1] || ''; // [\w-] only: this id goes into HTML attributes
     if (isVid && !fileId) return `<div class="carousel-slide">${statsTag}${counter}<div style="color:var(--red);text-align:center;padding:20px;font-size:12px">Invalid video URL</div></div>`;
     let media;
     if (isVid && fileId) {
       const drivePreviewUrl = `https://drive.google.com/file/d/${fileId}/preview`;
       media = `<div class="video-container" style="position:relative;width:100%;height:340px;background:#000" data-file-id="${fileId}"><iframe id="vid-${fileId}" src="${drivePreviewUrl}" style="position:absolute;top:0;left:0;width:100%;height:100%;border:none" frameborder="0" allow="autoplay" allowfullscreen></iframe></div>`;
     } else {
-      media = `<img src="${item.url}" alt="Account media ${i + 1}" onclick="openLightbox('${item.url}','img')" style="cursor:zoom-in;width:100%;height:340px;object-fit:contain;display:block;background:var(--bg3)" />`;
+      media = `<img src="${escapeHtml(item.url)}" alt="Account media ${i + 1}" onclick="openLightbox(this.src,'img')" style="cursor:zoom-in;width:100%;height:340px;object-fit:contain;display:block;background:var(--bg3)" />`;
     }
     return `<div class="carousel-slide">${statsTag}${counter}${media}</div>`;
   }).join('');
@@ -209,12 +223,12 @@ function openDetail(id) {
   _carouselItems = _buildCarouselItems(a); _carouselIdx = 0;
   const esc = escapeHtml;
   const rows = [];
-  if (a.ign) rows.push(['IGN', esc(a.ign)]);
-  if (a.accid) rows.push(['Account ID', esc(a.accid)]);
-  if (a.kda) rows.push(['KDA', esc(a.kda)]);
-  if (a.winRate) rows.push(['Win Rate', esc(a.winRate) + '%']);
-  if (a.exp) rows.push(['EXP Progress', esc(a.exp) + '%']);
-  if (a.ach) rows.push(['Achievement', esc(a.ach) + '%']);
+  if (a.ign) rows.push(['IGN', a.ign]);
+  if (a.accid) rows.push(['Account ID', a.accid]);
+  if (a.kda) rows.push(['KDA', a.kda]);
+  if (a.winRate) rows.push(['Win Rate', a.winRate + '%']);
+  if (a.exp) rows.push(['EXP Progress', a.exp + '%']);
+  if (a.ach) rows.push(['Achievement', a.ach + '%']);
   const tags = a.notes ? a.notes.split(',').filter(t => t.trim()).map(t => `<span class="tag">${esc(t.trim())}</span>`).join('') : '';
   const displayPrice = a.price * (1 + ACCOUNT_SERVICE_RATE);
   const statusPill = isSold ? '<span class="acc-status-pill s-sold" style="font-size:11px;padding:3px 10px">Sold</span>' : isReserved ? '<span class="acc-status-pill s-reserved" style="font-size:11px;padding:3px 10px">Reserved</span>' : isPending ? '<span class="acc-status-pill s-pending" style="font-size:11px;padding:3px 10px">Pending Review</span>' : '<span class="acc-status-pill s-available" style="font-size:11px;padding:3px 10px">Available</span>';
@@ -275,20 +289,45 @@ async function submitPurchase() {
   if (!buyerPhone) { showToast('Please enter your phone number.'); return; }
   if (!file) { showToast('Please upload payment screenshot or PDF.'); return; }
   const btn = document.getElementById('upload-btn-acc'), status = document.getElementById('upload-status-acc');
-  btn.disabled = true; btn.textContent = 'Uploading...';
-  status.textContent = 'Uploading proof...'; status.style.color = 'var(--text2)';
+  btn.disabled = true; btn.textContent = 'Processing...';
+  status.textContent = 'Creating order...'; status.style.color = 'var(--text2)';
   try {
     const acc = accounts.find(x => x.id === currentAccId);
-    const orderId = genId('ACC'); const timestamp = new Date().toISOString();
-    const details = [acc?.rank, acc?.ign ? 'IGN:' + acc.ign : '', acc?.accid ? 'ID:' + acc.accid : ''].filter(Boolean).join(' · ');
-    await uploadProofFile(file, orderId, 'accountPurchase', { acc_id: currentAccId, timestamp, name: buyerIgn, buyer_name: buyerName, phone: buyerPhone, email: '', items: details, total: acc?.price || 0, note: '', status: 'Paid' });
-    status.textContent = 'Logging order...';
-    await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'newOrder', order_id: orderId, timestamp, name: buyerName + ' (' + buyerIgn + ')', phone: buyerPhone, email: '', items: details, total: acc?.price || 0, note: 'Buyer IGN: ' + buyerIgn, status: 'Paid', proof: '' }) });
-    status.textContent = 'Marking account reserved...';
-    try { await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'reserveAccount', id: currentAccId }) }); } catch (_) { showToast('Order placed but account status update failed'); }
+    if (!acc) throw new Error('Account not found');
+
+    // The server reserves the account, prices it, logs the order and returns an order_token.
+    const timestamp = new Date().toISOString();
+    const result = await apiPost({
+      action: 'accountPurchase',
+      acc_id: currentAccId,
+      name: buyerName + ' (' + buyerIgn + ')',
+      phone: buyerPhone,
+      buyer_ign: buyerIgn,
+      buyer_name: buyerName
+    });
+
+    const orderId = result.order_id;
+    const orderToken = result.order_token;
+    if (!orderId || !orderToken) throw new Error('Order was not saved. Please try again.');
+    // Remember the token so the proof can still be uploaded from the "Pay" button if this step fails.
+    saveOrderToken(orderId, orderToken);
+
+    // Upload proof with order_token
+    status.textContent = 'Uploading proof...'; status.style.color = 'var(--text2)';
+    try {
+      await uploadProofFile(file, orderId, 'uploadProofItem', {}, orderToken);
+    } catch (uploadErr) {
+      // The account is already reserved for this buyer, so don't leave them stuck.
+      status.textContent = 'Order ' + orderId + ' created, but the proof upload failed (' + uploadErr.message + '). Find your order in "Recent orders" and tap Pay to retry.';
+      status.style.color = 'var(--red)';
+      btn.textContent = 'Order created';
+      _lastFeedData = ''; fetchSheet(); fetchAccounts();
+      return;
+    }
+
     status.textContent = 'Payment submitted! We will contact you soon.'; status.style.color = 'var(--green)';
     btn.textContent = 'Submitted ✓';
-    setTimeout(() => { closePay(); fetchAccounts(); fetchSheet(); }, 4000);
+    setTimeout(() => { closePay(); fetchAccounts(); _lastFeedData = ''; fetchSheet(); }, 4000);
   } catch (e) { status.textContent = 'Failed: ' + e.message; status.style.color = 'var(--red)'; btn.disabled = false; btn.textContent = 'Submit payment'; }
 }
 
@@ -343,7 +382,7 @@ async function submitSellAccount() {
   const btn = document.getElementById('sell-submit-btn'); const status = document.getElementById('sell-status');
   btn.disabled = true; btn.textContent = 'Submitting...';
   status.textContent = 'Preparing listing...'; status.style.color = 'var(--text2)';
-  const systemid = genId('ACC'); const uploadedUrls = ['', '', '', ''];
+  const uploadedUrls = ['', '', '', ''];
   try {
     const filesToUpload = sellTempFiles.map((f, i) => ({ file: f, idx: i })).filter(x => x.file);
     for (const { file, idx } of filesToUpload) {
@@ -351,12 +390,12 @@ async function submitSellAccount() {
       const isVid = file.type.startsWith('video/') || file.type === 'image/gif';
       const fileName = `acc_${idx}_${Date.now()}.${file.name.split('.').pop()}`;
       if (isVid) { status.textContent = `Uploading video ${idx + 1} directly to Drive...`; uploadedUrls[idx] = await uploadDirectToDrive(file, fileName, 'account_public', ign); }
-      else { const base64 = await compressImage(file, 1200, 0.8); const resp = await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'uploadPublicAccountImage', ign, fileName, mimeType: 'image/jpeg', base64 }) }); const res = await resp.json(); if (res.error) throw new Error(res.error); uploadedUrls[idx] = res.url || ''; }
+      else { const base64 = await compressImage(file, 1200, 0.8); const res = await apiPost({ action: 'uploadPublicAccountImage', ign, fileName, mimeType: 'image/jpeg', base64 }); uploadedUrls[idx] = res.url || ''; }
     }
     status.textContent = 'Saving listing...';
-    const acc = { id: systemid, rank, price, ign: g('sell-ign'), accid: g('sell-accid'), sellername, sellercontact, sellerign, kda: g('sell-kda'), winrate: g('sell-wr'), exp: g('sell-exp'), achievement: '', notes: g('sell-notes'), status: 'pending', createdat: Date.now(), img1: uploadedUrls[0], img2: uploadedUrls[1], img3: uploadedUrls[2], img4: uploadedUrls[3] };
-    const resp = await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'saveAccount', account: acc, isNew: true }) });
-    const result = await resp.json(); if (result.error) throw new Error(result.error);
+    // The server assigns the id, forces status "pending" and validates every field.
+    const acc = { rank, price, ign: g('sell-ign'), accid: g('sell-accid'), sellername, sellercontact, sellerign, kda: g('sell-kda'), winrate: g('sell-wr'), exp: g('sell-exp'), achievement: '', notes: g('sell-notes'), img1: uploadedUrls[0], img2: uploadedUrls[1], img3: uploadedUrls[2], img4: uploadedUrls[3] };
+    await apiPost({ action: 'submitListing', account: acc });
     status.textContent = 'Listing submitted! We will review and contact you soon.'; status.style.color = 'var(--green)';
     btn.textContent = 'Submitted ✓';
     setTimeout(() => { closeSellModal(); fetchAccounts(); }, 3500);

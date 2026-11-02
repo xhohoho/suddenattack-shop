@@ -20,14 +20,12 @@ function isVideoUrl(url) {
 // Flow: getDirectUploadUrl → PUT blob to Drive → finalizeUpload
 
 async function uploadDirectToDrive(file, fileName, folderContext, ign) {
-  const urlResp = await fetch(API_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ action: 'getDirectUploadUrl', fileName, mimeType: file.type, folderContext, ign })
-  });
-  const urlResult = await urlResp.json();
-  if (urlResult.error) throw new Error('Upload init failed: ' + urlResult.error);
+  // 1) ask the server for a Drive upload session (server validates type + size and picks the file name)
+  const init = { action: 'getDirectUploadUrl', mimeType: file.type, fileSize: file.size, folderContext, ign };
+  if (folderContext === 'account' && adminToken) init._token = adminToken; // admin-only context
+  const urlResult = await apiPost(init).catch(e => { throw new Error('Upload init failed: ' + e.message); });
 
+  // 2) send the file straight to Drive
   const uploadResp = await fetch(urlResult.uploadUrl, {
     method: 'PUT',
     headers: { 'Content-Type': file.type },
@@ -35,13 +33,9 @@ async function uploadDirectToDrive(file, fileName, folderContext, ign) {
   });
   if (!uploadResp.ok) throw new Error(`Direct upload to Drive failed: ${uploadResp.status}`);
 
-  const finalResp = await fetch(API_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ action: 'finalizeUpload', fileName, mimeType: file.type, folderId: urlResult.folderId })
-  });
-  const finalResult = await finalResp.json();
-  if (finalResult.error) throw new Error('Finalize failed: ' + finalResult.error);
+  // 3) tell the server to verify + publish it (the signed sessionToken says which file to look for)
+  const finalResult = await apiPost({ action: 'finalizeUpload', sessionToken: urlResult.sessionToken })
+    .catch(e => { throw new Error('Finalize failed: ' + e.message); });
   return finalResult.url;
 }
 
