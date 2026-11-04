@@ -391,26 +391,6 @@ async function saveOrderStatus(orderId) {
   }
 }
 
-async function updateOrderStatus(orderId) {
-  const sel = document.getElementById('st-' + orderId);
-  const btn = document.getElementById('btn-' + orderId);
-  const ind = document.getElementById('ind-' + orderId);
-  btn.disabled = true; btn.textContent = '...'; ind.textContent = '';
-  try {
-    await adminFetch({ action: 'updateOrderStatus', order_id: orderId, status: sel.value });
-    const o = allOrders.find(x => x.order_id === orderId);
-    if (o) o.status = sel.value;
-    ind.textContent = '✓'; ind.style.color = 'var(--green)';
-    btn.textContent = 'Save'; btn.disabled = false;
-    setTimeout(() => { if (ind) ind.textContent = ''; }, 3000);
-    fetchSheet();
-  } catch (e) {
-    ind.textContent = '✕'; ind.style.color = 'var(--red)';
-    btn.textContent = 'Save'; btn.disabled = false;
-    setTimeout(() => { if (ind) ind.textContent = ''; }, 4000);
-  }
-}
-
 async function saveOrderComment(orderId) {
   const inp = document.getElementById('cm-' + orderId);
   const btn = document.getElementById('cmbtn-' + orderId);
@@ -469,18 +449,20 @@ async function extractItems() {
   const btn = document.getElementById('extract-btn');
   const status = document.getElementById('extract-status');
   const progress = document.getElementById('extract-progress');
+  const bar = progress ? progress.firstElementChild : null; // the inner bar is what has to grow
+  const setBar = pct => { if (bar) bar.style.width = pct + '%'; };
   btn.disabled = true; btn.textContent = 'Extracting...';
   status.textContent = 'Uploading images...'; status.style.color = 'var(--text2)';
-  if (progress) { progress.style.width = '10%'; progress.style.display = 'block'; }
+  if (progress) { setBar(10); progress.style.display = 'block'; }
   try {
     const filesToUpload = shopExtractFiles.filter(Boolean);
-    const allItems = []; let uploadedUrls = [];
+    const allItems = [];
     const slides = document.querySelectorAll('#slideshow img');
     for (let i = 0; i < shopExtractFiles.length; i++) {
       const file = shopExtractFiles[i];
       if (!file) continue;
       status.textContent = `Processing image ${i + 1}/${filesToUpload.length}...`;
-      if (progress) progress.style.width = `${20 + i * 30}%`;
+      if (progress) setBar(20 + i * 30);
       const base64 = await compressImage(file, 1200, 0.8);
       const dateStr = new Date().toLocaleDateString('en-GB', {timeZone: 'Asia/Kuala_Lumpur'}).replace(/\//g, '');
       const resp = await adminFetch({ action: 'extractItems', fileName: `shop_${i}_${dateStr}.jpg`, base64 });
@@ -492,19 +474,13 @@ async function extractItems() {
         if (slides[i]) slides[i].src = result.url;
       }
     }
-    if (progress) progress.style.width = '80%';
-    status.textContent = 'Saving slides...';
-    for (let i = 0; i < uploadedUrls.length; i++) {
-      if (slides[i]) slides[i].src = uploadedUrls[i];
-      try { await adminFetch({ action: 'uploadSlideImg', slideIndex: i, url: uploadedUrls[i] }); } catch (_) { showToast('Slide ' + (i+1) + ' saved to Drive but sheet update failed'); }
-    }
-    if (progress) progress.style.width = '90%';
+    setBar(90);
     status.textContent = 'Finalizing...';
     startSlideshow();
     const seen = new Set();
     const deduped = allItems.filter(it => { const k = (it.name || '').toLowerCase().trim(); if (seen.has(k)) return false; seen.add(k); return true; });
     renderExtracted(deduped);
-    if (progress) progress.style.width = '100%';
+    setBar(100);
     status.textContent = 'Extracted ' + deduped.length + ' items from ' + filesToUpload.length + ' image(s). Review and apply.';
     status.style.color = 'var(--green)';
     setTimeout(() => { if (progress) progress.style.display = 'none'; }, 3000);
