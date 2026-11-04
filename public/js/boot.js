@@ -136,8 +136,12 @@ unifiedBoot();
   });
 })();
 
-setInterval(fetchSheet, 30000);
-setInterval(fetchAccounts, 60000);
+// Poll only while the tab is visible (saves Google Sheets quota), and refresh right away when the user comes back.
+setInterval(() => { if (!document.hidden) fetchSheet(); }, 30000);
+setInterval(() => { if (!document.hidden) fetchAccounts(); }, 60000);
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) { fetchSheet(); fetchAccounts(); }
+});
 
 // ── Ticker seamless loop ──────────────────────
 
