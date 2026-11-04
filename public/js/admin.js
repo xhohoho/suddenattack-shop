@@ -163,7 +163,7 @@ async function checkPass() {
     if (result.token) {
       adminToken = result.token;
       adminUnlocked = true;
-      _adminSessionReady = true; // the login code below does the setup itself
+      _adminSessionReady = false; // force a fresh setup, even after an earlier session expired
       // Persist in sessionStorage (survives page refresh, cleared on tab close)
       try { sessionStorage.setItem('adminToken', adminToken); } catch { /* ignore */ }
 
@@ -171,25 +171,8 @@ async function checkPass() {
       document.getElementById('admin-content').style.display = 'block';
       st.textContent = '';
 
-      // Populate slideshow thumbnails now that admin is open
-      slideUrls.forEach((url, i) => {
-        if (!url) return;
-        const thumb = document.getElementById('ss-img-' + i);
-        const lbl = document.getElementById('ss-lbl-' + i);
-        if (thumb) { thumb.src = url; thumb.style.display = 'block'; }
-        if (lbl) lbl.style.display = 'none';
-      });
-
-      loadShopEditor();
-      renderManageList();
-      // Reload accounts with the admin token so pending listings + seller details appear.
-      _lastAccountData = '';
-      if (typeof fetchAccounts === 'function') fetchAccounts();
-      initTickerSpeedControl();
-
-      // Re-render the public feed now so inline comment boxes appear immediately
-      _lastFeedData = '';
-      fetchSheet();
+      // Same setup as a restored session: slide thumbnails, shop editor, accounts (with pending listings), feed comment boxes
+      initAdminSession();
     } else {
       st.textContent = (result.error && /too many/i.test(result.error)) ? result.error : 'Wrong password or CAPTCHA.'; st.style.color = 'var(--red)';
       resetAdminTurnstile();
