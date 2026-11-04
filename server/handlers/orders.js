@@ -8,14 +8,13 @@ import { getShopItems } from './shop.js';
 import { releaseStaleReservations } from './accounts.js';
 import { sendOrderCreatedWebhook, sendProofUploadedWebhook } from '../lib/webhook.js';
 import { badRequest, notFound, conflict, cleanText, requiredText } from '../lib/http.js';
+import { priceItemOrder, priceAccount, SERVICE_CHARGE, ACCOUNT_SERVICE_RATE } from '../lib/pricing.js';
 import crypto from 'crypto';
 
 const KL_LOCALE = { timeZone: 'Asia/Kuala_Lumpur' };
 
-/** Flat RM fee added once per item order (matches SERVICE_CHARGE in public/js/config.js). */
-export const SERVICE_CHARGE = 0.50;
-/** 10% fee added on top of account prices (matches ACCOUNT_SERVICE_RATE in config.js). */
-export const ACCOUNT_SERVICE_RATE = 0.10;
+// Pricing constants now live in server/lib/pricing.js (so they can be unit-tested); re-exported for other modules.
+export { SERVICE_CHARGE, ACCOUNT_SERVICE_RATE };
 
 // Fields the public may see. Never phone, email or proof links.
 // `note` (the buyer's own note) is shown in the public feed, as it always was.
@@ -84,26 +83,8 @@ export async function handleNewOrder(auth, body, res) {
   if (!Array.isArray(items) || items.length === 0) throw badRequest('No items provided');
   if (items.length > 60) throw badRequest('Too many items in one order');
 
-  const shop = new Map((await getShopItems(auth, { fresh: true })).map(i => [i.id, i]));
-
-  let subtotal = 0;
-  const lines = [];
-  for (const raw of items) {
-    const id = String(parseInt(raw?.id, 10));
-    const days = Number(raw?.days);
-    const qty = Number(raw?.qty);
-    const item = shop.get(id);
-    if (!item) throw badRequest('An item in your cart is no longer available. Please refresh the page.');
-    if (![7, 15, 30].includes(days)) throw badRequest('Invalid duration');
-    if (!Number.isInteger(qty) || qty < 1 || qty > 99) throw badRequest('Invalid quantity');
-    const unit = days === 7 ? item.p7 : days === 15 ? item.p15 : item.p30;
-    if (!(unit > 0)) throw badRequest(`"${item.name}" is not available for ${days} days`);
-    const line = round2(unit * qty);
-    subtotal += line;
-    lines.push(`${item.name} ${days}d x${qty} (RM ${line.toFixed(2)})`);
-  }
-  const total = round2(subtotal + SERVICE_CHARGE);
-  const itemsStr = lines.join('; ');
+  const shopItems = await getShopItems(auth, { fresh: true });
+  const { total, itemsStr } = priceItemOrder(items, shopItems);
 
   // If prices changed while the buyer was browsing, tell them instead of charging a surprise.
   if (body.total != null && Math.abs(Number(body.total) - total) > 0.01) {
@@ -154,7 +135,7 @@ export async function handleAccountPurchase(auth, body, res) {
 
     const price = parseFloat(acc.price);
     if (!(price > 0)) throw badRequest('This account has no valid price');
-    const total = round2(price * (1 + ACCOUNT_SERVICE_RATE));
+    const total = priceAccount(price);
 
     const statusIdx = headers.indexOf('status');
     const reservedAtIdx = headers.indexOf('reserved_at');
