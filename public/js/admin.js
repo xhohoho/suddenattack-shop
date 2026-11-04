@@ -896,6 +896,13 @@ function handleSlideDragOver(e) {
   }
 }
 
+function handleSlideDragEnter(e) {
+  e.preventDefault();
+  if (this !== slideDragSrc && !this.classList.contains('slide-add')) {
+    this.classList.add('drag-over');
+  }
+}
+
 function handleSlideDragLeave(e) {
   if (!this.contains(e.relatedTarget)) this.classList.remove('drag-over');
 }
@@ -916,14 +923,18 @@ function handleSlideDrop(e) {
   // Save new order to backend
   saveSlideOrder();
 
-  // Rebuild UI
+  // Rebuild UI + update the banner on the page to the new order right away
   rebuildSlideshowTab();
+  const bannerImgs = document.querySelectorAll('#slideshow img');
+  bannerImgs.forEach((img, i) => { img.src = slideUrls[i] || ''; });
+  slideshowIdx = 0;
   startSlideshow();
 }
 
 async function saveSlideOrder() {
   try {
-    await adminFetch({ action: 'uploadSlideImg', slideIndex: -1, urls: slideUrls });
+    await adminFetch({ action: 'uploadSlideImg', slideIndex: -1, urls: Array.from(slideUrls, u => u || '') });
+    showSlideStatus('Slide order saved ✓', true);
   } catch (e) {
     showToast('Failed to save slide order: ' + e.message);
   }
