@@ -225,6 +225,7 @@ function switchTab(tab, btn) {
   if (tab === 'edit-shop') { loadShopEditor(); shopEditorDirty = false; }
   if (tab === 'orders') loadOrderMgmt();
   if (tab === 'ticker') loadTickerEditor();
+  if (tab === 'slideshow') rebuildSlideshowTab();
 }
 
 // Call this when edit shop inputs change
@@ -737,6 +738,7 @@ let slideshowTimer = null;
 let slideshowIdx = 0;
 let slideUrls = []; // Dynamic array - populated from settings
 let slideDragSrc = null; // For drag-to-reorder
+const MAX_SLIDES = 2; // must match SLIDE_COLS in server/handlers/settings.js
 
 function startSlideshow() {
   if (slideshowTimer) { clearInterval(slideshowTimer); slideshowTimer = null; }
@@ -815,7 +817,7 @@ async function fetchSlideUrls() {
 function rebuildSlideshowTab() {
   const container = document.querySelector('#tab-slideshow .slide-grid') || createSlideshowGrid();
   const esc = escapeHtml;
-  container.innerHTML = slideUrls.map((url, i) => `
+  container.innerHTML = Array.from(slideUrls, u => u || '').map((url, i) => `
     <div class="slide-item" draggable="true" data-index="${i}" id="slide-item-${i}"
       style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:10px;display:flex;flex-direction:column;gap:8px;position:relative">
       <div style="display:flex;align-items:center;justify-content:space-between">
@@ -844,6 +846,9 @@ function rebuildSlideshowTab() {
       <div style="font-size:32px;color:var(--accent);opacity:.5">+</div>
       <div style="font-size:11px;color:var(--text3);font-family:'Rajdhani',sans-serif;letter-spacing:.05em;text-transform:uppercase">Add Slide</div>
     </div>`;
+
+  // The sheet only has 2 slide cells (Settings!B2:C2), so no "Add Slide" button once both exist
+  if (slideUrls.length >= MAX_SLIDES) document.getElementById('slide-add-btn')?.remove();
 
   // Attach drag events
   attachSlideDragEvents();
@@ -925,6 +930,7 @@ async function saveSlideOrder() {
 }
 
 function addSlideSlot() {
+  if (slideUrls.length >= MAX_SLIDES) { showToast('Maximum ' + MAX_SLIDES + ' slides supported'); return; }
   slideUrls.push('');
   rebuildSlideshowTab();
   // Focus the new file input
