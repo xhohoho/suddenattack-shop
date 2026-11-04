@@ -1,25 +1,25 @@
-import { getAuth, isValidAdminToken, issueAdminToken, safeEqual } from './lib/auth.js';
-import { HttpError, unauthorized } from './lib/http.js';
-import { rateLimit, clientIp } from './lib/ratelimit.js';
-import { auditLog, withAudit } from './lib/audit.js';
+import { getAuth, isValidAdminToken, issueAdminToken, safeEqual } from '../server/lib/auth.js';
+import { HttpError, unauthorized } from '../server/lib/http.js';
+import { rateLimit, clientIp } from '../server/lib/ratelimit.js';
+import { auditLog, withAudit } from '../server/lib/audit.js';
 import {
   handleGetOrders, handleNewOrder, handleAccountPurchase,
   handleUpdateOrderStatus, handleUpdateOrderComment, handleUploadProofItem,
   handleFindOrder,
-} from './handlers/orders.js';
+} from '../server/handlers/orders.js';
 import {
   handleGetAccounts, handleSaveAccount, handleDeleteAccount,
   handleUpdateAccountStatus, handleUploadAccountImage, handleUploadPublicAccountImage, handleSubmitListing,
-} from './handlers/accounts.js';
+} from '../server/handlers/accounts.js';
 import {
   handleGetShopItems, handleSaveItems, handleExtractItems, handleExtractAccountStats,
-} from './handlers/shop.js';
+} from '../server/handlers/shop.js';
 import {
   handleGetSettings, handleInitData, handleUploadSlideImg, handleUpdateTicker,
-} from './handlers/settings.js';
+} from '../server/handlers/settings.js';
 import {
   handleGetDirectUploadUrl, handleFinalizeUpload,
-} from './handlers/directUpload.js';
+} from '../server/handlers/directUpload.js';
 
 // ══════════════════════════════════════════
 // MAIN HANDLER — slim router
