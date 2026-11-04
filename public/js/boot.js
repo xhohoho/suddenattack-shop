@@ -67,6 +67,75 @@ async function unifiedBoot() {
 }
 
 unifiedBoot();
+// ── Event delegation for admin / accounts UI (replaces the old inline onclick/onchange) ──
+// feed.js and items.js handle their own data-action values; everything else is routed here.
+// boot.js loads last, so every function referenced below already exists.
+(function () {
+  const slot = el => parseInt(el.dataset.slot, 10);
+
+  const CLICK = {
+    // admin panel
+    toggleAdmin:        () => toggleAdmin(),
+    checkPass:          () => checkPass(),
+    switchTab:          el => switchTab(el.dataset.tab, el),
+    extractItems:       () => extractItems(),
+    applyItems:         () => applyItems(),
+    addExtractedRow:    () => addExtractedRow(),
+    loadShopEditor:     () => loadShopEditor(),
+    saveShopEdit:       () => saveShopEdit(),
+    addShopEditorRow:   () => addShopEditorRow(),
+    removeShopSlot:     (el, e) => removeShopSlot(e, slot(el)),
+    showAddForm:        () => showAddForm(),
+    hideAddForm:        () => hideAddForm(),
+    removeSlot:         (el, e) => removeSlot(e, slot(el)),
+    applyStatsToForm:   () => applyStatsToForm(),
+    dismissStatsReview: () => { document.getElementById('stats-review-panel').style.display = 'none'; },
+    saveAccount:        () => saveAccount(),
+    previewLiveSlides:  () => previewLiveSlides(),
+    saveTickerText:     () => saveTickerText(),
+    resetTickerText:    () => resetTickerText(),
+    loadOrderMgmt:      () => loadOrderMgmt(),
+    // public accounts tab
+    switchMainTab:      el => switchMainTab(el.dataset.tab, el),
+    setFilter:          el => setFilter(el.dataset.filter, el),
+    openSellModal:      () => openSellModal(),
+    closeSellModal:     () => closeSellModal(),
+    removeSellSlot:     (el, e) => removeSellSlot(e, slot(el)),
+    submitSellAccount:  () => submitSellAccount(),
+    submitPurchase:     () => submitPurchase(),
+    closeDetail:        () => closeDetail(),
+    closePay:           () => closePay(),
+    closeLightbox:      () => closeLightbox(),
+    // clicking the dark backdrop closes the detail popup; clicks inside the popup hit the
+    // nested stopPropagation element first (closest() finds it) and are ignored here
+    closeDetailOverlay: (el, e) => { if (e.target === el) closeDetail(); },
+  };
+
+  const CHANGE = {
+    handleShopSlotFile: el => handleShopSlotFile(el, slot(el)),
+    handleSlotFile:     el => handleSlotFile(el, slot(el)),
+    handleSellSlot:     el => handleSellSlot(el, slot(el)),
+    previewFileAcc:     el => previewFileAcc(el),
+    renderGrid:         () => renderGrid(),
+  };
+
+  document.addEventListener('click', function (e) {
+    const el = e.target.closest('[data-action]');
+    const fn = el && CLICK[el.dataset.action];
+    if (fn) fn(el, e);
+  });
+
+  document.addEventListener('change', function (e) {
+    const el = e.target.closest('[data-action]');
+    const fn = el && CHANGE[el.dataset.action];
+    if (fn) fn(el, e);
+  });
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' && e.target.closest('[data-action="checkPassOnEnter"]')) checkPass();
+  });
+})();
+
 setInterval(fetchSheet, 30000);
 setInterval(fetchAccounts, 60000);
 
