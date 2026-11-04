@@ -140,6 +140,9 @@ function openModal(total, orderId, timestamp) {
   if (oidEl) oidEl.textContent = currentOrderId || '—';
   document.getElementById('modal-overlay').classList.add('open');
   document.getElementById('upload-status-item').textContent = currentOrderToken ? '' : 'This order was placed in another browser, so proof can only be uploaded there. Please contact us with your Order ID.';
+  // Show "Find my order" link if no token
+  const findLink = document.getElementById('find-order-link-item');
+  if (findLink) findLink.style.display = currentOrderToken ? 'none' : 'block';
   const ubtn = document.getElementById('upload-btn-item');
   ubtn.style.display = 'none'; ubtn.disabled = false; ubtn.textContent = 'Submit proof';
   document.getElementById('preview-img-item').style.display = 'none';
@@ -152,6 +155,90 @@ function openModal(total, orderId, timestamp) {
 function closeModal() {
   document.getElementById('modal-overlay').classList.remove('open');
   currentOrderId = null; currentOrderTimestamp = null; currentOrderToken = null;
+}
+
+// ── Find My Order modal ──────────────────────
+// Shared state for which tab (item/account) the user came from
+let _findOrderOrigin = 'item';
+
+function openFindOrderModal(origin) {
+  _findOrderOrigin = origin;
+  document.getElementById('find-ign').value = '';
+  document.getElementById('find-phone').value = '';
+  document.getElementById('find-email').value = '';
+  document.getElementById('find-order-results').innerHTML = '';
+  document.getElementById('find-order-results').style.display = 'none';
+  document.getElementById('find-order-status').textContent = '';
+  document.getElementById('find-submit-btn').disabled = false;
+  document.getElementById('find-submit-btn').textContent = 'Find my order';
+  document.getElementById('find-order-overlay').classList.add('open');
+}
+
+function closeFindOrderModal() {
+  document.getElementById('find-order-overlay').classList.remove('open');
+}
+
+async function submitFindOrder() {
+  const ign = document.getElementById('find-ign').value.trim();
+  const phone = document.getElementById('find-phone').value.trim();
+  const email = document.getElementById('find-email').value.trim();
+  const statusEl = document.getElementById('find-order-status');
+  const resultsEl = document.getElementById('find-order-results');
+  const btn = document.getElementById('find-submit-btn');
+
+  if (!ign || (!phone && !email)) {
+    statusEl.textContent = 'Please enter your IGN and phone or email.';
+    statusEl.style.color = 'var(--red)';
+    return;
+  }
+
+  btn.disabled = true; btn.textContent = 'Searching...';
+  statusEl.textContent = ''; statusEl.style.color = '';
+  resultsEl.innerHTML = ''; resultsEl.style.display = 'none';
+
+  try {
+    const res = await apiPost({ action: 'findOrder', name: ign, phone, email });
+    const orders = res.orders || [];
+    if (!orders.length) {
+      statusEl.textContent = 'No matching orders found. Check your details and try again.';
+      statusEl.style.color = 'var(--red)';
+      btn.disabled = false; btn.textContent = 'Find my order';
+      return;
+    }
+
+    // Show matches with "Use this order" buttons
+    resultsEl.innerHTML = orders.map(o => `
+      <div style="border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:8px;background:var(--bg3)">
+        <div style="font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:600;color:var(--text);margin-bottom:4px">${escapeHtml(o.order_id)}</div>
+        <div style="font-size:11px;color:var(--text2);margin-bottom:2px">${escapeHtml(o.items)}</div>
+        <div style="font-size:11px;color:var(--text2);margin-bottom:2px">Total: ${fmt(o.total)} · Status: ${escapeHtml(o.status)}</div>
+        <div style="font-size:11px;color:var(--text3);margin-bottom:8px">${timeAgo(o.timestamp)}</div>
+        <button data-use-order="${escapeHtml(o.order_id).replace(/"/g, '"')}" data-use-token="${escapeHtml(o.order_token).replace(/"/g, '"')}" style="padding:6px 12px;background:var(--accent);color:#0a0b0f;border:none;border-radius:4px;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;cursor:pointer">Use this order</button>
+      </div>
+    `).join('');
+    resultsEl.style.display = 'block';
+    statusEl.textContent = `Found ${orders.length} order(s). Click "Use this order" to continue.`;
+    statusEl.style.color = 'var(--green)';
+  } catch (e) {
+    statusEl.textContent = 'Search failed: ' + e.message;
+    statusEl.style.color = 'var(--red)';
+  }
+  btn.disabled = false; btn.textContent = 'Find my order';
+}
+
+function useFoundOrder(orderId, orderToken) {
+  saveOrderToken(orderId, orderToken);
+  closeFindOrderModal();
+  closeModal();
+  // Re-open payment modal with the found order
+  openModal({ dataset: { oid: orderId, tot: 0, ts: new Date().toISOString() } });
+  // The modal will pick up the token from localStorage
+  setTimeout(() => {
+    const fi = document.getElementById('proof-file-item');
+    fi.disabled = false;
+    const findLink = document.getElementById('find-order-link-item');
+    if (findLink) findLink.style.display = 'none';
+  }, 50);
 }
 
 function copyOrderId() {
@@ -183,6 +270,58 @@ async function uploadProofItem() {
 }
 
 document.getElementById('modal-overlay').addEventListener('click', function (e) { if (e.target === this) closeModal(); });
+
+// ── Event delegation for data-action (replaces onclick) ─────────────────
+document.addEventListener('click', function (e) {
+  const btn = e.target.closest('[data-action]');
+  if (!btn) return;
+  const action = btn.dataset.action;
+  const origin = btn.dataset.origin;
+
+  switch (action) {
+    case 'filterTable':
+      filterTable();
+      break;
+    case 'submitOrder':
+      submitOrder();
+      break;
+    case 'closeModal':
+      closeModal();
+      break;
+    case 'copyOrderId':
+      copyOrderId();
+      break;
+    case 'openFindOrderModal':
+      openFindOrderModal(origin || 'item');
+      break;
+    case 'uploadProofItem':
+      uploadProofItem();
+      break;
+    case 'closeFindOrderModal':
+      closeFindOrderModal();
+      break;
+    case 'submitFindOrder':
+      submitFindOrder();
+      break;
+    case 'useFoundOrder':
+      // Handled separately via dynamic buttons in results
+      break;
+  }
+});
+
+// Handle file input changes
+document.addEventListener('change', function (e) {
+  const input = e.target.closest('[data-action="previewFileItem"]');
+  if (input) previewFileItem(input);
+});
+
+// Dynamic "Use this order" buttons in find-order results
+document.addEventListener('click', function (e) {
+  const btn = e.target.closest('[data-use-order]');
+  if (btn) {
+    useFoundOrder(btn.dataset.useOrder, btn.dataset.useToken);
+  }
+});
 
 // ── Fetch items from sheet ─────────────────
 

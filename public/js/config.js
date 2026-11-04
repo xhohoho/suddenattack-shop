@@ -33,6 +33,9 @@ let accounts = [];
 const SERVICE_CHARGE = 0.50;          // RM service fee for item orders
 const ACCOUNT_SERVICE_RATE = 0.10;    // 10% service charge for account listings
 
+// Turnstile CAPTCHA (set at build time via env var, defaults to empty = disabled)
+// (window.TURNSTILE_SITE_KEY is set by a small inline script in main.html, filled in by build.js)
+
 // ── Shared validation constants ──────────────────────
 const MAX_IMAGE_SIZE_MB = 5;
 const MAX_VIDEO_SIZE_MB = 50;
@@ -52,4 +55,7 @@ function validateFile(file, { maxSizeMB = MAX_IMAGE_SIZE_MB, allowedTypes = ALLO
 
 // ── Admin auth state ─────────────────────────────────
 let adminUnlocked = false;
-let adminToken = null;
+let adminToken = (() => {
+  try { return sessionStorage.getItem('adminToken'); } catch { return null; }
+})();
+if (adminToken) adminUnlocked = true; // will be validated on first adminFetch

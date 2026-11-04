@@ -41,7 +41,7 @@ function renderFeed(orders) {
         <div class="fi">${escapeHtml(o.items)}</div>
         ${o.note ? `<div class="fi" style="font-style:italic;color:var(--text3)">${escapeHtml(o.note)}</div>` : ''}
         ${commentHtml}
-        <span class="pill ${sc}">${escapeHtml(statusLabel)}</span>${showNewBadge ? `<span class="pill p-new" style="margin-left:4px">New</span>` : ''}${canPay ? `<button class="pay-btn" data-tot="${tot}" data-oid="${oid}" data-ts="${escapeHtml(ts || new Date().toISOString())}" onclick="openModal(this)">Pay</button>` : ''}
+        <span class="pill ${sc}">${escapeHtml(statusLabel)}</span>${showNewBadge ? `<span class="pill p-new" style="margin-left:4px">New</span>` : ''}${canPay ? `<button class="pay-btn" data-tot="${tot}" data-oid="${oid}" data-ts="${escapeHtml(ts || new Date().toISOString())}" data-action="openModal">Pay</button>` : ''}
       </div>
       <div class="fr"><div class="ft">${fmt(tot)}</div><div class="fa">${timeAgo(ts)}</div></div>
     </div>`;
@@ -78,8 +78,17 @@ async function saveFeedComment(orderId) {
 let _lastFeedData = '';
 async function fetchSheet() {
   try {
-    const d = await apiPost({ action: 'getOrders' });
-    const rows = (d.values || []).reverse();
+    // When unlocked, the admin gets fresh (uncached) data so a just-saved comment/status never looks lost.
+    // Public requests get only the latest 20 orders to reduce payload size.
+    const payload = { action: 'getOrders', limit: adminUnlocked ? undefined : 20 };
+    if (adminUnlocked && adminToken) payload._token = adminToken;
+    let d;
+    try { d = await apiPost(payload); }
+    catch (err) {
+      if (payload._token && /unauthorized/i.test(err.message)) d = await apiPost({ action: 'getOrders', limit: 20 }); // session expired: public view
+      else throw err;
+    }
+    const rows = (d.values || []); // already newest-first from server
     const fp = rows.length + '|' + rows.slice(0, 8).map(r => `${r.order_id}:${r.status}:${r.comment || ''}`).join(',');
     if (_lastFeedData !== fp) {
       _lastFeedData = fp;
@@ -94,3 +103,17 @@ async function fetchSheet() {
   } catch (e) { document.getElementById('sync-lbl').textContent = 'Sync failed'; }
 }
 window.fetchSheet = fetchSheet;
+
+// ── Event delegation for dynamic content in feed ──────────────────────────
+document.addEventListener('click', function (e) {
+  const btn = e.target.closest('[data-action]');
+  if (!btn) return;
+  const action = btn.dataset.action;
+
+  if (action === 'saveFeedComment') {
+    const orderId = btn.dataset.oid;
+    if (orderId) saveFeedComment(orderId);
+  } else if (action === 'openModal') {
+    openModal(btn);
+  }
+});

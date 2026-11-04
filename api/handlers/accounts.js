@@ -1,6 +1,6 @@
 import { google } from 'googleapis';
 import {
-  getSheetData, sheetsWrite, sheetsAppend, colLetter, sanitizeSheetValue, publicRow, invalidateCache,
+  getSheetData, sheetsWrite, sheetsWriteBatch, sheetsAppend, colLetter, sanitizeSheetValue, publicRow, invalidateCache,
 } from '../lib/sheets.js';
 import {
   uploadToDrive, driveUrl, findOrCreateFolder, decodeUpload, extForMime, escapeDriveQuery, safeFolderName,
@@ -8,6 +8,31 @@ import {
 import { getDriveAuth, requireToken } from '../lib/auth.js';
 import { badRequest, notFound, conflict, cleanText, requiredText } from '../lib/http.js';
 import crypto from 'crypto';
+
+// 30 minutes in milliseconds
+const RESERVATION_TTL_MS = 30 * 60 * 1000;
+let _lastReleaseCheck = 0; // the public list only re-checks for stale reservations once a minute (saves Sheets reads)
+
+// Turnstile verification
+const TURNSTILE_SECRET = process.env.TURNSTILE_SECRET_KEY;
+const TURNSTILE_VERIFY_URL = 'https://challenges.cloudflare.com/turnstile/v0/siteverify';
+
+async function verifyTurnstile(token) {
+  if (!TURNSTILE_SECRET) return true; // not configured, skip verification
+  if (!token) return false;
+  try {
+    const resp = await fetch(TURNSTILE_VERIFY_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ secret: TURNSTILE_SECRET, response: token }),
+    });
+    const data = await resp.json();
+    return data.success === true;
+  } catch (e) {
+    console.error('Turnstile verification error:', e.message);
+    return false;
+  }
+}
 
 // Column keys are the sheet headers, lower-cased with spaces removed (see getSheetData).
 // NOTE: they must be lowercase: `winrate`, `achievement`, `createdat` (NOT winRate / ach).
@@ -18,6 +43,43 @@ const PUBLIC_ACCOUNT_FIELDS = [
 ];
 
 const STATUSES = ['pending', 'available', 'reserved', 'sold'];
+
+/**
+ * Releases accounts that have been stuck in 'reserved' status for >30 minutes.
+ * Called lazily on relevant reads/writes — no cron needed.
+ */
+export async function releaseStaleReservations(auth) {
+  const { headers, data } = await getSheetData(auth, 'AccountList');
+  const statusIdx = headers.indexOf('status');
+  const reservedAtIdx = headers.indexOf('reserved_at');
+  if (statusIdx < 0) return; // no status column, nothing to do
+
+  const now = Date.now();
+  const updates = [];
+
+  for (const acc of data) {
+    if (String(acc.status).trim().toLowerCase() !== 'reserved') continue;
+    const reservedAt = reservedAtIdx >= 0 ? Number(acc.reserved_at) : 0;
+    if (reservedAt && now - reservedAt > RESERVATION_TTL_MS) {
+      updates.push({
+        range: `AccountList!${colLetter(statusIdx)}${acc._row}`,
+        values: [['available']],
+      });
+      // Also clear reserved_at
+      if (reservedAtIdx >= 0) {
+        updates.push({
+          range: `AccountList!${colLetter(reservedAtIdx)}${acc._row}`,
+          values: [['']],
+        });
+      }
+    }
+  }
+
+  if (updates.length) {
+    await sheetsWriteBatch(auth, updates);
+    console.log(`🔓 Released ${updates.length / (reservedAtIdx >= 0 ? 2 : 1)} stale reservation(s)`);
+  }
+}
 
 // Only these media URL shapes may ever be stored (they are later put into HTML, so this also blocks XSS).
 // Accepts the formats already in your sheet, e.g. ...googleusercontent.com/d/ID=w1200 and drive.google.com/uc?export=download&id=ID
@@ -35,6 +97,12 @@ const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
 // ── Reads ────────────────────────────────────────────────────────────────────
 
 export async function handleGetAccounts(auth, res, isAdmin = false) {
+  // Release stale reservations on every relevant read
+  if (Date.now() - _lastReleaseCheck > 60_000) {
+    _lastReleaseCheck = Date.now();
+    await releaseStaleReservations(auth);
+  }
+
   const { data } = await getSheetData(auth, 'AccountList', { ttl: 5000 });
   if (isAdmin) return res.json({ values: data.map(r => publicRow(r)) });
   const visible = data
@@ -96,6 +164,11 @@ export async function handleSaveAccount(auth, body, res) {
 // ── Public: seller submits a listing (always starts as "pending") ────────────
 
 export async function handleSubmitListing(auth, body, res) {
+  // Verify Turnstile CAPTCHA first
+  const turnstileToken = body.turnstile_token;
+  const turnstileOk = await verifyTurnstile(turnstileToken);
+  if (!turnstileOk) throw badRequest('CAPTCHA verification failed. Please try again.');
+
   const acc = body.account;
   if (!acc || typeof acc !== 'object') throw badRequest('Missing account data');
 

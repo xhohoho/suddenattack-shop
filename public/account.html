@@ -9,7 +9,7 @@
       <div class="sell-banner-title">💰 Sell Your Account</div>
       <div class="sell-banner-sub">List your account here — we act as middleman. A <strong>10% service charge</strong> will be added to your asking price. You receive your full asking price once the buyer confirms.</div>
     </div>
-    <button class="sell-open-btn" onclick="openSellModal()">List account</button>
+    <button class="sell-open-btn" data-action="openSellModal">List account</button>
   </div>
 
   <!-- Filter bar -->
@@ -18,10 +18,10 @@
       <span>⌕</span>
       <input type="text" id="acc-search" placeholder="Search rank, IGN..." />
     </div>
-    <button class="filter-chip active" onclick="setFilter('all',this)">All</button>
-    <button class="filter-chip" onclick="setFilter('available',this)">Available</button>
-    <button class="filter-chip" onclick="setFilter('reserved',this)">Reserved</button>
-    <select class="sort-select" id="sort-select" onchange="renderGrid()">
+    <button class="filter-chip active" data-action="setFilter" data-filter="all">All</button>
+    <button class="filter-chip" data-action="setFilter" data-filter="available">Available</button>
+    <button class="filter-chip" data-action="setFilter" data-filter="reserved">Reserved</button>
+    <select class="sort-select" id="sort-select" data-action="renderGrid">
       <option value="newest">Newest first</option>
       <option value="price-asc">Price: low→high</option>
       <option value="price-desc">Price: high→low</option>
@@ -35,9 +35,9 @@
 <!-- ══════════════════════════════════════════
      MODAL: Account Detail
 ══════════════════════════════════════════ -->
-<div class="modal-overlay" id="detail-overlay" onclick="if(event.target===this)closeDetail()">
-  <div class="modal" id="detail-modal" onclick="event.stopPropagation()">
-    <button class="modal-close" onclick="closeDetail()">✕</button>
+<div class="modal-overlay" id="detail-overlay" data-action="closeDetailOverlay">
+  <div class="modal" id="detail-modal" data-action="stopPropagation">
+    <button class="modal-close" data-action="closeDetail">✕</button>
     <div id="detail-content"></div>
   </div>
 </div>
@@ -47,7 +47,7 @@
 ══════════════════════════════════════════ -->
 <div class="modal-overlay" id="pay-overlay">
   <div class="modal" style="background:var(--bg2);border:1px solid var(--border2);border-radius:14px;padding:28px 24px">
-    <button class="modal-close" onclick="closePay()">✕</button>
+    <button class="modal-close" data-action="closePay">✕</button>
     <div class="pay-modal-title">Purchase Account</div>
     <div class="modal-sub-info" id="modal-acc-info"></div>
     <div class="modal-amt" id="modal-amt-acc">RM 0.00</div>
@@ -69,13 +69,16 @@
     <hr class="modal-divider" />
     <div class="modal-label">Upload payment screenshot</div>
     <div class="upload-area">
-      <input type="file" id="proof-file-acc" accept="image/*,application/pdf" onchange="previewFileAcc(this)" />
+      <input type="file" id="proof-file-acc" accept="image/*,application/pdf" data-action="previewFileAcc" />
       <div class="upload-lbl">Tap to select screenshot or PDF<br><span>JPG / PNG / PDF supported</span></div>
       <img class="preview-img" id="preview-img-acc" />
       <div id="preview-pdf-acc" style="display:none;margin-top:10px;padding:10px 14px;background:var(--bg3);border:1px solid var(--border2);border-radius:6px;font-family:'Rajdhani',sans-serif;font-size:12px;color:var(--accent);letter-spacing:.05em">📄 PDF selected — ready to upload</div>
     </div>
     <div class="upload-status" id="upload-status-acc"></div>
-    <button class="upload-btn" id="upload-btn-acc" onclick="submitPurchase()">Submit payment</button>
+    <div id="find-order-link-acc" style="display:none;margin-top:8px;text-align:center">
+      <button type="button" data-action="openFindOrderModal" data-origin="account" style="background:none;border:none;color:var(--accent);cursor:pointer;font-size:13px;font-family:'Rajdhani',sans-serif;text-decoration:underline;padding:0">Can't find your order? Look it up →</button>
+    </div>
+    <button class="upload-btn" id="upload-btn-acc" data-action="submitPurchase">Submit payment</button>
   </div>
 </div>
 
@@ -84,7 +87,7 @@
 ══════════════════════════════════════════ -->
 <div class="modal-overlay" id="sell-overlay">
   <div class="modal" style="background:var(--bg2);border:1px solid var(--border2);border-radius:14px;padding:28px 24px">
-    <button class="modal-close" onclick="closeSellModal()">✕</button>
+    <button class="modal-close" data-action="closeSellModal">✕</button>
     <div style="font-family:'Rajdhani',sans-serif;font-size:17px;font-weight:700;color:var(--text);letter-spacing:.04em;margin-bottom:4px">List Your Account</div>
     <div style="font-size:12px;color:var(--text2);margin-bottom:4px;line-height:1.5">Fill in your account details. We will review and list it for buyers.</div>
     <!-- Service charge notice -->
@@ -148,6 +151,7 @@
     <div class="buyer-field">
       <label>Features / Tags <span style="color:var(--text3);font-weight:400;text-transform:none;letter-spacing:0">(comma separated)</span></label>
       <input id="sell-notes" type="text" placeholder="e.g. Full skin, Rare weapon, OG" />
+      <small style="color:var(--text3);display:block;margin-top:4px;font-size:11px">⚠️ This note is visible to everyone in the public feed. Do not include phone numbers or private info.</small>
     </div>
 
     <!-- Media upload -->
@@ -155,35 +159,39 @@
       <label>Screenshots / Videos <span style="color:var(--text3);font-weight:400;text-transform:none;letter-spacing:0">(up to 4 files)</span></label>
       <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:4px" id="sell-slots">
         <div class="img-slot" id="ss-slot-0" style="aspect-ratio:1;border:1px dashed var(--border2);border-radius:6px;position:relative;overflow:hidden;background:var(--bg3);display:flex;align-items:center;justify-content:center;cursor:pointer">
-          <input type="file" accept="image/*,video/*" onchange="handleSellSlot(this,0)" style="position:absolute;inset:0;opacity:0;cursor:pointer;z-index:5"/>
+          <input type="file" accept="image/*,video/*" data-action="handleSellSlot" data-slot="0" style="position:absolute;inset:0;opacity:0;cursor:pointer;z-index:5"/>
           <img id="ss-slot-img-0" style="width:100%;height:100%;object-fit:cover;display:none;border-radius:5px"/>
           <span style="font-size:9px;color:var(--accent);font-family:'Rajdhani',sans-serif;text-align:center;pointer-events:none;padding:2px" id="ss-slot-lbl-0">📊<br>Stats</span>
-          <button onclick="removeSellSlot(event,0)" id="ss-slot-rm-0" style="position:absolute;top:3px;right:3px;background:rgba(0,0,0,.7);border:none;border-radius:3px;color:var(--text2);font-size:10px;cursor:pointer;padding:1px 5px;display:none;z-index:6">✕</button>
+          <button data-action="removeSellSlot" data-slot="0" id="ss-slot-rm-0" style="position:absolute;top:3px;right:3px;background:rgba(0,0,0,.7);border:none;border-radius:3px;color:var(--text2);font-size:10px;cursor:pointer;padding:1px 5px;display:none;z-index:6">✕</button>
         </div>
         <div class="img-slot" id="ss-slot-1" style="aspect-ratio:1;border:1px dashed var(--border2);border-radius:6px;position:relative;overflow:hidden;background:var(--bg3);display:flex;align-items:center;justify-content:center;cursor:pointer">
-          <input type="file" accept="image/*,video/*" onchange="handleSellSlot(this,1)" style="position:absolute;inset:0;opacity:0;cursor:pointer;z-index:5"/>
+          <input type="file" accept="image/*,video/*" data-action="handleSellSlot" data-slot="1" style="position:absolute;inset:0;opacity:0;cursor:pointer;z-index:5"/>
           <img id="ss-slot-img-1" style="width:100%;height:100%;object-fit:cover;display:none;border-radius:5px"/>
           <span style="font-size:9px;color:var(--text3);font-family:'Rajdhani',sans-serif;text-align:center;pointer-events:none" id="ss-slot-lbl-1">+ Media</span>
-          <button onclick="removeSellSlot(event,1)" id="ss-slot-rm-1" style="position:absolute;top:3px;right:3px;background:rgba(0,0,0,.7);border:none;border-radius:3px;color:var(--text2);font-size:10px;cursor:pointer;padding:1px 5px;display:none;z-index:6">✕</button>
+          <button data-action="removeSellSlot" data-slot="1" id="ss-slot-rm-1" style="position:absolute;top:3px;right:3px;background:rgba(0,0,0,.7);border:none;border-radius:3px;color:var(--text2);font-size:10px;cursor:pointer;padding:1px 5px;display:none;z-index:6">✕</button>
         </div>
         <div class="img-slot" id="ss-slot-2" style="aspect-ratio:1;border:1px dashed var(--border2);border-radius:6px;position:relative;overflow:hidden;background:var(--bg3);display:flex;align-items:center;justify-content:center;cursor:pointer">
-          <input type="file" accept="image/*,video/*" onchange="handleSellSlot(this,2)" style="position:absolute;inset:0;opacity:0;cursor:pointer;z-index:5"/>
+          <input type="file" accept="image/*,video/*" data-action="handleSellSlot" data-slot="2" style="position:absolute;inset:0;opacity:0;cursor:pointer;z-index:5"/>
           <img id="ss-slot-img-2" style="width:100%;height:100%;object-fit:cover;display:none;border-radius:5px"/>
           <span style="font-size:9px;color:var(--text3);font-family:'Rajdhani',sans-serif;text-align:center;pointer-events:none" id="ss-slot-lbl-2">+ Media</span>
-          <button onclick="removeSellSlot(event,2)" id="ss-slot-rm-2" style="position:absolute;top:3px;right:3px;background:rgba(0,0,0,.7);border:none;border-radius:3px;color:var(--text2);font-size:10px;cursor:pointer;padding:1px 5px;display:none;z-index:6">✕</button>
+          <button data-action="removeSellSlot" data-slot="2" id="ss-slot-rm-2" style="position:absolute;top:3px;right:3px;background:rgba(0,0,0,.7);border:none;border-radius:3px;color:var(--text2);font-size:10px;cursor:pointer;padding:1px 5px;display:none;z-index:6">✕</button>
         </div>
         <div class="img-slot" id="ss-slot-3" style="aspect-ratio:1;border:1px dashed var(--border2);border-radius:6px;position:relative;overflow:hidden;background:var(--bg3);display:flex;align-items:center;justify-content:center;cursor:pointer">
-          <input type="file" accept="image/*,video/*" onchange="handleSellSlot(this,3)" style="position:absolute;inset:0;opacity:0;cursor:pointer;z-index:5"/>
+          <input type="file" accept="image/*,video/*" data-action="handleSellSlot" data-slot="3" style="position:absolute;inset:0;opacity:0;cursor:pointer;z-index:5"/>
           <img id="ss-slot-img-3" style="width:100%;height:100%;object-fit:cover;display:none;border-radius:5px"/>
           <span style="font-size:9px;color:var(--text3);font-family:'Rajdhani',sans-serif;text-align:center;pointer-events:none" id="ss-slot-lbl-3">+ Media</span>
-          <button onclick="removeSellSlot(event,3)" id="ss-slot-rm-3" style="position:absolute;top:3px;right:3px;background:rgba(0,0,0,.7);border:none;border-radius:3px;color:var(--text2);font-size:10px;cursor:pointer;padding:1px 5px;display:none;z-index:6">✕</button>
+          <button data-action="removeSellSlot" data-slot="3" id="ss-slot-rm-3" style="position:absolute;top:3px;right:3px;background:rgba(0,0,0,.7);border:none;border-radius:3px;color:var(--text2);font-size:10px;cursor:pointer;padding:1px 5px;display:none;z-index:6">✕</button>
         </div>
       </div>
       <div style="font-size:11px;color:var(--text3);font-family:'Rajdhani',sans-serif;margin-top:5px">Slot 1 = stats screenshot (recommended). Other slots = gameplay photos or videos.</div>
     </div>
 
     <div id="sell-status" style="font-size:12px;color:var(--text2);font-family:'Rajdhani',sans-serif;min-height:18px;margin-bottom:8px;text-align:center"></div>
-    <button onclick="submitSellAccount()" id="sell-submit-btn" style="width:100%;padding:11px;background:var(--accent);color:#0a0b0f;border:none;border-radius:6px;font-family:'Rajdhani',sans-serif;font-size:15px;font-weight:700;cursor:pointer;letter-spacing:.06em;text-transform:uppercase;transition:all .15s">Submit listing</button>
+
+    <!-- Turnstile CAPTCHA -->
+    <div id="sell-turnstile" style="margin-bottom:12px;display:flex;justify-content:center"></div>
+
+    <button data-action="submitSellAccount" id="sell-submit-btn" style="width:100%;padding:11px;background:var(--accent);color:#0a0b0f;border:none;border-radius:6px;font-family:'Rajdhani',sans-serif;font-size:15px;font-weight:700;cursor:pointer;letter-spacing:.06em;text-transform:uppercase;transition:all .15s">Submit listing</button>
     <div style="font-size:11px;color:var(--text3);text-align:center;margin-top:10px;line-height:1.5;font-family:'Rajdhani',sans-serif">Your listing will be reviewed before going live. We'll contact you via phone once a buyer is found.</div>
   </div>
 </div>
@@ -192,7 +200,7 @@
      LIGHTBOX
 ══════════════════════════════════════════ -->
 <div class="lightbox" id="lightbox">
-  <button class="lightbox-close" onclick="closeLightbox()">✕</button>
+  <button class="lightbox-close" data-action="closeLightbox">✕</button>
   <img id="lightbox-img" src="" alt="" style="display:none" />
   <video id="lightbox-vid" controls playsinline style="display:none"></video>
 </div>

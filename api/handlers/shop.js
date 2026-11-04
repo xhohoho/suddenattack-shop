@@ -73,28 +73,42 @@ const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
 export async function handleExtractItems(auth, body, res) {
   requireToken(body);
   const { buffer, mimeType } = decodeUpload(body.base64, IMAGE_TYPES, 8 * 1024 * 1024);
-  console.log('🖼 extractItems: uploading image to Drive...');
-  const fileId = await uploadToDrive(buffer, mimeType, `shop_${Date.now()}.${extForMime(mimeType)}`, process.env.DRIVE_FOLDER_SA);
+  const base64 = buffer.toString('base64');
+  const fileName = `shop_${Date.now()}.${extForMime(mimeType)}`;
+
+  console.log('🖼🤖 extractItems: uploading to Drive + calling Gemini in parallel...');
+  const [fileId, text] = await Promise.all([
+    uploadToDrive(base64, mimeType, fileName, process.env.DRIVE_FOLDER_SA),
+    (async () => {
+      const prompt = `Extract all game item names from this shop image. Return ONLY a JSON array of strings like: ['Item Name 1', 'Item Name 2']. No descriptions, no prices, no markdown, no explanation.`;
+      return await callGemini(base64, prompt, mimeType);
+    })(),
+  ]);
   const url = driveUrl(fileId, mimeType);
 
-  console.log('🤖 calling Gemini for item extraction...');
-  const prompt = `Extract all game item names from this shop image. Return ONLY a JSON array of strings like: ['Item Name 1', 'Item Name 2']. No descriptions, no prices, no markdown, no explanation.`;
-  const text = await callGemini(buffer.toString('base64'), prompt, mimeType);
   const names = parseGeminiJson(text);
   if (!Array.isArray(names)) throw badRequest('Could not read items from this image');
   const items = names.map((name, i) => ({ id: i + 1, name: cleanText(name, 100), desc: '', p7: 0, p15: 0, p30: 0 }))
     .filter(it => it.name);
-  console.log(`✅ Gemini extracted ${items.length} items`);
+  console.log(`✅ Gemini extracted ${items.length} items (parallel)`);
   return res.json({ items, url });
 }
 
 export async function handleExtractAccountStats(body, res) {
   requireToken(body);
   const { buffer, mimeType } = decodeUpload(body.base64, IMAGE_TYPES, 8 * 1024 * 1024);
-  console.log('🤖 extractAccountStats: calling Gemini...');
-  // Ask for the exact key names the admin form reads (ign, accid, kda, winRate, exp).
-  const prompt = `Extract player stats from this Sudden Attack game profile screenshot. Return ONLY a valid JSON object with exactly these keys: ign, accid, kda, winRate, exp. Values are plain text/numbers with no % or other symbols. If a field is not visible return an empty string. No markdown, no explanation, only JSON.`;
-  const text = await callGemini(buffer.toString('base64'), prompt, mimeType);
+  const base64 = buffer.toString('base64');
+
+  console.log('🖼🤖 extractAccountStats: uploading to Drive + calling Gemini in parallel...');
+  const [fileId, text] = await Promise.all([
+    uploadToDrive(base64, mimeType, `stats_${Date.now()}.${extForMime(mimeType)}`, process.env.DRIVE_FOLDER_SA),
+    (async () => {
+      const prompt = `Extract player stats from this Sudden Attack game profile screenshot. Return ONLY a valid JSON object with exactly these keys: ign, accid, kda, winRate, exp. Values are plain text/numbers with no % or other symbols. If a field is not visible return an empty string. No markdown, no explanation, only JSON.`;
+      return await callGemini(base64, prompt, mimeType);
+    })(),
+  ]);
+  const url = driveUrl(fileId, mimeType);
+
   let raw = {};
   try { raw = parseGeminiJson(text); } catch { /* return partial if parse fails */ }
 
@@ -107,6 +121,6 @@ export async function handleExtractAccountStats(body, res) {
     winRate: pick('winRate', 'winRate(%)', 'winrate', 'win_rate'),
     exp: pick('exp', 'exp(%)', 'EXP'),
   };
-  console.log(`✅ stats extracted: ${JSON.stringify(stats)}`);
-  return res.json(stats);
+  console.log(`✅ stats extracted: ${JSON.stringify(stats)} (parallel)`);
+  return res.json({ ...stats, url });
 }

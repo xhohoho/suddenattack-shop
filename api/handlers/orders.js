@@ -5,6 +5,8 @@ import {
 import { uploadToDrive, driveUrl, decodeUpload, extForMime } from '../lib/drive.js';
 import { requireToken, requireOrderToken, generateOrderToken } from '../lib/auth.js';
 import { getShopItems } from './shop.js';
+import { releaseStaleReservations } from './accounts.js';
+import { sendOrderCreatedWebhook, sendProofUploadedWebhook } from '../lib/webhook.js';
 import { badRequest, notFound, conflict, cleanText, requiredText } from '../lib/http.js';
 import crypto from 'crypto';
 
@@ -16,7 +18,8 @@ export const SERVICE_CHARGE = 0.50;
 export const ACCOUNT_SERVICE_RATE = 0.10;
 
 // Fields the public may see. Never phone, email or proof links.
-export const PUBLIC_ORDER_FIELDS = ['order_id', 'timestamp', 'name', 'items', 'total', 'status', 'comment'];
+// `note` (the buyer's own note) is shown in the public feed, as it always was.
+export const PUBLIC_ORDER_FIELDS = ['order_id', 'timestamp', 'name', 'items', 'total', 'status', 'note', 'comment'];
 export const publicOrders = rows => rows.map(r => publicRow(r, PUBLIC_ORDER_FIELDS));
 
 const round2 = n => Math.round(n * 100) / 100;
@@ -35,13 +38,35 @@ function rowFromHeaders(headers, values) {
   return headers.map(h => values[h] ?? '');
 }
 
-const klTime = () => new Date().toLocaleString('en-US', KL_LOCALE);
+/** ISO 8601 timestamp (UTC, ends in Z). The browser converts it to the visitor's own timezone. */
+const isoTime = () => new Date().toISOString();
+
+/** Format ISO timestamp for display in KL timezone. */
+export function formatDisplayTime(isoString) {
+  try {
+    return new Date(isoString).toLocaleString('en-US', KL_LOCALE);
+  } catch {
+    return isoString; // fallback for legacy non-ISO timestamps
+  }
+}
 
 // ── Public reads ─────────────────────────────────────────────────────────────
 
-export async function handleGetOrders(auth, res, isAdmin = false) {
-  const { data } = await getSheetData(auth, 'Orders', { ttl: 5000 });
-  return res.json({ values: isAdmin ? data.map(r => publicRow(r)) : publicOrders(data) });
+/**
+ * Get orders, newest first. Public callers get at most `limit` (default 20, max 100); admin gets all.
+ */
+export async function handleGetOrders(auth, res, isAdmin = false, limit = 20) {
+  // Public reads may be a few seconds stale (cached). The admin always gets fresh data,
+  // otherwise a comment/status they just saved could look "lost" when the page re-fetches.
+  const { data } = await getSheetData(auth, 'Orders', isAdmin ? {} : { ttl: 5000 });
+  let rows = isAdmin ? data.map(r => publicRow(r)) : publicOrders(data);
+  // Newest first (sheet is oldest first)
+  rows = rows.reverse();
+  if (!isAdmin) {
+    const max = Math.min(Math.max(1, Number(limit) || 20), 100);
+    rows = rows.slice(0, max);
+  }
+  return res.json({ values: rows });
 }
 
 // ── Public: create an item order ─────────────────────────────────────────────
@@ -87,13 +112,17 @@ export async function handleNewOrder(auth, body, res) {
 
   const orderId = newOrderId();
   const headers = await getHeaders(auth, 'Orders');
+  const timestamp = isoTime();
   const row = rowFromHeaders(headers, {
-    order_id: orderId, timestamp: klTime(), name: sanitizeSheetValue(name),
+    order_id: orderId, timestamp, name: sanitizeSheetValue(name),
     phone: sanitizeSheetValue(phone), email: sanitizeSheetValue(email),
     items: sanitizeSheetValue(itemsStr), total, note: sanitizeSheetValue(note),
     status: 'New', proof: '',
   });
   await sheetsAppend(auth, 'Orders!A1', [row]);
+
+  // Never throws, 3s max. Awaited because Vercel may stop a function once the response is sent.
+  await sendOrderCreatedWebhook({ order_id: orderId, total, name, items: itemsStr, note, timestamp });
 
   return res.json({ result: 'ok', order_id: orderId, total, items: itemsStr, order_token: generateOrderToken(orderId) });
 }
@@ -106,6 +135,9 @@ export async function handleNewOrder(auth, body, res) {
 const accountLocks = new Set(); // stops two simultaneous buys of one account on this instance
 
 export async function handleAccountPurchase(auth, body, res) {
+  // Release any stale reservations first (lazy cleanup, no cron needed)
+  await releaseStaleReservations(auth);
+
   const accId = requiredText(body.acc_id, 'acc_id', 80);
   const buyerIgn = requiredText(body.buyer_ign, 'in-game name', 40);
   const buyerName = cleanText(body.buyer_name, 60);
@@ -125,24 +157,36 @@ export async function handleAccountPurchase(auth, body, res) {
     const total = round2(price * (1 + ACCOUNT_SERVICE_RATE));
 
     const statusIdx = headers.indexOf('status');
+    const reservedAtIdx = headers.indexOf('reserved_at');
     if (statusIdx < 0) throw new Error('AccountList sheet has no "status" column');
     const statusRange = `AccountList!${colLetter(statusIdx)}${acc._row}`;
-    await sheetsWrite(auth, statusRange, [['reserved']]);
+    // Write status=reserved AND the reserved_at time in ONE call (needs the "reserved_at" column to expire).
+    const updates = [{ range: statusRange, values: [['reserved']] }];
+    if (reservedAtIdx >= 0) {
+      updates.push({ range: `AccountList!${colLetter(reservedAtIdx)}${acc._row}`, values: [[Date.now()]] });
+    }
+    await sheetsWriteBatch(auth, updates);
 
     const orderId = newOrderId();
     try {
       const orderHeaders = await getHeaders(auth, 'Orders');
       const row = rowFromHeaders(orderHeaders, {
-        order_id: orderId, timestamp: klTime(), name: sanitizeSheetValue(display),
+        order_id: orderId, timestamp: isoTime(), name: sanitizeSheetValue(display),
         phone: sanitizeSheetValue(phone), email: '',
         items: sanitizeSheetValue(`${acc.rank} · ${acc.ign || ''} · ID ${acc.accid || ''}`),
         total, note: sanitizeSheetValue(`Buyer IGN: ${buyerIgn}`), status: 'New', proof: '',
+        acc_id: sanitizeSheetValue(acc.id), // only stored if the Orders sheet has an "acc_id" column
       });
       await sheetsAppend(auth, 'Orders!A1', [row]);
     } catch (err) {
       await sheetsWrite(auth, statusRange, [['available']]).catch(() => {});
       throw err;
     }
+
+    await sendOrderCreatedWebhook({
+      order_id: orderId, total, name: display, items: `${acc.rank} · ${acc.ign || ''} · ID ${acc.accid || ''}`,
+      note: `Buyer IGN: ${buyerIgn}`, timestamp: isoTime(),
+    });
 
     return res.json({ result: 'ok', order_id: orderId, total, order_token: generateOrderToken(orderId) });
   } finally {
@@ -182,10 +226,95 @@ export async function handleUploadProofItem(auth, body, res) {
     { range: `Orders!${colLetter(proofIdx)}${order._row}`, values: [[proofFormula]] },
   ]);
   console.log(`✅ proof uploaded for ${orderId}`);
+
+  const proofUrl = mimeType === 'application/pdf'
+    ? `https://drive.google.com/file/d/${fileId}/view`
+    : driveUrl(fileId, mimeType);
+  await sendProofUploadedWebhook(orderId, proofUrl); // never throws, 3s max
+
   return res.json({ result: 'ok' });
 }
 
+// ── Public: find my order (for buyers who lost their order_token) ────────────
+
+const norm = s => String(s || '').toLowerCase().replace(/\s+/g, ' ').trim();
+const digits = s => String(s || '').replace(/\D/g, '');
+
+/** Exact name match. Account orders are saved as "Full Name (IGN)", so those match on either part. */
+function nameMatches(rowName, search) {
+  const r = norm(rowName), s = norm(search);
+  if (!s) return false;
+  return r === s || r.startsWith(s + ' (') || r.includes('(' + s + ')');
+}
+
+/** Phone match on at least 7 digits; tolerates a missing country code (0123456789 vs 60123456789). */
+function phoneMatches(rowPhone, search) {
+  const a = digits(rowPhone), b = digits(search);
+  if (a.length < 7 || b.length < 7) return false;
+  return a === b || a.endsWith(b) || b.endsWith(a);
+}
+
+/**
+ * Returns recent orders (last 30 days) with their order_tokens, so proof can be uploaded again.
+ * The buyer must give their exact name AND their phone or email, because the token lets whoever
+ * holds it upload proof for that order.
+ */
+export async function handleFindOrder(auth, body, res) {
+  const name = cleanText(body.name, 60);
+  const phone = cleanText(body.phone, 30);
+  const email = cleanText(body.email, 80);
+
+  if (!name || (!phone && !email)) throw badRequest('Name and phone or email are required');
+  if (phone && digits(phone).length < 7) throw badRequest('Please enter your full phone number');
+
+  const { data } = await getSheetData(auth, 'Orders', { ttl: 5000 });
+  const now = Date.now();
+  const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
+
+  const matches = data
+    .filter(r => {
+      if (!nameMatches(r.name, name)) return false;
+      const phoneOk = phone && phoneMatches(r.phone, phone);
+      const emailOk = email && String(r.email || '').toLowerCase().trim() === email.toLowerCase().trim();
+      if (!phoneOk && !emailOk) return false;
+      const ts = Date.parse(r.timestamp);
+      return !isNaN(ts) && now - ts <= THIRTY_DAYS_MS;
+    })
+    .reverse() // newest first
+    .slice(0, 10)
+    .map(r => ({
+      order_id: r.order_id,
+      timestamp: r.timestamp,
+      name: r.name,
+      items: r.items,
+      total: r.total,
+      status: r.status,
+      order_token: generateOrderToken(r.order_id),
+    }));
+
+  return res.json({ orders: matches });
+}
+
 // ── Admin ────────────────────────────────────────────────────────────────────
+
+/**
+ * Which account does this order belong to?
+ * Prefers an "acc_id" column on the order; otherwise matches the "Rank · IGN · ID <accid>" text
+ * the order was saved with (the order text holds the in-game account id, not the ACC-… sheet id).
+ */
+function findAccountForOrder(accData, order) {
+  const explicit = String(order.acc_id || '').trim();
+  if (explicit) return accData.find(r => String(r.id) === explicit) || null;
+
+  const parts = String(order.items || '').split(' · ').map(s => s.trim());
+  const idPart = parts.find(p => /^ID\s+/i.test(p));
+  if (!idPart) return null;
+  const accid = idPart.replace(/^ID\s+/i, '').trim();
+  const ign = parts.length >= 3 ? parts[1] : '';
+  if (!accid) return null;
+  const same = accData.filter(r => String(r.accid || '').trim() === accid && (!ign || String(r.ign || '').trim() === ign));
+  return same.find(r => String(r.status).trim().toLowerCase() === 'reserved') || same[0] || null;
+}
 
 export async function handleUpdateOrderStatus(auth, body, res) {
   requireToken(body);
@@ -195,9 +324,39 @@ export async function handleUpdateOrderStatus(auth, body, res) {
   if (!order) throw notFound('Order not found');
   const statusIdx = headers.indexOf('status');
   if (statusIdx < 0) throw new Error('Orders sheet has no "status" column');
+
+  // Cancelling an account order frees the account again (only if it is still reserved).
+  let releasedAccId = null;
+  if (String(status).trim().toLowerCase() === 'cancelled') {
+    try {
+      const { headers: accHeaders, data: accData } = await getSheetData(auth, 'AccountList');
+      const acc = findAccountForOrder(accData, order);
+      if (acc && String(acc.status).trim().toLowerCase() === 'reserved') {
+        // If the account was re-reserved by a LATER buyer, this old order must not free it.
+        const reservedAt = Number(acc.reserved_at);
+        const orderTime = Date.parse(order.timestamp);
+        const belongsToLaterBuyer = reservedAt && orderTime && orderTime < reservedAt - 2 * 60 * 1000;
+        const accStatusIdx = accHeaders.indexOf('status');
+        if (!belongsToLaterBuyer && accStatusIdx >= 0) {
+          const reservedAtIdx = accHeaders.indexOf('reserved_at');
+          const updates = [{ range: `AccountList!${colLetter(accStatusIdx)}${acc._row}`, values: [['available']] }];
+          if (reservedAtIdx >= 0) {
+            updates.push({ range: `AccountList!${colLetter(reservedAtIdx)}${acc._row}`, values: [['']] });
+          }
+          await sheetsWriteBatch(auth, updates);
+          releasedAccId = acc.id;
+          console.log(`🔓 Released account ${acc.id} (order ${body.order_id} cancelled)`);
+        }
+      }
+    } catch (e) {
+      console.error('Failed to release account for cancelled order:', e.message);
+      // The status change below still goes through.
+    }
+  }
+
   console.log(`📝 updateOrderStatus: ${body.order_id} → ${status}`);
   await sheetsWrite(auth, `Orders!${colLetter(statusIdx)}${order._row}`, [[sanitizeSheetValue(status)]]);
-  return res.json({ result: 'ok' });
+  return res.json({ result: 'ok', released_account: releasedAccId });
 }
 
 export async function handleUpdateOrderComment(auth, body, res) {

@@ -332,9 +332,35 @@ async function submitPurchase() {
 }
 
 // ── Sell modal (public) ────────────────────
+let _turnstileWidgetId = null;
+
+function renderTurnstile() {
+  const container = document.getElementById('sell-turnstile');
+  if (!container || !window.TURNSTILE_SITE_KEY) return;
+  container.innerHTML = ''; // clear any existing
+  try {
+    _turnstileWidgetId = window.turnstile.render(container, {
+      sitekey: window.TURNSTILE_SITE_KEY,
+      theme: 'dark',
+      callback: (token) => { window._turnstileToken = token; },
+      'expired-callback': () => { window._turnstileToken = null; },
+    });
+  } catch (e) {
+    console.warn('Turnstile render failed:', e);
+  }
+}
+
+// A Turnstile token works only once, so get a fresh one after a failed submit.
+function resetSellTurnstile() {
+  window._turnstileToken = null;
+  try { if (_turnstileWidgetId !== null && window.turnstile) window.turnstile.reset(_turnstileWidgetId); } catch { /* ignore */ }
+}
+
 function openSellModal() {
   document.getElementById('sell-overlay').classList.add('open');
   document.getElementById('sell-status').textContent = '';
+  window._turnstileToken = null;
+  renderTurnstile();
   for (let i = 0; i < 4; i++) {
     sellTempFiles[i] = null;
     const img = document.getElementById('ss-slot-img-' + i); if (img) { img.src = ''; img.style.display = 'none'; }
@@ -345,7 +371,13 @@ function openSellModal() {
   ['sell-seller-name', 'sell-seller-contact', 'sell-seller-ign', 'sell-rank', 'sell-price', 'sell-ign', 'sell-accid', 'sell-kda', 'sell-wr', 'sell-exp', 'sell-notes'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
   const btn = document.getElementById('sell-submit-btn'); btn.disabled = false; btn.textContent = 'Submit listing';
 }
-function closeSellModal() { document.getElementById('sell-overlay').classList.remove('open'); }
+function closeSellModal() {
+  document.getElementById('sell-overlay').classList.remove('open');
+  if (_turnstileWidgetId !== null && window.turnstile) {
+    window.turnstile.reset(_turnstileWidgetId);
+    _turnstileWidgetId = null;
+  }
+}
 
 function handleSellSlot(input, idx) {
   const file = input.files[0]; if (!file) return;
@@ -379,6 +411,7 @@ async function submitSellAccount() {
   if (!sellerign) { showToast('Please enter your in-game name.'); return; }
   if (!rank) { showToast('Please enter the account rank.'); return; }
   if (!price || price <= 0) { showToast('Please enter a valid asking price.'); return; }
+  if (window.TURNSTILE_SITE_KEY && !window._turnstileToken) { showToast('Please complete the CAPTCHA first.'); return; }
   const btn = document.getElementById('sell-submit-btn'); const status = document.getElementById('sell-status');
   btn.disabled = true; btn.textContent = 'Submitting...';
   status.textContent = 'Preparing listing...'; status.style.color = 'var(--text2)';
@@ -395,11 +428,11 @@ async function submitSellAccount() {
     status.textContent = 'Saving listing...';
     // The server assigns the id, forces status "pending" and validates every field.
     const acc = { rank, price, ign: g('sell-ign'), accid: g('sell-accid'), sellername, sellercontact, sellerign, kda: g('sell-kda'), winrate: g('sell-wr'), exp: g('sell-exp'), achievement: '', notes: g('sell-notes'), img1: uploadedUrls[0], img2: uploadedUrls[1], img3: uploadedUrls[2], img4: uploadedUrls[3] };
-    await apiPost({ action: 'submitListing', account: acc });
+    await apiPost({ action: 'submitListing', account: acc, turnstile_token: window._turnstileToken });
     status.textContent = 'Listing submitted! We will review and contact you soon.'; status.style.color = 'var(--green)';
     btn.textContent = 'Submitted ✓';
     setTimeout(() => { closeSellModal(); fetchAccounts(); }, 3500);
-  } catch (e) { status.textContent = 'Failed: ' + e.message; status.style.color = 'var(--red)'; btn.disabled = false; btn.textContent = 'Submit listing'; }
+  } catch (e) { status.textContent = 'Failed: ' + e.message + (window.TURNSTILE_SITE_KEY ? ' (please tick the CAPTCHA again)' : ''); status.style.color = 'var(--red)'; btn.disabled = false; btn.textContent = 'Submit listing'; resetSellTurnstile(); }
 }
 
 // ── Admin: manage list ─────────────────────
@@ -618,20 +651,6 @@ async function saveAccount() {
 }
 
 function showGridSkeleton() { document.getElementById('acc-grid').innerHTML = Array(4).fill(`<div class="skeleton"><div class="skel-line short"></div><div class="skel-line med"></div><div class="skel-line full"></div><div class="skel-line full"></div><div class="skel-line short"></div></div>`).join(''); }
-
-function deleteAccount(id) {
-  const a = accounts.find(x => x.id === id); if (!a) return;
-  if (!confirm('Are you absolutely sure you want to delete this account?')) return;
-  (async () => {
-    try {
-      const resp = await adminFetch({ action: 'deleteAccount', acc_id: id, ign: a.ign }); const result = await resp.json();
-      if (result.error) throw new Error(result.error);
-      _lastDetailId = null; _lastDetailHTML = '';
-      const detailEl = document.getElementById('detail-content'); if (detailEl) detailEl.innerHTML = '';
-      _lastAccountData = ''; showToast('Account deleted successfully.'); await fetchAccounts();
-    } catch (e) { showToast('Delete failed: ' + e.message); }
-  })();
-}
 
 registerFn('renderManageList', renderManageList);
 

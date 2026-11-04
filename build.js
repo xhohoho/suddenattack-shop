@@ -13,6 +13,9 @@ const main     = fs.readFileSync('public/main.html', 'utf8');
 const items    = fs.readFileSync('public/item.html', 'utf8');
 const accounts = fs.readFileSync('public/account.html', 'utf8');
 
+// Turnstile site key injection (for seller form CAPTCHA)
+const turnstileSiteKey = process.env.TURNSTILE_SITE_KEY || '';
+
 // Merge fragments
 let html = main
   .replace('<!-- INJECT:ITEMS -->', items)
@@ -31,6 +34,8 @@ html = html.replace(/(src|href)="(\.?\/?(?:js|css)\/[^"?#]+)"/g, (full, attr, ur
   return `${attr}="${url}?v=${hash}"`;
 });
 
+// The Turnstile site key is public by design; the page needs it BEFORE config.js loads, so it goes into the HTML.
+html = html.replaceAll('%%TURNSTILE_SITE_KEY%%', turnstileSiteKey.replace(/[^\w-]/g, ''));
 fs.writeFileSync(`${OUTPUT_DIR}/index.html`, html);
 
 // ── Static assets ────────────────────────────────────────────────────────────
@@ -44,6 +49,14 @@ const copyDir = dir => {
   });
 };
 ['audio', 'css', 'js'].forEach(copyDir);
+
+// Inject Turnstile site key into copied config.js
+const configPath = `${OUTPUT_DIR}/js/config.js`;
+if (fs.existsSync(configPath)) {
+  let configJs = fs.readFileSync(configPath, 'utf8');
+  configJs = configJs.replace("const TURNSTILE_SITE_KEY = '';", `const TURNSTILE_SITE_KEY = '${turnstileSiteKey.replace(/'/g, "\\'")}';`);
+  fs.writeFileSync(configPath, configJs);
+}
 
 // Tiny version stamp so you can check which build is live: https://yoursite/version.json
 const build = crypto.createHash('sha1').update(hashes.join('')).digest('hex').slice(0, 10);

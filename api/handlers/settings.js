@@ -29,7 +29,7 @@ export async function handleInitData(auth, res) {
   ]);
   const settingsRow = settingsRaw[0] || [];
   return res.json({
-    orders: publicOrders(ordersResult.data),
+    orders: publicOrders(ordersResult.data.slice(-20)), // newest 20 (sheet is oldest-first); the page reverses them
     items,
     slides: [settingsRow[0] || '', settingsRow[1] || ''],
     ticker: settingsRow[2] || '',

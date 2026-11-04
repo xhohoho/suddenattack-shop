@@ -13,6 +13,8 @@ async function adminFetch(payload) {
     try { const j = await resp.clone().json(); if (j && j.error) msg = j.error; } catch { /* non-JSON */ }
     if (resp.status === 401) {
       adminUnlocked = false; adminToken = null;
+      // Clear sessionStorage on session expiry
+      try { sessionStorage.removeItem('adminToken'); } catch { /* ignore */ }
       msg = 'Admin session expired. Please unlock again.';
       showToast(msg);
     }
@@ -89,22 +91,82 @@ function toggleAdmin() {
   if (!adminUnlocked) {
     document.getElementById('admin-gate').style.display = 'block';
     document.getElementById('admin-content').style.display = 'none';
+    // Render Turnstile if not already rendered
+    renderAdminTurnstile();
   } else if (p.classList.contains('open')) {
-    const btn = document.querySelector(`.admin-tab[onclick*="'${_lastAdminTab}'"]`);
+    // Session restored from sessionStorage after a refresh: show the panel instead of the login box.
+    document.getElementById('admin-gate').style.display = 'none';
+    document.getElementById('admin-content').style.display = 'block';
+    initAdminSession();
+    const btn = document.querySelector(`.admin-tab[data-tab="${_lastAdminTab}"]`);
     if (btn) switchTab(_lastAdminTab, btn);
   }
+}
+
+let _adminTurnstileWidgetId = null;
+
+function renderAdminTurnstile() {
+  const container = document.getElementById('admin-turnstile');
+  if (!container || !window.TURNSTILE_SITE_KEY) return;
+  if (_adminTurnstileWidgetId !== null) return; // already rendered
+  try {
+    _adminTurnstileWidgetId = window.turnstile.render(container, {
+      sitekey: window.TURNSTILE_SITE_KEY,
+      theme: 'dark',
+      callback: (token) => { window._adminTurnstileToken = token; },
+      'expired-callback': () => { window._adminTurnstileToken = null; },
+    });
+  } catch (e) {
+    console.warn('Admin Turnstile render failed:', e);
+  }
+}
+
+// Runs once per page load after the admin is unlocked (by password, or restored from sessionStorage).
+let _adminSessionReady = false;
+function initAdminSession() {
+  if (_adminSessionReady) return;
+  _adminSessionReady = true;
+  slideUrls.forEach((url, i) => {
+    if (!url) return;
+    const thumb = document.getElementById('ss-img-' + i);
+    const lbl = document.getElementById('ss-lbl-' + i);
+    if (thumb) { thumb.src = url; thumb.style.display = 'block'; }
+    if (lbl) lbl.style.display = 'none';
+  });
+  loadShopEditor();
+  renderManageList();
+  _lastAccountData = '';
+  if (typeof fetchAccounts === 'function') fetchAccounts();
+  initTickerSpeedControl();
+  _lastFeedData = '';
+  fetchSheet();
+}
+
+// A Turnstile token works only once, so get a fresh one after every login attempt.
+function resetAdminTurnstile() {
+  window._adminTurnstileToken = null;
+  try { if (_adminTurnstileWidgetId !== null && window.turnstile) window.turnstile.reset(_adminTurnstileWidgetId); } catch { /* ignore */ }
 }
 
 async function checkPass() {
   const pw = document.getElementById('admin-pw').value;
   const st = document.getElementById('gate-status');
   st.textContent = 'Verifying...'; st.style.color = 'var(--text2)';
+
+  // Get Turnstile token if widget rendered
+  const turnstileToken = window._adminTurnstileToken || null;
+  if (window.TURNSTILE_SITE_KEY && !turnstileToken) { st.textContent = 'Please complete the CAPTCHA first.'; st.style.color = 'var(--red)'; return; }
+
   try {
-    const resp = await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'adminAuth', password: pw }) });
+    const resp = await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'adminAuth', password: pw, turnstile_token: turnstileToken }) });
     const result = await resp.json();
     if (result.token) {
       adminToken = result.token;
       adminUnlocked = true;
+      _adminSessionReady = true; // the login code below does the setup itself
+      // Persist in sessionStorage (survives page refresh, cleared on tab close)
+      try { sessionStorage.setItem('adminToken', adminToken); } catch { /* ignore */ }
+
       document.getElementById('admin-gate').style.display = 'none';
       document.getElementById('admin-content').style.display = 'block';
       st.textContent = '';
@@ -129,10 +191,12 @@ async function checkPass() {
       _lastFeedData = '';
       fetchSheet();
     } else {
-      st.textContent = (result.error && /too many/i.test(result.error)) ? result.error : 'Wrong password.'; st.style.color = 'var(--red)';
+      st.textContent = (result.error && /too many/i.test(result.error)) ? result.error : 'Wrong password or CAPTCHA.'; st.style.color = 'var(--red)';
+      resetAdminTurnstile();
     }
   } catch (e) {
     st.textContent = 'Auth failed. Check connection.'; st.style.color = 'var(--red)';
+    resetAdminTurnstile();
   }
 }
 
@@ -166,7 +230,7 @@ function switchTab(tab, btn) {
 // Call this when edit shop inputs change
 function markShopEditorDirty() {
   shopEditorDirty = true;
-  const editShopTab = document.querySelector(`.admin-tab[onclick*="'edit-shop'"]`);
+  const editShopTab = document.querySelector(`.admin-tab[data-tab="edit-shop"]`);
   if (editShopTab) editShopTab.classList.add('dirty');
 }
 

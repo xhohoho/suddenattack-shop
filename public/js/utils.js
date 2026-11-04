@@ -25,8 +25,33 @@ function showToast(msg) {
   _toastTimer = setTimeout(() => t.classList.remove('show'), 3000);
 }
 
+/** Parse timestamp that may be ISO (new) or KL locale string (legacy). */
+function parseTimestamp(ts) {
+  if (!ts) return NaN;
+  const d = new Date(ts);
+  if (!isNaN(d.getTime())) return d.getTime();
+  // Fallback: legacy format "M/D/YYYY, H:MM:SS AM/PM" (assumed KL timezone)
+  const m = String(ts).match(/(\d{1,2})\/(\d{1,2})\/(\d{4}),?\s+(\d{1,2}):(\d{2}):(\d{2})\s*(AM|PM)/i);
+  if (m) {
+    let [, month, day, year, hour, min, sec, ampm] = m;
+    month = parseInt(month, 10) - 1;
+    day = parseInt(day, 10);
+    year = parseInt(year, 10);
+    hour = parseInt(hour, 10);
+    min = parseInt(min, 10);
+    sec = parseInt(sec, 10);
+    if (ampm.toUpperCase() === 'PM' && hour !== 12) hour += 12;
+    if (ampm.toUpperCase() === 'AM' && hour === 12) hour = 0;
+    // Create date in UTC, then adjust for KL offset (+8 hours)
+    return Date.UTC(year, month, day, hour, min, sec) - 8 * 3600 * 1000;
+  }
+  return NaN;
+}
+
 function timeAgo(ts) {
-  const s = Math.floor((Date.now() - new Date(ts)) / 1000);
+  const ms = parseTimestamp(ts);
+  if (isNaN(ms)) return '—';
+  const s = Math.floor((Date.now() - ms) / 1000);
   if (s < 60) return s + 's ago';
   if (s < 3600) return Math.floor(s / 60) + 'm ago';
   if (s < 86400) return Math.floor(s / 3600) + 'h ago';
@@ -36,7 +61,9 @@ function timeAgo(ts) {
 
 function isToday(ts) {
   if (!ts) return false;
-  const d = new Date(ts), n = new Date();
+  const ms = parseTimestamp(ts);
+  if (isNaN(ms)) return false;
+  const d = new Date(ms), n = new Date();
   return d.getDate() === n.getDate() && d.getMonth() === n.getMonth() && d.getFullYear() === n.getFullYear();
 }
 

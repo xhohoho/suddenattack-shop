@@ -23,7 +23,7 @@
       <div class="page-title"><span>Hohoh0</span> Shop <button id="muteBtn" style="margin-left: 10px; background:
   none; border: none; cursor: pointer;">🔊</button> </div>
       <div style="display:flex;align-items:center;gap:12px">
-        <button class="admin-toggle" onclick="toggleAdmin()">Admin</button>
+        <button class="admin-toggle" data-action="toggleAdmin">Admin</button>
         <div>
           <div class="clock-time" id="ct">--:--:--</div>
           <div class="clock-date" id="cd">--</div>
@@ -37,20 +37,22 @@
         <div class="admin-title">Admin access</div>
         <div class="admin-pass">
           <input type="password" id="admin-pw" placeholder="Enter password" aria-label="Admin password"
-            onkeydown="if(event.key==='Enter')checkPass()" />
-          <button class="admin-btn" onclick="checkPass()">Unlock</button>
+            data-action="checkPassOnEnter" />
+          <button class="admin-btn" data-action="checkPass">Unlock</button>
         </div>
+        <!-- Turnstile CAPTCHA -->
+        <div id="admin-turnstile" style="margin-top:12px;display:flex;justify-content:center"></div>
         <div class="admin-status" id="gate-status"></div>
       </div>
       <div id="admin-content" style="display:none">
         <div class="admin-title">Shop management</div>
         <div class="admin-tabs">
-          <button class="admin-tab active" onclick="switchTab('extract',this)">Extract items</button>
-          <button class="admin-tab" onclick="switchTab('edit-shop',this)">Edit shop</button>
-          <button class="admin-tab" onclick="switchTab('orders',this)">Orders</button>
-          <button class="admin-tab" onclick="switchTab('manage-accounts',this)">Accounts</button>
-          <button class="admin-tab" onclick="switchTab('slideshow',this)">Slideshow</button>
-          <button class="admin-tab" onclick="switchTab('ticker',this)">Ticker</button>
+          <button class="admin-tab active" data-action="switchTab" data-tab="extract">Extract items</button>
+          <button class="admin-tab" data-action="switchTab" data-tab="edit-shop">Edit shop</button>
+          <button class="admin-tab" data-action="switchTab" data-tab="orders">Orders</button>
+          <button class="admin-tab" data-action="switchTab" data-tab="manage-accounts">Accounts</button>
+          <button class="admin-tab" data-action="switchTab" data-tab="slideshow">Slideshow</button>
+          <button class="admin-tab" data-action="switchTab" data-tab="ticker">Ticker</button>
         </div>
 
         <!-- Tab: Extract items -->
@@ -61,30 +63,30 @@
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
               <div class="img-slot" id="sslot-0"
                 style="aspect-ratio:1;border:1px dashed var(--border2);border-radius:6px;cursor:pointer;position:relative;overflow:hidden;background:var(--bg2);display:flex;align-items:center;justify-content:center;transition:border-color .2s">
-                <input type="file" accept="image/*" onchange="handleShopSlotFile(this,0)"
+                <input type="file" accept="image/*" data-action="handleShopSlotFile" data-slot="0"
                   style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%" />
                 <img id="sslot-img-0" style="width:100%;height:100%;object-fit:cover;display:none;border-radius:5px" />
                 <span class="slot-lbl" id="sslot-lbl-0"
                   style="font-size:10px;color:var(--text3);font-family:'Rajdhani',sans-serif;letter-spacing:.05em;text-align:center;pointer-events:none">+
                   Photo 1</span>
-                <button class="slot-rm" id="sslot-rm-0" onclick="removeShopSlot(event,0)"
+                <button class="slot-rm" id="sslot-rm-0" data-action="removeShopSlot" data-slot="0"
                   style="position:absolute;top:3px;right:3px;background:rgba(0,0,0,.7);border:none;border-radius:3px;color:var(--text2);font-size:10px;cursor:pointer;padding:1px 5px;display:none;z-index:2">✕</button>
               </div>
               <div class="img-slot" id="sslot-1"
                 style="aspect-ratio:1;border:1px dashed var(--border2);border-radius:6px;cursor:pointer;position:relative;overflow:hidden;background:var(--bg2);display:flex;align-items:center;justify-content:center;transition:border-color .2s">
-                <input type="file" accept="image/*" onchange="handleShopSlotFile(this,1)"
+                <input type="file" accept="image/*" data-action="handleShopSlotFile" data-slot="1"
                   style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%" />
                 <img id="sslot-img-1" style="width:100%;height:100%;object-fit:cover;display:none;border-radius:5px" />
                 <span class="slot-lbl" id="sslot-lbl-1"
                   style="font-size:10px;color:var(--text3);font-family:'Rajdhani',sans-serif;letter-spacing:.05em;text-align:center;pointer-events:none">+
                   Photo 2</span>
-                <button class="slot-rm" id="sslot-rm-1" onclick="removeShopSlot(event,1)"
+                <button class="slot-rm" id="sslot-rm-1" data-action="removeShopSlot" data-slot="1"
                   style="position:absolute;top:3px;right:3px;background:rgba(0,0,0,.7);border:none;border-radius:3px;color:var(--text2);font-size:10px;cursor:pointer;padding:1px 5px;display:none;z-index:2">✕</button>
               </div>
             </div>
           </div>
           <div class="admin-row">
-            <button class="admin-btn" id="extract-btn" onclick="extractItems()" style="width:100%">Upload &amp; Extract
+            <button class="admin-btn" id="extract-btn" data-action="extractItems" style="width:100%">Upload &amp; Extract
               items</button>
           </div>
           <div class="admin-status" id="extract-status"></div>
@@ -107,8 +109,8 @@
               <tbody id="extracted-tbody"></tbody>
             </table>
             <div style="display:flex;gap:8px;margin-top:12px">
-              <button class="admin-btn" onclick="applyItems()">Apply to table</button>
-              <button class="admin-btn sec" onclick="addExtractedRow()">+ Add row</button>
+              <button class="admin-btn" data-action="applyItems">Apply to table</button>
+              <button class="admin-btn sec" data-action="addExtractedRow">+ Add row</button>
             </div>
           </div>
         </div>
@@ -119,7 +121,7 @@
             <div
               style="font-size:11px;color:var(--text3);font-family:'Rajdhani',sans-serif;letter-spacing:.05em;text-transform:uppercase">
               Edit current shop items &amp; prices</div>
-            <button class="admin-btn sec" onclick="loadShopEditor()">↺ Reload</button>
+            <button class="admin-btn sec" data-action="loadShopEditor">↺ Reload</button>
           </div>
           <div id="shop-editor-wrap">
             <table style="width:100%;border-collapse:collapse;font-size:12px">
@@ -146,8 +148,8 @@
               <tbody id="shop-editor-tbody"></tbody>
             </table>
             <div style="display:flex;gap:8px;margin-top:12px">
-              <button class="admin-btn" onclick="saveShopEdit()">Save changes</button>
-              <button class="admin-btn sec" onclick="addShopEditorRow()">+ Add row</button>
+              <button class="admin-btn" data-action="saveShopEdit">Save changes</button>
+              <button class="admin-btn sec" data-action="addShopEditorRow">+ Add row</button>
             </div>
             <div class="admin-status" id="shop-edit-status"></div>
           </div>
@@ -157,8 +159,8 @@
         <div class="admin-tab-content" id="tab-manage-accounts">
           <div class="admin-title">Manage accounts</div>
           <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
-            <button class="admin-btn" onclick="showAddForm()">+ Add account</button>
-            <button class="admin-btn sec" id="cancel-form-btn" onclick="hideAddForm()"
+            <button class="admin-btn" data-action="showAddForm">+ Add account</button>
+            <button class="admin-btn sec" id="cancel-form-btn" data-action="hideAddForm"
               style="display:none">Cancel</button>
           </div>
           <div id="acc-form"
@@ -245,33 +247,33 @@
               <div class="img-slots" id="img-slots">
                 <div style="position:relative">
                   <div class="img-slot" id="slot-0" style="border-color:#e8b84b40">
-                    <input type="file" accept="image/*" onchange="handleSlotFile(this,0)" />
+                    <input type="file" accept="image/*" data-action="handleSlotFile" data-slot="0" />
                     <img id="slot-img-0" style="display:none" />
                     <span class="slot-lbl" style="color:var(--accent);font-size:9px;text-align:center;padding:0 4px">📊
                       Stats<br>Screenshot</span>
-                    <button class="slot-rm" id="slot-rm-0" onclick="removeSlot(event,0)">✕</button>
+                    <button class="slot-rm" id="slot-rm-0" data-action="removeSlot" data-slot="0">✕</button>
                     <div class="upload-prog" id="slot-prog-0"></div>
                   </div>
                 </div>
                 <div class="img-slot" id="slot-1"><input type="file" accept="image/*,video/*"
-                    onchange="handleSlotFile(this,1)" /><img id="slot-img-1" style="display:none" /><video
+                    data-action="handleSlotFile" data-slot="1" /><img id="slot-img-1" style="display:none" /><video
                     id="slot-vid-1" style="display:none;width:100%;height:100%;object-fit:cover" muted></video><span
                     class="slot-lbl">+ Photo/Video</span><button class="slot-rm" id="slot-rm-1"
-                    onclick="removeSlot(event,1)">✕</button>
+                    data-action="removeSlot" data-slot="1">✕</button>
                   <div class="upload-prog" id="slot-prog-1"></div>
                 </div>
                 <div class="img-slot" id="slot-2"><input type="file" accept="image/*,video/*"
-                    onchange="handleSlotFile(this,2)" /><img id="slot-img-2" style="display:none" /><video
+                    data-action="handleSlotFile" data-slot="2" /><img id="slot-img-2" style="display:none" /><video
                     id="slot-vid-2" style="display:none;width:100%;height:100%;object-fit:cover" muted></video><span
                     class="slot-lbl">+ Photo/Video</span><button class="slot-rm" id="slot-rm-2"
-                    onclick="removeSlot(event,2)">✕</button>
+                    data-action="removeSlot" data-slot="2">✕</button>
                   <div class="upload-prog" id="slot-prog-2"></div>
                 </div>
                 <div class="img-slot" id="slot-3"><input type="file" accept="image/*,video/*"
-                    onchange="handleSlotFile(this,3)" /><img id="slot-img-3" style="display:none" /><video
+                    data-action="handleSlotFile" data-slot="3" /><img id="slot-img-3" style="display:none" /><video
                     id="slot-vid-3" style="display:none;width:100%;height:100%;object-fit:cover" muted></video><span
                     class="slot-lbl">+ Photo/Video</span><button class="slot-rm" id="slot-rm-3"
-                    onclick="removeSlot(event,3)">✕</button>
+                    data-action="removeSlot" data-slot="3">✕</button>
                   <div class="upload-prog" id="slot-prog-3"></div>
                 </div>
               </div>
@@ -288,16 +290,16 @@
                       placeholder="e.g. 13.7" /></div>
                 </div>
                 <div class="stats-review-actions">
-                  <button class="admin-btn" onclick="applyStatsToForm()">Apply to form</button>
+                  <button class="admin-btn" data-action="applyStatsToForm">Apply to form</button>
                   <button class="admin-btn sec"
-                    onclick="document.getElementById('stats-review-panel').style.display='none'">Dismiss</button>
+                    data-action="dismissStatsReview">Dismiss</button>
                 </div>
               </div>
               <div style="font-size:11px;color:var(--text3);font-family:'Rajdhani',sans-serif;margin-top:6px">Slot 1
                 auto-extracts player stats. Save account after all media is uploaded.</div>
             </div>
             <div style="display:flex;gap:8px;flex-direction:column">
-              <button class="admin-btn" id="save-acc-btn" onclick="saveAccount()">Save account</button>
+              <button class="admin-btn" id="save-acc-btn" data-action="saveAccount">Save account</button>
               <div id="save-acc-status"
                 style="font-size:12px;color:var(--text2);font-family:'Rajdhani',sans-serif;min-height:16px;text-align:center">
               </div>
@@ -312,7 +314,7 @@
             style="font-size:11px;color:var(--text3);font-family:'Rajdhani',sans-serif;letter-spacing:.05em;margin-bottom:14px;text-transform:uppercase">
             Upload images — slideshow updates automatically. Drag ⋮⋮ to reorder.</div>
           <div class="admin-row" style="margin-bottom:12px;justify-content:flex-end">
-            <button class="admin-btn sec" onclick="previewLiveSlides()" style="font-size:11px;padding:6px 12px">👁 Preview Live Slides</button>
+            <button class="admin-btn sec" data-action="previewLiveSlides" style="font-size:11px;padding:6px 12px">👁 Preview Live Slides</button>
           </div>
           <div class="slide-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px;margin-bottom:12px">
             <!-- Dynamically populated by rebuildSlideshowTab() -->
@@ -328,8 +330,8 @@
             <textarea id="ticker-text-input" placeholder="e.g. Welcome to Hohoh0 Shop — fast delivery, trusted seller!" style="min-height:60px"></textarea>
           </div>
           <div class="admin-row" style="margin-top:12px;gap:8px;flex-wrap:wrap">
-            <button class="admin-btn" onclick="saveTickerText()">Save ticker</button>
-            <button class="admin-btn sec" onclick="resetTickerText()">↺ Reset to default</button>
+            <button class="admin-btn" data-action="saveTickerText">Save ticker</button>
+            <button class="admin-btn sec" data-action="resetTickerText">↺ Reset to default</button>
           </div>
           <div class="field" style="margin-top:12px">
             <label>Scroll speed</label>
@@ -348,7 +350,7 @@
         <div class="admin-tab-content" id="tab-orders">
           <div class="admin-row-header">
             <div class="admin-hint" style="margin-bottom:0">Update order status</div>
-            <button class="admin-btn sec" onclick="loadOrderMgmt()">↺ Reload</button>
+            <button class="admin-btn sec" data-action="loadOrderMgmt">↺ Reload</button>
           </div>
           <div class="order-mgmt-list" id="order-mgmt-list">
             <div class="admin-loading">Loading...</div>
@@ -414,12 +416,23 @@
 
     <!-- Main Tabs -->
     <div class="main-tabs">
-      <button class="main-tab active" onclick="switchMainTab('view-items',this)">Game Items</button>
-      <button class="main-tab" onclick="switchMainTab('view-accounts',this)">Accounts</button>
+      <button class="main-tab active" data-action="switchMainTab" data-tab="view-items">Game Items</button>
+      <button class="main-tab" data-action="switchMainTab" data-tab="view-accounts">Accounts</button>
     </div>
 
     <div class="toast" id="toast" role="alert" aria-live="polite"></div>
     <audio id="player"></audio>
+
+  <!-- Turnstile CAPTCHA (loaded only if site key configured) -->
+  <script>
+    window.TURNSTILE_SITE_KEY = '%%TURNSTILE_SITE_KEY%%'.charAt(0) === '%' ? '' : '%%TURNSTILE_SITE_KEY%%'; // build.js fills this in from the TURNSTILE_SITE_KEY env var
+    if (window.TURNSTILE_SITE_KEY) {
+      var s = document.createElement('script');
+      s.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js';
+      s.async = true; s.defer = true;
+      document.head.appendChild(s);
+    }
+  </script>
 
   <script src="./js/config.js"></script>
   <script src="./js/utils.js"></script>

@@ -4,7 +4,7 @@
       <div class="card">
         <div class="sec-label">Select items &amp; quantity</div>
         <div style="margin-bottom:12px;position:relative">
-          <input type="text" id="item-search" placeholder="Search items..." oninput="filterTable()"
+          <input type="text" id="item-search" placeholder="Search items..." data-action="filterTable"
             style="width:100%;border:1px solid var(--border);border-radius:6px;padding:8px 11px 8px 32px;font-size:13px;font-family:'Inter',sans-serif;color:var(--text);background:var(--bg3);outline:none;transition:border-color .2s" />
           <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text3);font-size:13px;pointer-events:none">⌕</span>
         </div>
@@ -30,8 +30,10 @@
       <div class="card">
         <div class="sec-label">Your details</div>
         <div class="field"><label>In-game name</label><input id="fn" type="text" placeholder="Your in-game name" /></div>
-        <div class="field"><label>Note</label><textarea id="fno" placeholder="Special requests..."></textarea></div>
-        <button class="sbtn" id="sbtn" onclick="submitOrder()">Place order</button>
+        <div class="field"><label>Note</label><textarea id="fno" placeholder="Special requests..."></textarea>
+          <small style="color:var(--text3);display:block;margin-top:4px;font-size:11px">⚠️ This note is visible to everyone in the public feed. Do not include phone numbers or private info.</small>
+        </div>
+        <button class="sbtn" id="sbtn" data-action="submitOrder">Place order</button>
         <div class="hint" id="sumhint">Add quantity to place an order.</div>
       </div>
     </div>
@@ -41,27 +43,59 @@
 <!-- Payment Modal (item orders) -->
 <div class="modal-overlay" id="modal-overlay">
   <div class="modal">
-    <button class="modal-close" onclick="closeModal()">✕</button>
+    <button class="modal-close" data-action="closeModal">✕</button>
     <div class="modal-title">Payment</div>
     <div class="modal-amt" id="modal-amt-item">RM 0.00</div>
     <div style="display:flex;align-items:center;justify-content:space-between;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:7px 12px;margin-bottom:4px">
       <span style="font-family:'Rajdhani',sans-serif;font-size:11px;color:var(--text3);letter-spacing:.06em;text-transform:uppercase">Order ID</span>
       <div style="display:flex;align-items:center;gap:8px">
         <span id="modal-order-id" style="font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:600;color:var(--text);letter-spacing:.04em">—</span>
-        <button onclick="copyOrderId()" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:13px;padding:0;transition:color .15s" title="Copy order ID">⧉</button>
+        <button data-action="copyOrderId" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:13px;padding:0;transition:color .15s" title="Copy order ID">⧉</button>
       </div>
     </div>
     <img class="modal-qr" src="https://lh3.googleusercontent.com/d/1rJPbucJNmQaR1cHU4CvI2AOMnp102GsM=w600" alt="Payment QR" />
     <hr class="modal-divider" />
     <div class="modal-sub">Upload payment screenshot</div>
     <div class="upload-area" id="upload-area">
-      <input type="file" id="proof-file-item" accept="image/*,application/pdf" onchange="previewFileItem(this)" />
+      <input type="file" id="proof-file-item" accept="image/*,application/pdf" data-action="previewFileItem" />
       <div class="upload-lbl">Tap to select screenshot or PDF<br><span>JPG / PNG / PDF supported</span></div>
       <img class="preview-img" id="preview-img-item" />
       <div id="preview-pdf-item" style="display:none;margin-top:10px;padding:10px 14px;background:var(--bg3);border:1px solid var(--border2);border-radius:6px;font-family:'Rajdhani',sans-serif;font-size:12px;color:var(--accent);letter-spacing:.05em">📄 PDF selected — ready to upload</div>
     </div>
     <div class="upload-status" id="upload-status-item"></div>
-    <button class="upload-btn" id="upload-btn-item" onclick="uploadProofItem()">Submit proof</button>
+    <div id="find-order-link-item" style="display:none;margin-top:8px;text-align:center">
+      <button type="button" data-action="openFindOrderModal" data-origin="item" style="background:none;border:none;color:var(--accent);cursor:pointer;font-size:13px;font-family:'Rajdhani',sans-serif;text-decoration:underline;padding:0">Can't find your order? Look it up →</button>
+    </div>
+    <button class="upload-btn" id="upload-btn-item" data-action="uploadProofItem">Submit proof</button>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════
+     MODAL: Find My Order (for lost order_token)
+══════════════════════════════════════════ -->
+<div class="modal-overlay" id="find-order-overlay">
+  <div class="modal" style="background:var(--bg2);border:1px solid var(--border2);border-radius:14px;padding:28px 24px;max-width:420px">
+    <button class="modal-close" data-action="closeFindOrderModal">✕</button>
+    <div style="font-family:'Rajdhani',sans-serif;font-size:17px;font-weight:700;color:var(--text);letter-spacing:.04em;margin-bottom:4px">Find Your Order</div>
+    <div style="font-size:12px;color:var(--text2);margin-bottom:16px;line-height:1.5">Enter your details to retrieve your order and upload payment proof.</div>
+
+    <div class="buyer-field">
+      <label>In-game name *</label>
+      <input id="find-ign" type="text" placeholder="Your IGN" />
+    </div>
+    <div class="buyer-field">
+      <label>Phone number *</label>
+      <input id="find-phone" type="tel" placeholder="e.g. 01112345678" />
+    </div>
+    <div class="buyer-field">
+      <label>Email (optional)</label>
+      <input id="find-email" type="email" placeholder="your@email.com" />
+    </div>
+
+    <div id="find-order-results" style="margin-top:16px;display:none"></div>
+    <div id="find-order-status" style="font-size:12px;color:var(--text2);font-family:'Rajdhani',sans-serif;min-height:18px;margin:8px 0;text-align:center"></div>
+    <button data-action="submitFindOrder" id="find-submit-btn" style="width:100%;padding:11px;background:var(--accent);color:#0a0b0f;border:none;border-radius:6px;font-family:'Rajdhani',sans-serif;font-size:15px;font-weight:700;cursor:pointer;letter-spacing:.06em;text-transform:uppercase;transition:all .15s">Find my order</button>
   </div>
 </div>
 

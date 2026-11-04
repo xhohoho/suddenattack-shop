@@ -1,9 +1,11 @@
 import { getAuth, isValidAdminToken, issueAdminToken, safeEqual } from './lib/auth.js';
 import { HttpError, unauthorized } from './lib/http.js';
 import { rateLimit, clientIp } from './lib/ratelimit.js';
+import { auditLog, withAudit } from './lib/audit.js';
 import {
   handleGetOrders, handleNewOrder, handleAccountPurchase,
   handleUpdateOrderStatus, handleUpdateOrderComment, handleUploadProofItem,
+  handleFindOrder,
 } from './handlers/orders.js';
 import {
   handleGetAccounts, handleSaveAccount, handleDeleteAccount,
@@ -52,13 +54,34 @@ function requestOrigin(req) {
  * Each run() receives (auth, body, res, ctx) and MUST send the response.
  */
 const MIN = 60_000, HOUR = 60 * MIN;
+const TURNSTILE_SECRET = process.env.TURNSTILE_SECRET_KEY;
+const TURNSTILE_VERIFY_URL = 'https://challenges.cloudflare.com/turnstile/v0/siteverify';
+
+async function verifyTurnstile(token) {
+  if (!TURNSTILE_SECRET) return true; // not configured, skip
+  if (!token) return false;
+  try {
+    const resp = await fetch(TURNSTILE_VERIFY_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ secret: TURNSTILE_SECRET, response: token }),
+    });
+    const data = await resp.json();
+    return data.success === true;
+  } catch (e) {
+    console.error('Turnstile verification error:', e.message);
+    return false;
+  }
+}
+
 const ROUTES = {
   // ── public reads ──
-  getOrders:       { run: (a, b, r, c) => handleGetOrders(a, r, c.isAdmin) },
+  getOrders:       { run: (a, b, r, c) => handleGetOrders(a, r, c.isAdmin, b.limit) },
   getShopItems:    { run: (a, b, r) => handleGetShopItems(a, r) },
   getAccounts:     { run: (a, b, r, c) => handleGetAccounts(a, r, c.isAdmin) },
   getSettings:     { run: (a, b, r) => handleGetSettings(a, r) },
   initData:        { run: (a, b, r) => handleInitData(a, r) },
+  findOrder:       { limit: [5, 15 * MIN], run: (a, b, r) => handleFindOrder(a, b, r) },
 
   // ── public writes ──
   newOrder:                 { limit: [10, 10 * MIN], run: (a, b, r) => handleNewOrder(a, b, r) },
@@ -70,17 +93,17 @@ const ROUTES = {
   finalizeUpload:           { limit: [40, HOUR],     run: (a, b, r) => handleFinalizeUpload(b, r) },
 
   // ── admin ──
-  updateOrderStatus:   { admin: true, run: (a, b, r) => handleUpdateOrderStatus(a, b, r) },
-  updateOrderComment:  { admin: true, run: (a, b, r) => handleUpdateOrderComment(a, b, r) },
-  saveItems:           { admin: true, run: (a, b, r) => handleSaveItems(a, b, r) },
-  extractItems:        { admin: true, run: (a, b, r) => handleExtractItems(a, b, r) },
-  extractAccountStats: { admin: true, run: (a, b, r) => handleExtractAccountStats(b, r) },
-  uploadAccountImage:  { admin: true, run: (a, b, r) => handleUploadAccountImage(a, b, r) },
-  saveAccount:         { admin: true, run: (a, b, r) => handleSaveAccount(a, b, r) },
-  deleteAccount:       { admin: true, run: (a, b, r) => handleDeleteAccount(a, b, r) },
-  updateAccountStatus: { admin: true, run: (a, b, r) => handleUpdateAccountStatus(a, b, r) },
-  uploadSlideImg:      { admin: true, run: (a, b, r) => handleUploadSlideImg(a, b, r) },
-  updateTicker:        { admin: true, run: (a, b, r) => handleUpdateTicker(a, b, r) },
+  updateOrderStatus:   { admin: true, run: withAudit((a, b, r) => handleUpdateOrderStatus(a, b, r), 'updateOrderStatus') },
+  updateOrderComment:  { admin: true, run: withAudit((a, b, r) => handleUpdateOrderComment(a, b, r), 'updateOrderComment') },
+  saveItems:           { admin: true, run: withAudit((a, b, r) => handleSaveItems(a, b, r), 'saveItems') },
+  extractItems:        { admin: true, run: withAudit((a, b, r) => handleExtractItems(a, b, r), 'extractItems') },
+  extractAccountStats: { admin: true, run: withAudit((a, b, r) => handleExtractAccountStats(b, r), 'extractAccountStats') },
+  uploadAccountImage:  { admin: true, run: withAudit((a, b, r) => handleUploadAccountImage(a, b, r), 'uploadAccountImage') },
+  saveAccount:         { admin: true, run: withAudit((a, b, r) => handleSaveAccount(a, b, r), 'saveAccount') },
+  deleteAccount:       { admin: true, run: withAudit((a, b, r) => handleDeleteAccount(a, b, r), 'deleteAccount') },
+  updateAccountStatus: { admin: true, run: withAudit((a, b, r) => handleUpdateAccountStatus(a, b, r), 'updateAccountStatus') },
+  uploadSlideImg:      { admin: true, run: withAudit((a, b, r) => handleUploadSlideImg(a, b, r), 'uploadSlideImg') },
+  updateTicker:        { admin: true, run: withAudit((a, b, r) => handleUpdateTicker(a, b, r), 'updateTicker') },
 };
 
 function parseBody(req) {
@@ -109,7 +132,9 @@ export default async function handler(req, res) {
     // ── GET → legacy default: the public order list ─────
     if (req.method === 'GET') {
       const auth = await getAuth().getClient();
-      return await handleGetOrders(auth, res, false);
+      const url = new URL(req.url, `http://${req.headers.host}`);
+      const limit = url.searchParams.get('limit') ? parseInt(url.searchParams.get('limit'), 10) : undefined;
+      return await handleGetOrders(auth, res, false, limit);
     }
 
     // ── POST → route by action ──────────────────────────
@@ -120,12 +145,19 @@ export default async function handler(req, res) {
     const action = typeof body.action === 'string' ? body.action : '';
     const ip = clientIp(req);
 
-    // Admin login: constant-time password check + brute-force limit. Returns a SIGNED, expiring
+    // Admin login: constant-time password check + brute-force limit + Turnstile. Returns a SIGNED, expiring
     // session token; the permanent ADMIN_TOKEN secret never leaves the server.
     if (action === 'adminAuth') {
-      rateLimit(`login:${ip}`, 8, 15 * MIN);
+      await rateLimit(`login:${ip}`, 8, 15 * MIN);
+      const turnstileToken = body.turnstile_token;
+      const turnstileOk = await verifyTurnstile(turnstileToken);
+      if (!turnstileOk) throw unauthorized('CAPTCHA verification failed');
       const expected = process.env.ADMIN_PASSWORD;
       if (!expected || !safeEqual(body.password || '', expected)) throw unauthorized();
+
+      // Log successful admin login
+      auditLog('admin', 'login', { ip, userAgent: req.headers['user-agent'] });
+
       return res.json({ token: issueAdminToken() });
     }
 
@@ -133,7 +165,7 @@ export default async function handler(req, res) {
     if (!route) throw new HttpError(400, `Unknown action: ${action}`);
 
     if (route.admin && !isValidAdminToken(body._token)) throw unauthorized();
-    if (route.limit) rateLimit(`${action}:${ip}`, route.limit[0], route.limit[1]);
+    if (route.limit) await rateLimit(`${action}:${ip}`, route.limit[0], route.limit[1]);
 
     const auth = await getAuth().getClient();
     const ctx = { isAdmin: isValidAdminToken(body._token), ip };
