@@ -309,6 +309,11 @@ document.addEventListener('click', function (e) {
   }
 });
 
+// Filter the item list as the user types (the click handler above only fires on mouse click)
+document.addEventListener('input', function (e) {
+  if (e.target.closest('[data-action="filterTable"]')) filterTable();
+});
+
 // Handle file input changes
 document.addEventListener('change', function (e) {
   const input = e.target.closest('[data-action="previewFileItem"]');
