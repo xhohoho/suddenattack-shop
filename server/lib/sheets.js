@@ -62,6 +62,33 @@ export async function sheetsAppend(auth, range, values) {
   invalidateCache();
 }
 
+/**
+ * Makes sure a tab named `title` exists; creates it with a header row if not.
+ * Safe to call repeatedly or from two servers at once. Returns true when it created the tab.
+ */
+export async function ensureSheetTab(auth, title, headerRow) {
+  const sheets = google.sheets({ version: 'v4', auth });
+  const meta = await sheets.spreadsheets.get({ spreadsheetId: SHEET_ID, fields: 'sheets.properties.title' });
+  if ((meta.data.sheets || []).some(s => s.properties?.title === title)) return false;
+  try {
+    await sheets.spreadsheets.batchUpdate({
+      spreadsheetId: SHEET_ID,
+      requestBody: { requests: [{ addSheet: { properties: { title } } }] },
+    });
+  } catch (e) {
+    if (/already exists/i.test(e.message || '')) return false; // another server created it first
+    throw e;
+  }
+  await sheets.spreadsheets.values.update({
+    spreadsheetId: SHEET_ID,
+    range: `${title}!A1`,
+    valueInputOption: 'RAW',
+    requestBody: { values: [headerRow] },
+  });
+  invalidateCache();
+  return true;
+}
+
 export async function sheetsClear(auth, range) {
   const sheets = google.sheets({ version: 'v4', auth });
   await sheets.spreadsheets.values.clear({ spreadsheetId: SHEET_ID, range });

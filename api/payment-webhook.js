@@ -17,7 +17,7 @@
  */
 import { getAuth, safeEqual } from '../server/lib/auth.js';
 import { rateLimit, clientIp } from '../server/lib/ratelimit.js';
-import { getSheetData, sheetsWriteBatch, sheetsAppend, colLetter, sanitizeSheetValue } from '../server/lib/sheets.js';
+import { getSheetData, sheetsWriteBatch, sheetsAppend, colLetter, sanitizeSheetValue, ensureSheetTab } from '../server/lib/sheets.js';
 import { sendWebhook } from '../server/lib/webhook.js';
 import { parseReceived } from '../server/lib/bankParse.js';
 import { findCandidates, decide, isDuplicate, toCents } from '../server/lib/paymentMatch.js';
@@ -41,6 +41,20 @@ async function readRaw(req) {
 // One payment at a time per server instance (Sheets has no transactions).
 let chain = Promise.resolve();
 const serial = fn => { const run = chain.then(fn, fn); chain = run.catch(() => {}); return run; };
+
+// Create the optional "Payments" log tab on first use (once per server instance).
+let paymentsTabReady = false;
+async function ensurePaymentsTab(auth) {
+  if (paymentsTabReady) return;
+  try {
+    if (await ensureSheetTab(auth, 'Payments', ['Time', 'Amount', 'Result', 'Orders', 'Sender', 'Ref', 'Message'])) {
+      console.log('payment-webhook: created the "Payments" tab');
+    }
+    paymentsTabReady = true;
+  } catch (e) {
+    console.error('payment-webhook: could not create the Payments tab:', e.message);
+  }
+}
 
 async function logPayment(auth, row) {
   try {
@@ -84,6 +98,7 @@ export default async function handler(req, res) {
   try {
     const result = await serial(async () => {
       const auth = await getAuth().getClient();
+      await ensurePaymentsTab(auth);
       // Ignore a retry of a notification we already handled (Payments tab is optional).
       const logged = await getSheetData(auth, 'Payments').catch(() => ({ data: [] }));
       if (isDuplicate(logged.data, text, parsed.amountCents)) { console.log(`payment-webhook: duplicate of a payment logged moments ago, RM ${amount.toFixed(2)}`); return 'duplicate'; }
