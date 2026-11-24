@@ -10,7 +10,7 @@ import { badRequest, notFound, conflict, cleanText, requiredText } from '../lib/
 import { toCents } from '../lib/paymentMatch.js';
 
 const REVIEW_RESULTS = new Set(['ambiguous', 'unmatched', 'account_review']);
-const ASSIGNABLE = new Set(['', 'new', 'proofsubmitted']);
+const ASSIGNABLE = new Set(['', 'new', 'proofsubmitted', 'afk']);
 const norm = v => String(v ?? '').trim().toLowerCase();
 
 async function readPayments(auth) {

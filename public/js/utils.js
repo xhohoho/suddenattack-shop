@@ -67,6 +67,14 @@ function isToday(ts) {
   return d.getDate() === n.getDate() && d.getMonth() === n.getMonth() && d.getFullYear() === n.getFullYear();
 }
 
+// The status to SHOW: a plain unpaid order older than AFK_AFTER_HOURS is AFK, even before the daily sheet sweep has run.
+function effectiveStatus(o) {
+  const st = (o && o.status) || 'New';
+  if (st !== 'New') return st;
+  const t = parseTimestamp(o.timestamp);
+  return (!isNaN(t) && Date.now() - t > AFK_AFTER_HOURS * 3600_000) ? 'AFK' : 'New';
+}
+
 function statusClass(s) {
   if (!s || s === 'New') return 'p-new';
   if (s === 'Paid') return 'p-paid';

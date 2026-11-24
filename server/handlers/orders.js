@@ -178,7 +178,7 @@ export async function handleAccountPurchase(auth, body, res) {
 // ── Public: upload payment proof (needs the order_token from newOrder/accountPurchase) ──
 
 const PROOF_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
-const OPEN_STATUSES = ['', 'new', 'proofsubmitted']; // once the order is Paid/Verified/... proof is locked
+const OPEN_STATUSES = ['', 'new', 'proofsubmitted', 'afk']; // AFK buyers can still come back and upload proof; // once the order is Paid/Verified/... proof is locked
 
 export async function handleUploadProofItem(auth, body, res) {
   requireOrderToken(body);

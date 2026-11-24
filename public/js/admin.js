@@ -357,12 +357,13 @@ function renderOrderMgmt() {
           <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
             <span class="order-mgmt-total">${o.total ? 'RM ' + parseFloat(o.total).toFixed(2) : ''}</span>
             <select class="status-select" id="st-${esc(o.order_id)}">
-              <option ${o.status === 'New' ? 'selected' : ''}>New</option>
-              <option value="ProofSubmitted" ${o.status === 'ProofSubmitted' ? 'selected' : ''}>Proof sent</option>
-              <option ${o.status === 'Paid' ? 'selected' : ''}>Paid</option>
-              <option ${o.status === 'Verified' ? 'selected' : ''}>Verified</option>
-              <option ${o.status === 'Completed' ? 'selected' : ''}>Completed</option>
-              <option ${o.status === 'Cancelled' ? 'selected' : ''}>Cancelled</option>
+              <option ${effectiveStatus(o) === 'New' ? 'selected' : ''}>New</option>
+              <option value="ProofSubmitted" ${effectiveStatus(o) === 'ProofSubmitted' ? 'selected' : ''}>Proof sent</option>
+              <option ${effectiveStatus(o) === 'Paid' ? 'selected' : ''}>Paid</option>
+              <option ${effectiveStatus(o) === 'Verified' ? 'selected' : ''}>Verified</option>
+              <option ${effectiveStatus(o) === 'Completed' ? 'selected' : ''}>Completed</option>
+              <option ${effectiveStatus(o) === 'AFK' ? 'selected' : ''}>AFK</option>
+              <option ${effectiveStatus(o) === 'Cancelled' ? 'selected' : ''}>Cancelled</option>
             </select>
             <button class="save-status-btn" id="stbtn-${esc(o.order_id)}" onclick="saveOrderStatus('${esc(o.order_id)}')">Save</button>
             <span id="ind-${esc(o.order_id)}" style="font-size:13px;width:16px;text-align:center;flex-shrink:0"></span>

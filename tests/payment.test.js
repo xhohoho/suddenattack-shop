@@ -45,9 +45,13 @@ test('two same-amount orders are ambiguous', () => {
   const c = findCandidates([mk('A', '30', 5), mk('B', '30.00', 2)], 3000, now);
   assert.equal(decide(c).action, 'ambiguous');
 });
-test('old, paid or unrelated orders are ignored', () => {
-  const c = findCandidates([mk('A', '30', 45), mk('B', '30', 5, 'Paid'), mk('C', '30', 5, 'Cancelled')], 3000, now);
+test('old (over 24h), paid, cancelled or AFK orders are ignored', () => {
+  const c = findCandidates([mk('A', '30', 25 * 60), mk('B', '30', 5, 'Paid'), mk('C', '30', 5, 'Cancelled'), mk('D', '30', 5, 'AFK')], 3000, now);
   assert.equal(decide(c).action, 'unmatched');
+});
+test('an order placed 23 hours ago can still be auto-matched (24h window)', () => {
+  const c = findCandidates([mk('A', '30', 23 * 60)], 3000, now);
+  assert.equal(decide(c).action, 'auto_paid');
 });
 test('account orders need manual review unless enabled', () => {
   const c = findCandidates([mk('A', '300', 5, 'New', 'Rank · IGN · ID 12345')], 30000, now);

@@ -7,7 +7,7 @@
  *
  * Env vars:
  *   PAYMENT_WEBHOOK_SECRET   required (endpoint refuses everything without it)
- *   PAYMENT_WINDOW_MIN       optional, minutes an unpaid order stays matchable (default 30)
+ *   PAYMENT_WINDOW_MIN       optional, minutes an unpaid order stays matchable (default 1440 = 24 hours)
  *   AUTO_APPROVE_ACCOUNTS    optional, "true" to auto-pay account orders too (default: manual review)
  *   WEBHOOK_URL              optional, existing Discord webhook, used for alerts
  *
@@ -92,7 +92,7 @@ export default async function handler(req, res) {
   }
 
   const amount = parsed.amountCents / 100;
-  const windowMs = (Number(process.env.PAYMENT_WINDOW_MIN) || 30) * 60_000;
+  const windowMs = (Number(process.env.PAYMENT_WINDOW_MIN) || 24 * 60) * 60_000;
   const autoApproveAccounts = process.env.AUTO_APPROVE_ACCOUNTS === 'true';
 
   try {
