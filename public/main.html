@@ -50,6 +50,7 @@
           <button class="admin-tab active" data-action="switchTab" data-tab="extract">Extract items</button>
           <button class="admin-tab" data-action="switchTab" data-tab="edit-shop">Edit shop</button>
           <button class="admin-tab" data-action="switchTab" data-tab="orders">Orders</button>
+          <button class="admin-tab" data-action="switchTab" data-tab="payments">Payments</button>
           <button class="admin-tab" data-action="switchTab" data-tab="manage-accounts">Accounts</button>
           <button class="admin-tab" data-action="switchTab" data-tab="slideshow">Slideshow</button>
           <button class="admin-tab" data-action="switchTab" data-tab="ticker">Ticker</button>
@@ -347,6 +348,16 @@
         </div>
 
         <!-- Tab: Orders -->
+        <div class="admin-tab-content" id="tab-payments">
+          <div class="admin-row-header">
+            <div class="admin-hint" style="margin-bottom:0">Bank payments that need matching to an order</div>
+            <button class="admin-btn sec" data-action="loadPaymentsReview">↺ Reload</button>
+          </div>
+          <div class="order-mgmt-list" id="payments-review-list">
+            <div class="admin-loading">Loading...</div>
+          </div>
+        </div>
+
         <div class="admin-tab-content" id="tab-orders">
           <div class="admin-row-header">
             <div class="admin-hint" style="margin-bottom:0">Update order status</div>

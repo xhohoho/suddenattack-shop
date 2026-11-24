@@ -124,6 +124,53 @@ async function submitOrder() {
 
 // ── Payment modal ──────────────────────────
 
+// While the popup is open it asks the server for this order's status every few seconds, so the buyer
+// sees "Payment received" / "Payment confirmed" without refreshing. (Needs the order_token.)
+let orderPollTimer = null;
+const DONE_STATES = ['Paid', 'Verified', 'Completed'];
+
+function stopOrderPoll() { if (orderPollTimer) { clearInterval(orderPollTimer); orderPollTimer = null; } }
+
+function setModalMessage(text, color) {
+  const el = document.getElementById('upload-status-item');
+  el.textContent = text; el.style.color = color || '';
+}
+
+function showPaidState() {
+  stopOrderPoll();
+  const oid = currentOrderId;
+  setModalMessage('✅ Payment confirmed! Thank you.', 'var(--green)');
+  document.getElementById('upload-area').style.display = 'none';
+  document.getElementById('upload-btn-item').style.display = 'none';
+  setTimeout(() => { if (currentOrderId === oid) { closeModal(); _lastFeedData = ''; fetchSheet(); } }, 4000);
+}
+
+function applyOrderStatus(st) {
+  if (DONE_STATES.includes(st)) showPaidState();
+  else if (st === 'PaymentReceived') setModalMessage('✅ Payment received! Upload your payment screenshot to finish.', 'var(--green)');
+  else if (st === 'ProofSubmitted') setModalMessage('Proof received. Waiting for the bank to confirm your payment… this page updates by itself.', 'var(--green)');
+  else if (st === 'Cancelled') { stopOrderPoll(); setModalMessage('This order was cancelled.', 'var(--red)'); }
+}
+
+function startOrderPoll() {
+  stopOrderPoll();
+  if (!currentOrderId || !currentOrderToken) return;
+  const oid = currentOrderId;
+  let busy = false, ticks = 0;
+  const tick = async () => {
+    if (busy || currentOrderId !== oid) return;
+    if (++ticks > 170) { stopOrderPoll(); return; } // gives up after ~20 minutes
+    busy = true;
+    try {
+      const r = await apiPost({ action: 'orderStatus', order_id: oid, order_token: currentOrderToken });
+      if (currentOrderId === oid) applyOrderStatus(r.status);
+    } catch { /* network hiccup or rate limit: try again next time */ }
+    busy = false;
+  };
+  orderPollTimer = setInterval(tick, 7000);
+  tick();
+}
+
 function openModal(total, orderId, timestamp) {
   if (typeof total === 'object' && total.dataset) {
     currentOrderId = total.dataset.oid;
@@ -150,9 +197,12 @@ function openModal(total, orderId, timestamp) {
   if (pdfTagItem) pdfTagItem.style.display = 'none';
   const fi = document.getElementById('proof-file-item');
   fi.value = ''; fi.disabled = !currentOrderToken;
+  document.getElementById('upload-area').style.display = '';
+  startOrderPoll();
 }
 
 function closeModal() {
+  stopOrderPoll();
   document.getElementById('modal-overlay').classList.remove('open');
   currentOrderId = null; currentOrderTimestamp = null; currentOrderToken = null;
 }
@@ -259,10 +309,15 @@ async function uploadProofItem() {
   btn.disabled = true; btn.textContent = 'Uploading...';
   status.textContent = ''; status.style.color = '';
   try {
-    await uploadProofFile(file, currentOrderId, 'uploadProofItem', {}, currentOrderToken);
-    status.textContent = 'Submitted! We will verify your payment soon.'; status.style.color = 'var(--green)';
+    const result = await uploadProofFile(file, currentOrderId, 'uploadProofItem', {}, currentOrderToken);
     btn.textContent = 'Submitted ✓';
-    setTimeout(() => { closeModal(); _lastFeedData = ''; fetchSheet(); }, 3000);
+    _lastFeedData = ''; fetchSheet();
+    // Both the bank payment and the proof are needed: if the bank already confirmed, the order is Paid now.
+    if (result && DONE_STATES.includes(result.status)) showPaidState();
+    else {
+      status.textContent = 'Proof received. Waiting for the bank to confirm your payment… this page updates by itself.';
+      status.style.color = 'var(--green)';
+    }
   } catch (e) {
     btn.disabled = false; btn.textContent = 'Submit proof';
     status.textContent = 'Failed: ' + e.message; status.style.color = 'var(--red)';

@@ -72,7 +72,7 @@ function statusClass(s) {
   if (s === 'Paid') return 'p-paid';
   if (s === 'Verified') return 'p-verified';
   if (s === 'Completed') return 'p-completed';
-  if (s === 'Confirmed' || s === 'ProofSubmitted') return 'p-conf';
+  if (s === 'Confirmed' || s === 'ProofSubmitted' || s === 'PaymentReceived') return 'p-conf';
   return 'p-done';
 }
 

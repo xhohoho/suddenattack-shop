@@ -38,7 +38,10 @@ function discordText(event, p) {
     return `📎 **Payment proof uploaded** for \`${p.order_id}\`\n${p.proof_url}`;
   }
   if (event === 'payment.auto_paid') {
-    return `✅ **Auto-paid** \`${p.order_id}\` (bank notification RM ${p.amount})`;
+    return `✅ **Paid** \`${p.order_id}\` (bank notification RM ${p.amount} + proof)`;
+  }
+  if (event === 'payment.received') {
+    return `💰 **Bank payment received** for \`${p.order_id}\` (RM ${p.amount}). Waiting for the buyer's proof.`;
   }
   if (event === 'payment.needs_review') {
     const why = { unmatched: 'no matching order', ambiguous: 'several orders with this amount', account_review: 'account order, confirm by hand' }[p.result] || p.result;

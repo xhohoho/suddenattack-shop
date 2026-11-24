@@ -8,7 +8,11 @@
  * Env vars:
  *   PAYMENT_WEBHOOK_SECRET   required (endpoint refuses everything without it)
  *   PAYMENT_WINDOW_MIN       optional, minutes an unpaid order stays matchable (default 30)
- *   AUTO_APPROVE_ACCOUNTS    optional, "true" to auto-pay account orders too (default: manual review)
+ *   AUTO_APPROVE_ACCOUNTS    optional, "true" to let account orders follow the same rules as item orders (default: manual review)
+ *
+ * Double confirmation: an order is marked Paid only when the bank notification AND the buyer's proof are both in.
+ *   bank first -> status PaymentReceived (proof upload then makes it Paid)
+ *   proof first -> status ProofSubmitted (the bank notification then makes it Paid)
  *   WEBHOOK_URL              optional, existing Discord webhook, used for alerts
  *
  * A repeat of the same notification within 2 minutes is answered with "duplicate" and changes nothing.
@@ -47,7 +51,7 @@ let paymentsTabReady = false;
 async function ensurePaymentsTab(auth) {
   if (paymentsTabReady) return;
   try {
-    if (await ensureSheetTab(auth, 'Payments', ['Time', 'Amount', 'Result', 'Orders', 'Sender', 'Ref', 'Message'])) {
+    if (await ensureSheetTab(auth, 'Payments', ['Time', 'Amount', 'Result', 'Orders', 'Sender', 'Ref', 'Message', 'Resolved'])) {
       console.log('payment-webhook: created the "Payments" tab');
     }
     paymentsTabReady = true;
@@ -105,7 +109,7 @@ export default async function handler(req, res) {
 
       const { headers, data } = await getSheetData(auth, 'Orders'); // fresh read
       const candidates = findCandidates(data, parsed.amountCents, Date.now(), windowMs);
-      const { action } = decide(candidates, { autoApproveAccounts });
+      const { action, order } = decide(candidates, { autoApproveAccounts });
       const ids = candidates.map(o => o.order_id).join(', ');
 
       // Why did (or didn't) it match? Lists orders with the same total so a miss can be explained.
@@ -113,18 +117,19 @@ export default async function handler(req, res) {
         .map(o => `${o.order_id} status=${JSON.stringify(o.status)} ts=${JSON.stringify(o.timestamp)} ageMin=${((Date.now() - Date.parse(o.timestamp)) / 60000).toFixed(1)}`);
       console.log(`payment-webhook: RM ${amount.toFixed(2)} from "${parsed.sender.slice(0, 40)}" -> ${action}; ${data.length} orders read, ${candidates.length} candidate(s) [${ids}]; same-total orders: ${sameTotal.length ? sameTotal.join(' | ') : 'none'}`);
 
-      if (action === 'auto_paid') {
-        const order = candidates[0];
+      if (action === 'auto_paid' || action === 'payment_received') {
+        const paid = action === 'auto_paid';
         const statusIdx = headers.indexOf('status');
         if (statusIdx < 0) throw new Error('Orders sheet has no "status" column');
-        const updates = [{ range: `Orders!${colLetter(statusIdx)}${order._row}`, values: [['Paid']] }];
+        const updates = [{ range: `Orders!${colLetter(statusIdx)}${order._row}`, values: [[paid ? 'Paid' : 'PaymentReceived']] }];
         const commentIdx = headers.indexOf('comment');
         if (commentIdx >= 0 && !String(order.comment || '').trim()) {
-          updates.push({ range: `Orders!${colLetter(commentIdx)}${order._row}`, values: [[`Auto-paid: bank notification RM ${amount.toFixed(2)}`]] });
+          const note = paid ? `Auto-paid: bank notification RM ${amount.toFixed(2)} + proof` : 'Payment received, awaiting proof';
+          updates.push({ range: `Orders!${colLetter(commentIdx)}${order._row}`, values: [[note]] });
         }
         await sheetsWriteBatch(auth, updates);
-        await logPayment(auth, [new Date().toISOString(), amount, 'auto_paid', ids, parsed.sender, parsed.ref, text]);
-        await sendWebhook('payment.auto_paid', { order_id: order.order_id, amount: amount.toFixed(2) });
+        await logPayment(auth, [new Date().toISOString(), amount, action, ids, parsed.sender, parsed.ref, text]);
+        await sendWebhook(paid ? 'payment.auto_paid' : 'payment.received', { order_id: order.order_id, amount: amount.toFixed(2) });
       } else {
         await logPayment(auth, [new Date().toISOString(), amount, action, ids, parsed.sender, parsed.ref, text]);
         await sendWebhook('payment.needs_review', { result: action, amount: amount.toFixed(2), orders: ids || 'none', sender: parsed.sender.slice(0, 40) });

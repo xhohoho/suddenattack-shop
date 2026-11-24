@@ -5,8 +5,9 @@ import { auditLog, withAudit } from '../server/lib/audit.js';
 import {
   handleGetOrders, handleNewOrder, handleAccountPurchase,
   handleUpdateOrderStatus, handleUpdateOrderComment, handleUploadProofItem,
-  handleFindOrder,
+  handleFindOrder, handleOrderStatus,
 } from '../server/handlers/orders.js';
+import { handleGetPayments, handleMatchPayment } from '../server/handlers/payments.js';
 import {
   handleGetAccounts, handleSaveAccount, handleDeleteAccount,
   handleUpdateAccountStatus, handleUploadAccountImage, handleUploadPublicAccountImage, handleSubmitListing,
@@ -82,6 +83,7 @@ const ROUTES = {
   getSettings:     { run: (a, b, r) => handleGetSettings(a, r) },
   initData:        { run: (a, b, r) => handleInitData(a, r) },
   findOrder:       { limit: [5, 15 * MIN], run: (a, b, r) => handleFindOrder(a, b, r) },
+  orderStatus:     { limit: [200, 10 * MIN], run: (a, b, r) => handleOrderStatus(a, b, r) }, // payment popup polls this (needs order_token)
 
   // ── public writes ──
   newOrder:                 { limit: [10, 10 * MIN], run: (a, b, r) => handleNewOrder(a, b, r) },
@@ -94,6 +96,8 @@ const ROUTES = {
 
   // ── admin ──
   updateOrderStatus:   { admin: true, run: withAudit((a, b, r) => handleUpdateOrderStatus(a, b, r), 'updateOrderStatus') },
+  getPayments:         { admin: true, run: (a, b, r) => handleGetPayments(a, b, r) },
+  matchPayment:        { admin: true, run: withAudit((a, b, r) => handleMatchPayment(a, b, r), 'matchPayment') },
   updateOrderComment:  { admin: true, run: withAudit((a, b, r) => handleUpdateOrderComment(a, b, r), 'updateOrderComment') },
   saveItems:           { admin: true, run: withAudit((a, b, r) => handleSaveItems(a, b, r), 'saveItems') },
   extractItems:        { admin: true, run: withAudit((a, b, r) => handleExtractItems(a, b, r), 'extractItems') },
