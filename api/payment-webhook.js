@@ -20,7 +20,7 @@ import { rateLimit, clientIp } from '../server/lib/ratelimit.js';
 import { getSheetData, sheetsWriteBatch, sheetsAppend, colLetter, sanitizeSheetValue } from '../server/lib/sheets.js';
 import { sendWebhook } from '../server/lib/webhook.js';
 import { parseReceived } from '../server/lib/bankParse.js';
-import { findCandidates, decide, isDuplicate } from '../server/lib/paymentMatch.js';
+import { findCandidates, decide, isDuplicate, toCents } from '../server/lib/paymentMatch.js';
 
 // Read the raw body ourselves so odd characters can never break parsing.
 export const config = { api: { bodyParser: false } };
@@ -62,14 +62,20 @@ export default async function handler(req, res) {
   } catch (e) {
     return res.status(e.status || 429).send('slow down');
   }
-  if (!safeEqual(String(req.headers['x-secret'] || ''), secret)) return res.status(401).send('unauthorized');
+  if (!safeEqual(String(req.headers['x-secret'] || ''), secret)) {
+    console.warn(`payment-webhook: 401 secret mismatch (header ${req.headers['x-secret'] ? 'present, ' + String(req.headers['x-secret']).length + ' chars' : 'missing'})`);
+    return res.status(401).send('unauthorized');
+  }
 
   const raw = (await readRaw(req)).trim();
   let text = raw;
   if (raw.startsWith('{')) { try { const j = JSON.parse(raw); text = String(j.text ?? j.message ?? raw); } catch { /* keep raw */ } }
 
   const parsed = parseReceived(text);
-  if (!parsed) return res.status(200).send('ignored'); // not an incoming-payment notification
+  if (!parsed) {
+    console.log('payment-webhook: ignored (not a "received" notification):', JSON.stringify(text.slice(0, 160)));
+    return res.status(200).send('ignored'); // not an incoming-payment notification
+  }
 
   const amount = parsed.amountCents / 100;
   const windowMs = (Number(process.env.PAYMENT_WINDOW_MIN) || 30) * 60_000;
@@ -80,12 +86,17 @@ export default async function handler(req, res) {
       const auth = await getAuth().getClient();
       // Ignore a retry of a notification we already handled (Payments tab is optional).
       const logged = await getSheetData(auth, 'Payments').catch(() => ({ data: [] }));
-      if (isDuplicate(logged.data, text, parsed.amountCents)) return 'duplicate';
+      if (isDuplicate(logged.data, text, parsed.amountCents)) { console.log(`payment-webhook: duplicate of a payment logged moments ago, RM ${amount.toFixed(2)}`); return 'duplicate'; }
 
       const { headers, data } = await getSheetData(auth, 'Orders'); // fresh read
       const candidates = findCandidates(data, parsed.amountCents, Date.now(), windowMs);
       const { action } = decide(candidates, { autoApproveAccounts });
       const ids = candidates.map(o => o.order_id).join(', ');
+
+      // Why did (or didn't) it match? Lists orders with the same total so a miss can be explained.
+      const sameTotal = data.filter(o => toCents(o.total) === parsed.amountCents).slice(-5)
+        .map(o => `${o.order_id} status=${JSON.stringify(o.status)} ts=${JSON.stringify(o.timestamp)} ageMin=${((Date.now() - Date.parse(o.timestamp)) / 60000).toFixed(1)}`);
+      console.log(`payment-webhook: RM ${amount.toFixed(2)} from "${parsed.sender.slice(0, 40)}" -> ${action}; ${data.length} orders read, ${candidates.length} candidate(s) [${ids}]; same-total orders: ${sameTotal.length ? sameTotal.join(' | ') : 'none'}`);
 
       if (action === 'auto_paid') {
         const order = candidates[0];
