@@ -10,7 +10,7 @@ import { badRequest, notFound, conflict, cleanText, requiredText } from '../lib/
 import { toCents } from '../lib/paymentMatch.js';
 
 const REVIEW_RESULTS = new Set(['ambiguous', 'unmatched', 'account_review']);
-const ASSIGNABLE = new Set(['', 'new', 'proofsubmitted', 'paymentreceived']);
+const ASSIGNABLE = new Set(['', 'new', 'proofsubmitted']);
 const norm = v => String(v ?? '').trim().toLowerCase();
 
 async function readPayments(auth) {
@@ -44,9 +44,7 @@ export async function handleGetPayments(auth, body, res) {
 
 /**
  * body: { payment_row, mode: 'assign' | 'dismiss', order_id? }
- *  assign  -> applies the SAME double-confirmation rule as the webhook:
- *             proof already uploaded -> Paid, no proof yet -> PaymentReceived (still waits for proof).
- *             (To skip the proof, set the order to Paid in the Orders tab.)
+ *  assign  -> marks the chosen order Paid (same as an automatic match)
  *  dismiss -> marks the payment as handled (e.g. unrelated money in).
  */
 export async function handleMatchPayment(auth, body, res) {
@@ -82,12 +80,12 @@ export async function handleMatchPayment(auth, body, res) {
     const statusIdx = oh.indexOf('status');
     if (statusIdx < 0) throw new Error('Orders sheet has no "status" column');
 
-    newStatus = norm(order.status) === 'proofsubmitted' ? 'Paid' : 'PaymentReceived';
+    newStatus = 'Paid';
     updates.push({ range: `Orders!${colLetter(statusIdx)}${order._row}`, values: [[newStatus]] });
     const commentIdx = oh.indexOf('comment');
     if (commentIdx >= 0 && !String(order.comment || '').trim()) {
       const amt = (toCents(payment.amount) / 100).toFixed(2);
-      const note = newStatus === 'Paid' ? `Paid: bank payment RM ${amt} matched by admin + proof` : 'Payment received, awaiting proof';
+      const note = `Auto-paid: bank payment RM ${amt} matched by admin`;
       updates.push({ range: `Orders!${colLetter(commentIdx)}${order._row}`, values: [[note]] });
     }
     resolvedText = `Matched ${orderId}`;

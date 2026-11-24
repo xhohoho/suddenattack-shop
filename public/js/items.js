@@ -125,7 +125,7 @@ async function submitOrder() {
 // ── Payment modal ──────────────────────────
 
 // While the popup is open it asks the server for this order's status every few seconds, so the buyer
-// sees "Payment received" / "Payment confirmed" without refreshing. (Needs the order_token.)
+// sees "Payment confirmed" without refreshing. (Needs the order_token.)
 let orderPollTimer = null;
 const DONE_STATES = ['Paid', 'Verified', 'Completed'];
 
@@ -147,8 +147,7 @@ function showPaidState() {
 
 function applyOrderStatus(st) {
   if (DONE_STATES.includes(st)) showPaidState();
-  else if (st === 'PaymentReceived') setModalMessage('✅ Payment received! Upload your payment screenshot to finish.', 'var(--green)');
-  else if (st === 'ProofSubmitted') setModalMessage('Proof received. Waiting for the bank to confirm your payment… this page updates by itself.', 'var(--green)');
+  else if (st === 'ProofSubmitted') setModalMessage('Proof received. We will verify your payment soon. This page updates by itself once it is confirmed.', 'var(--green)');
   else if (st === 'Cancelled') { stopOrderPoll(); setModalMessage('This order was cancelled.', 'var(--red)'); }
 }
 
@@ -312,10 +311,10 @@ async function uploadProofItem() {
     const result = await uploadProofFile(file, currentOrderId, 'uploadProofItem', {}, currentOrderToken);
     btn.textContent = 'Submitted ✓';
     _lastFeedData = ''; fetchSheet();
-    // Both the bank payment and the proof are needed: if the bank already confirmed, the order is Paid now.
+    // If the bank notification already marked the order Paid, say so; otherwise the page keeps watching.
     if (result && DONE_STATES.includes(result.status)) showPaidState();
     else {
-      status.textContent = 'Proof received. Waiting for the bank to confirm your payment… this page updates by itself.';
+      status.textContent = 'Submitted! We will verify your payment soon. This page updates by itself once it is confirmed.';
       status.style.color = 'var(--green)';
     }
   } catch (e) {

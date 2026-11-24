@@ -9,7 +9,6 @@ import { releaseStaleReservations } from './accounts.js';
 import { sendOrderCreatedWebhook, sendProofUploadedWebhook } from '../lib/webhook.js';
 import { badRequest, notFound, conflict, cleanText, requiredText } from '../lib/http.js';
 import { priceItemOrder, priceAccount, SERVICE_CHARGE, ACCOUNT_SERVICE_RATE } from '../lib/pricing.js';
-import { statusAfterProof } from '../lib/paymentMatch.js';
 import crypto from 'crypto';
 
 const KL_LOCALE = { timeZone: 'Asia/Kuala_Lumpur' };
@@ -179,7 +178,7 @@ export async function handleAccountPurchase(auth, body, res) {
 // ── Public: upload payment proof (needs the order_token from newOrder/accountPurchase) ──
 
 const PROOF_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
-const OPEN_STATUSES = ['', 'new', 'proofsubmitted', 'paymentreceived']; // once the order is Paid/Verified/... proof is locked
+const OPEN_STATUSES = ['', 'new', 'proofsubmitted']; // once the order is Paid/Verified/... proof is locked
 
 export async function handleUploadProofItem(auth, body, res) {
   requireOrderToken(body);
@@ -203,20 +202,13 @@ export async function handleUploadProofItem(auth, body, res) {
     ? `=HYPERLINK("https://drive.google.com/file/d/${fileId}/view","📄 View PDF")`
     : `=IMAGE("${driveUrl(fileId, mimeType)}")`;
 
-  // Re-read the status AFTER the (slow) Drive upload: a bank notification may have arrived meanwhile.
-  // Double confirmation: proof + bank notification together make the order Paid.
+  // Re-read the status AFTER the (slow) Drive upload: the bank notification may have marked the order
+  // Paid meanwhile. The proof is still saved, but a Paid order must never go back to "Proof sent".
   const fresh = (await getSheetData(auth, 'Orders')).data.find(r => r.order_id === orderId) || order;
-  if (!OPEN_STATUSES.includes(String(fresh.status).trim().toLowerCase())) throw conflict('This order has already been processed.');
-  const newStatus = statusAfterProof(fresh.status);
-  const updates = [
-    { range: `Orders!${colLetter(statusIdx)}${fresh._row}`, values: [[newStatus]] },
-    { range: `Orders!${colLetter(proofIdx)}${fresh._row}`, values: [[proofFormula]] },
-  ];
-  const commentIdx = headers.indexOf('comment');
-  const oldComment = String(fresh.comment || '').trim();
-  if (newStatus === 'Paid' && commentIdx >= 0 && (!oldComment || /^Payment received/i.test(oldComment))) {
-    updates.push({ range: `Orders!${colLetter(commentIdx)}${fresh._row}`, values: [['Auto-paid: bank notification + proof']] });
-  }
+  const stillOpen = OPEN_STATUSES.includes(String(fresh.status).trim().toLowerCase());
+  const newStatus = stillOpen ? 'ProofSubmitted' : (String(fresh.status).trim() || 'New');
+  const updates = [{ range: `Orders!${colLetter(proofIdx)}${fresh._row}`, values: [[proofFormula]] }];
+  if (stillOpen) updates.push({ range: `Orders!${colLetter(statusIdx)}${fresh._row}`, values: [['ProofSubmitted']] });
   await sheetsWriteBatch(auth, updates);
   console.log(`✅ proof uploaded for ${orderId}`);
 
