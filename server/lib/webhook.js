@@ -37,6 +37,16 @@ function discordText(event, p) {
   if (event === 'proof.uploaded') {
     return `📎 **Payment proof uploaded** for \`${p.order_id}\`\n${p.proof_url}`;
   }
+  if (event === 'payment.auto_paid') {
+    return `✅ **Auto-paid** \`${p.order_id}\` (bank notification RM ${p.amount})`;
+  }
+  if (event === 'payment.needs_review') {
+    const why = { unmatched: 'no matching order', ambiguous: 'several orders with this amount', account_review: 'account order, confirm by hand' }[p.result] || p.result;
+    return `⚠️ **Payment needs review** RM ${p.amount}: ${why}\nOrders: ${clip(p.orders, 300)}\nSender: ${clip(p.sender, 40)}`;
+  }
+  if (event === 'payment.error') {
+    return `🚨 **Payment webhook error**, check this payment by hand. RM ${p.amount}\n${clip(p.message, 300)}`;
+  }
   return `${event}: ${clip(JSON.stringify(p), 1500)}`;
 }
 
