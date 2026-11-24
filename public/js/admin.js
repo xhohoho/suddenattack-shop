@@ -224,6 +224,7 @@ function markShopEditorDirty() {
 // that amount, or an account order). The admin picks the order and it is marked Paid.
 
 let _payReview = { payments: [], orders: [] };
+const _payShowAll = new Set(); // payment rows where the admin asked to see every open order
 
 async function loadPaymentsReview() {
   const el = document.getElementById('payments-review-list');
@@ -254,9 +255,17 @@ function renderPaymentsReview() {
 
   el.innerHTML = payments.map(p => {
     const same = o => cents(o.total) === cents(p.amount);
-    const sorted = [...orders].sort((a, b) => Number(same(b)) - Number(same(a)));
-    const opts = sorted.map(o =>
+    // The webhook stored the orders it considered (same amount, created within the time window).
+    // Show only those by default; "Show all open orders" is there for odd cases (wrong amount, late payment).
+    const candIds = String(p.orders || '').split(',').map(x => x.trim()).filter(Boolean);
+    const cands = orders.filter(o => candIds.includes(o.order_id));
+    const showAll = _payShowAll.has(p.row) || !cands.length;
+    const list = showAll ? [...orders].sort((a, b) => Number(same(b)) - Number(same(a))) : cands;
+    const opts = list.map(o =>
       `<option value="${esc(o.order_id)}">${same(o) ? '★ ' : ''}${esc(o.order_id)} · ${esc(o.name)} · RM ${esc(parseFloat(o.total || 0).toFixed(2))} · ${esc(statusText(o.status))}</option>`).join('');
+    const toggle = cands.length
+      ? `<button type="button" onclick="togglePayAll(${p.row})" style="background:none;border:none;color:var(--accent);cursor:pointer;font-size:12px;padding:0;text-decoration:underline">${showAll ? 'Show only the matching orders' : 'Show all open orders'}</button>`
+      : '';
     return `
       <div class="order-mgmt-item" id="pay-${p.row}" style="flex-direction:column;align-items:stretch;gap:8px">
         <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap">
@@ -273,9 +282,15 @@ function renderPaymentsReview() {
           <button class="save-status-btn" onclick="assignPayment(${p.row})">Match</button>
           <button class="save-status-btn" onclick="dismissPayment(${p.row})" style="opacity:.75">Dismiss</button>
         </div>
+        ${toggle ? `<div>${toggle}</div>` : ''}
         <div id="pay-msg-${p.row}" style="font-size:12px;min-height:14px"></div>
       </div>`;
   }).join('');
+}
+
+function togglePayAll(row) {
+  if (_payShowAll.has(row)) _payShowAll.delete(row); else _payShowAll.add(row);
+  renderPaymentsReview();
 }
 
 async function _payAction(row, mode, orderId) {
