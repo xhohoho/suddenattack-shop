@@ -19,7 +19,7 @@ function renderFeed(orders) {
     const showNewBadge = isToday(ts) && o.status && o.status !== 'New';
     // The Pay button only appears in the browser that placed the order (it holds the order_token).
     const canPay = isPayable(o.status) && hasOrderToken(o.order_id);
-    const statusLabel = actualStatus === 'ProofSubmitted' ? 'Proof sent' : actualStatus;
+    const statusLabel = actualStatus === 'ProofSubmitted' ? 'Proof sent' : actualStatus === 'PaymentReceived' ? 'Payment received' : actualStatus;
     const fp = `${oid}|${actualStatus}|${tot}|${o.comment || ''}|${adminUnlocked ? 1 : 0}|${canPay ? 1 : 0}`;
 
     let card = el.children[i];
@@ -51,7 +51,8 @@ function renderFeed(orders) {
   });
 }
 
-function isPayable(s) { return !s || s === 'New'; }
+// New: buyer still has to pay + upload proof. PaymentReceived: bank confirmed, only the proof is missing.
+function isPayable(s) { return !s || s === 'New' || s === 'PaymentReceived'; }
 
 async function saveFeedComment(orderId) {
   const inp = document.getElementById('feedcm-' + orderId);

@@ -207,6 +207,7 @@ function switchTab(tab, btn) {
   _lastAdminTab = tab;
   if (tab === 'edit-shop') { loadShopEditor(); shopEditorDirty = false; }
   if (tab === 'orders') loadOrderMgmt();
+  if (tab === 'payments') loadPaymentsReview();
   if (tab === 'ticker') loadTickerEditor();
   if (tab === 'slideshow') rebuildSlideshowTab();
 }
@@ -216,6 +217,91 @@ function markShopEditorDirty() {
   shopEditorDirty = true;
   const editShopTab = document.querySelector(`.admin-tab[data-tab="edit-shop"]`);
   if (editShopTab) editShopTab.classList.add('dirty');
+}
+
+// ── Payments needing review (admin) ────────────
+// Bank payments the webhook could not match by itself (several orders with the same amount, no order with
+// that amount, or an account order). The admin picks the order; the SAME double-confirmation rule applies:
+// proof already uploaded -> Paid, no proof yet -> Payment received (still waits for the proof).
+
+let _payReview = { payments: [], orders: [] };
+
+async function loadPaymentsReview() {
+  const el = document.getElementById('payments-review-list');
+  if (!el) return;
+  el.innerHTML = '<div class="admin-loading">Loading...</div>';
+  try {
+    const resp = await adminFetch({ action: 'getPayments' });
+    _payReview = await resp.json();
+    renderPaymentsReview();
+  } catch (e) {
+    el.innerHTML = '<div class="admin-loading">Failed: ' + escapeHtml(e.message) + '</div>';
+  }
+}
+
+function renderPaymentsReview() {
+  const el = document.getElementById('payments-review-list');
+  if (!el) return;
+  const esc = escapeHtml;
+  const { payments, orders } = _payReview;
+  if (!payments.length) { el.innerHTML = '<div class="admin-loading">No payments waiting for review ✓</div>'; return; }
+  const WHY = {
+    ambiguous: 'Several open orders have this amount',
+    unmatched: 'No open order has this amount',
+    account_review: 'Account order — confirm by hand',
+  };
+  const cents = v => Math.round(parseFloat(String(v ?? '').replace(/[^\d.]/g, '')) * 100);
+  const statusText = st => st === 'ProofSubmitted' ? 'Proof sent' : st === 'PaymentReceived' ? 'Payment received' : (st || 'New');
+
+  el.innerHTML = payments.map(p => {
+    const same = o => cents(o.total) === cents(p.amount);
+    const sorted = [...orders].sort((a, b) => Number(same(b)) - Number(same(a)));
+    const opts = sorted.map(o =>
+      `<option value="${esc(o.order_id)}">${same(o) ? '★ ' : ''}${esc(o.order_id)} · ${esc(o.name)} · RM ${esc(parseFloat(o.total || 0).toFixed(2))} · ${esc(statusText(o.status))}</option>`).join('');
+    return `
+      <div class="order-mgmt-item" id="pay-${p.row}" style="flex-direction:column;align-items:stretch;gap:8px">
+        <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap">
+          <div class="order-mgmt-info">
+            <div class="order-mgmt-id">RM ${esc(parseFloat(p.amount || 0).toFixed(2))} · ${esc(timeAgo(p.time))}</div>
+            <div class="order-mgmt-name">${esc(p.sender || 'Unknown sender')}${p.ref ? ' · REF ' + esc(p.ref) : ''}</div>
+            <div class="order-mgmt-items">${esc(WHY[p.result] || p.result)}${p.orders ? ' · ' + esc(p.orders) : ''}</div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+          <select class="status-select" id="pay-sel-${p.row}" style="flex:1;min-width:180px">
+            <option value="">— Choose the order —</option>${opts}
+          </select>
+          <button class="save-status-btn" onclick="assignPayment(${p.row})">Match</button>
+          <button class="save-status-btn" onclick="dismissPayment(${p.row})" style="opacity:.75">Dismiss</button>
+        </div>
+        <div id="pay-msg-${p.row}" style="font-size:12px;min-height:14px"></div>
+      </div>`;
+  }).join('');
+}
+
+async function _payAction(row, mode, orderId) {
+  const msg = document.getElementById('pay-msg-' + row);
+  if (msg) { msg.textContent = 'Saving...'; msg.style.color = ''; }
+  try {
+    const resp = await adminFetch({ action: 'matchPayment', mode, payment_row: row, order_id: orderId });
+    const r = await resp.json();
+    showToast(mode === 'dismiss' ? 'Payment dismissed' : (r.status === 'Paid' ? 'Matched — order is Paid' : 'Matched — waiting for the buyer\'s proof'));
+    allOrders = []; _lastFeedData = ''; // orders changed: reload them next time
+    await loadPaymentsReview();
+  } catch (e) {
+    if (msg) { msg.textContent = 'Failed: ' + e.message; msg.style.color = 'var(--red)'; }
+  }
+}
+
+function assignPayment(row) {
+  const sel = document.getElementById('pay-sel-' + row);
+  if (!sel || !sel.value) { showToast('Choose the order first'); return; }
+  _payAction(row, 'assign', sel.value);
+}
+
+function dismissPayment(row) {
+  if (!confirm('Dismiss this payment without matching it to an order?')) return;
+  _payAction(row, 'dismiss');
 }
 
 // ── Order management (admin) ───────────────────
@@ -259,6 +345,7 @@ function renderOrderMgmt() {
             <select class="status-select" id="st-${esc(o.order_id)}">
               <option ${o.status === 'New' ? 'selected' : ''}>New</option>
               <option value="ProofSubmitted" ${o.status === 'ProofSubmitted' ? 'selected' : ''}>Proof sent</option>
+              <option value="PaymentReceived" ${o.status === 'PaymentReceived' ? 'selected' : ''}>Payment received</option>
               <option ${o.status === 'Paid' ? 'selected' : ''}>Paid</option>
               <option ${o.status === 'Verified' ? 'selected' : ''}>Verified</option>
               <option ${o.status === 'Completed' ? 'selected' : ''}>Completed</option>

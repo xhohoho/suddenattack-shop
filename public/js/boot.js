@@ -95,6 +95,7 @@ unifiedBoot();
     saveTickerText:     () => saveTickerText(),
     resetTickerText:    () => resetTickerText(),
     loadOrderMgmt:      () => loadOrderMgmt(),
+    loadPaymentsReview: () => loadPaymentsReview(),
     // public accounts tab
     switchMainTab:      el => switchMainTab(el.dataset.tab, el),
     setFilter:          el => setFilter(el.dataset.filter, el),

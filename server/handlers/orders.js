@@ -9,6 +9,7 @@ import { releaseStaleReservations } from './accounts.js';
 import { sendOrderCreatedWebhook, sendProofUploadedWebhook } from '../lib/webhook.js';
 import { badRequest, notFound, conflict, cleanText, requiredText } from '../lib/http.js';
 import { priceItemOrder, priceAccount, SERVICE_CHARGE, ACCOUNT_SERVICE_RATE } from '../lib/pricing.js';
+import { statusAfterProof } from '../lib/paymentMatch.js';
 import crypto from 'crypto';
 
 const KL_LOCALE = { timeZone: 'Asia/Kuala_Lumpur' };
@@ -178,7 +179,7 @@ export async function handleAccountPurchase(auth, body, res) {
 // ── Public: upload payment proof (needs the order_token from newOrder/accountPurchase) ──
 
 const PROOF_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
-const OPEN_STATUSES = ['', 'new', 'proofsubmitted']; // once admin sets Paid/Verified/... proof is locked
+const OPEN_STATUSES = ['', 'new', 'proofsubmitted', 'paymentreceived']; // once the order is Paid/Verified/... proof is locked
 
 export async function handleUploadProofItem(auth, body, res) {
   requireOrderToken(body);
@@ -202,10 +203,21 @@ export async function handleUploadProofItem(auth, body, res) {
     ? `=HYPERLINK("https://drive.google.com/file/d/${fileId}/view","📄 View PDF")`
     : `=IMAGE("${driveUrl(fileId, mimeType)}")`;
 
-  await sheetsWriteBatch(auth, [
-    { range: `Orders!${colLetter(statusIdx)}${order._row}`, values: [['ProofSubmitted']] },
-    { range: `Orders!${colLetter(proofIdx)}${order._row}`, values: [[proofFormula]] },
-  ]);
+  // Re-read the status AFTER the (slow) Drive upload: a bank notification may have arrived meanwhile.
+  // Double confirmation: proof + bank notification together make the order Paid.
+  const fresh = (await getSheetData(auth, 'Orders')).data.find(r => r.order_id === orderId) || order;
+  if (!OPEN_STATUSES.includes(String(fresh.status).trim().toLowerCase())) throw conflict('This order has already been processed.');
+  const newStatus = statusAfterProof(fresh.status);
+  const updates = [
+    { range: `Orders!${colLetter(statusIdx)}${fresh._row}`, values: [[newStatus]] },
+    { range: `Orders!${colLetter(proofIdx)}${fresh._row}`, values: [[proofFormula]] },
+  ];
+  const commentIdx = headers.indexOf('comment');
+  const oldComment = String(fresh.comment || '').trim();
+  if (newStatus === 'Paid' && commentIdx >= 0 && (!oldComment || /^Payment received/i.test(oldComment))) {
+    updates.push({ range: `Orders!${colLetter(commentIdx)}${fresh._row}`, values: [['Auto-paid: bank notification + proof']] });
+  }
+  await sheetsWriteBatch(auth, updates);
   console.log(`✅ proof uploaded for ${orderId}`);
 
   const proofUrl = mimeType === 'application/pdf'
@@ -213,7 +225,17 @@ export async function handleUploadProofItem(auth, body, res) {
     : driveUrl(fileId, mimeType);
   await sendProofUploadedWebhook(orderId, proofUrl); // never throws, 3s max
 
-  return res.json({ result: 'ok' });
+  return res.json({ result: 'ok', status: newStatus });
+}
+
+// ── Public: status of ONE order (the payment popup polls this) ───────────────
+/** Needs the order_token, so only the buyer's own browser can ask. Reads are cached for a few seconds. */
+export async function handleOrderStatus(auth, body, res) {
+  requireOrderToken(body);
+  const { data } = await getSheetData(auth, 'Orders', { ttl: 4000 });
+  const order = data.find(r => r.order_id === String(body.order_id));
+  if (!order) throw notFound('Order not found');
+  return res.json({ status: String(order.status || 'New').trim() || 'New' });
 }
 
 // ── Public: find my order (for buyers who lost their order_token) ────────────
