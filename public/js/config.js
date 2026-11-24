@@ -59,3 +59,6 @@ let adminToken = (() => {
   try { return sessionStorage.getItem('adminToken'); } catch { return null; }
 })();
 if (adminToken) adminUnlocked = true; // will be validated on first adminFetch
+
+// Unpaid orders older than this show as "AFK" (the server marks them in the sheet once a day).
+const AFK_AFTER_HOURS = 24;

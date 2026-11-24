@@ -14,11 +14,11 @@ function renderFeed(orders) {
     const ini = escapeHtml(o.name).split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
     const ts = o.timestamp || '', oid = escapeHtml(o.order_id || '');
     const tot = parseFloat(o.total || 0);
-    const actualStatus = (!o.status && isToday(ts)) ? 'New' : (o.status || 'New');
+    const actualStatus = effectiveStatus(o);
     const sc = statusClass(actualStatus);
     const showNewBadge = isToday(ts) && o.status && o.status !== 'New';
     // The Pay button only appears in the browser that placed the order (it holds the order_token).
-    const canPay = isPayable(o.status) && hasOrderToken(o.order_id);
+    const canPay = isPayable(actualStatus) && hasOrderToken(o.order_id);
     const statusLabel = actualStatus === 'ProofSubmitted' ? 'Proof sent' : actualStatus;
     const fp = `${oid}|${actualStatus}|${tot}|${o.comment || ''}|${adminUnlocked ? 1 : 0}|${canPay ? 1 : 0}`;
 
@@ -51,7 +51,8 @@ function renderFeed(orders) {
   });
 }
 
-function isPayable(s) { return !s || s === 'New'; }
+// AFK buyers can still come back: paying and uploading proof works, the admin then confirms it.
+function isPayable(s) { return !s || s === 'New' || s === 'AFK'; }
 
 async function saveFeedComment(orderId) {
   const inp = document.getElementById('feedcm-' + orderId);

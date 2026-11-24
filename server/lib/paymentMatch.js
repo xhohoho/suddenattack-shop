@@ -25,7 +25,7 @@ export function isAccountOrder(order) {
   return !!String(order.acc_id || '').trim() || /·\s*ID\s+\S/.test(String(order.items || ''));
 }
 
-export function findCandidates(orders, amountCents, now = Date.now(), windowMs = 30 * 60_000) {
+export function findCandidates(orders, amountCents, now = Date.now(), windowMs = 24 * 60 * 60_000) {
   return orders.filter(o => {
     if (!OPEN_STATUSES.has(String(o.status ?? '').trim().toLowerCase())) return false;
     if (toCents(o.total) !== amountCents) return false;
