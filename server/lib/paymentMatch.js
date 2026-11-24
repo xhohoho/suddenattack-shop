@@ -5,11 +5,8 @@
  * Rules:
  *  - candidate = order still open (New / ProofSubmitted / blank), created within the time window,
  *    whose total equals the received amount (compared in whole cents)
- *  - exactly 1 candidate  -> DOUBLE CONFIRMATION: the order becomes Paid only when BOTH the bank
- *                            notification and the buyer's proof are in.
- *                              proof already uploaded (ProofSubmitted) -> auto_paid
- *                              no proof yet (New / blank)              -> payment_received (waits for proof)
- *                            Account orders are always held for review unless AUTO_APPROVE_ACCOUNTS=true.
+ *  - exactly 1 candidate  -> auto_paid (the order becomes Paid). Account orders are held for review
+ *                            unless AUTO_APPROVE_ACCOUNTS=true.
  *  - 2+ candidates        -> ambiguous, admin matches it by hand. (An uploaded proof is NOT used to pick
  *                            one: proofs can be faked and orders with their totals are public, so a
  *                            tie-break would let someone steal another buyer's payment.)
@@ -37,19 +34,13 @@ export function findCandidates(orders, amountCents, now = Date.now(), windowMs =
   });
 }
 
-/** @returns {{action:'unmatched'|'ambiguous'|'account_review'|'payment_received'|'auto_paid', order?:object}} */
+/** @returns {{action:'unmatched'|'ambiguous'|'account_review'|'auto_paid', order?:object}} */
 export function decide(candidates, { autoApproveAccounts = false } = {}) {
   if (candidates.length === 0) return { action: 'unmatched' };
   if (candidates.length > 1) return { action: 'ambiguous' };
   const order = candidates[0];
   if (isAccountOrder(order) && !autoApproveAccounts) return { action: 'account_review', order };
-  const hasProof = String(order.status ?? '').trim().toLowerCase() === 'proofsubmitted';
-  return { action: hasProof ? 'auto_paid' : 'payment_received', order };
-}
-
-/** Status after a proof upload: Paid if the bank already confirmed (PaymentReceived), else ProofSubmitted. */
-export function statusAfterProof(currentStatus) {
-  return String(currentStatus ?? '').trim().toLowerCase() === 'paymentreceived' ? 'Paid' : 'ProofSubmitted';
+  return { action: 'auto_paid', order };
 }
 
 /**

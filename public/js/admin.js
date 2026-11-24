@@ -221,8 +221,7 @@ function markShopEditorDirty() {
 
 // ── Payments needing review (admin) ────────────
 // Bank payments the webhook could not match by itself (several orders with the same amount, no order with
-// that amount, or an account order). The admin picks the order; the SAME double-confirmation rule applies:
-// proof already uploaded -> Paid, no proof yet -> Payment received (still waits for the proof).
+// that amount, or an account order). The admin picks the order and it is marked Paid.
 
 let _payReview = { payments: [], orders: [] };
 
@@ -251,7 +250,7 @@ function renderPaymentsReview() {
     account_review: 'Account order — confirm by hand',
   };
   const cents = v => Math.round(parseFloat(String(v ?? '').replace(/[^\d.]/g, '')) * 100);
-  const statusText = st => st === 'ProofSubmitted' ? 'Proof sent' : st === 'PaymentReceived' ? 'Payment received' : (st || 'New');
+  const statusText = st => st === 'ProofSubmitted' ? 'Proof sent' : (st || 'New');
 
   el.innerHTML = payments.map(p => {
     const same = o => cents(o.total) === cents(p.amount);
@@ -285,7 +284,7 @@ async function _payAction(row, mode, orderId) {
   try {
     const resp = await adminFetch({ action: 'matchPayment', mode, payment_row: row, order_id: orderId });
     const r = await resp.json();
-    showToast(mode === 'dismiss' ? 'Payment dismissed' : (r.status === 'Paid' ? 'Matched — order is Paid' : 'Matched — waiting for the buyer\'s proof'));
+    showToast(mode === 'dismiss' ? 'Payment dismissed' : 'Matched — order is Paid');
     allOrders = []; _lastFeedData = ''; // orders changed: reload them next time
     await loadPaymentsReview();
   } catch (e) {
@@ -345,7 +344,6 @@ function renderOrderMgmt() {
             <select class="status-select" id="st-${esc(o.order_id)}">
               <option ${o.status === 'New' ? 'selected' : ''}>New</option>
               <option value="ProofSubmitted" ${o.status === 'ProofSubmitted' ? 'selected' : ''}>Proof sent</option>
-              <option value="PaymentReceived" ${o.status === 'PaymentReceived' ? 'selected' : ''}>Payment received</option>
               <option ${o.status === 'Paid' ? 'selected' : ''}>Paid</option>
               <option ${o.status === 'Verified' ? 'selected' : ''}>Verified</option>
               <option ${o.status === 'Completed' ? 'selected' : ''}>Completed</option>
