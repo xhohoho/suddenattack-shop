@@ -11,40 +11,38 @@
 .item-search-icon { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--text3); font-size: 14px; pointer-events: none }
 
 /* ── Item cards ── */
-/* A card is a lit panel: lifted off the page by a lighter gradient, a gold spine on the left edge,
-   and a price that reads first. Picking something turns the whole card (and the chosen row) gold. */
+/* Same quiet palette as the checkout card: dark surface, thin border, Inter for names, Rajdhani for numbers.
+   Gold is kept for "money / selected" only, so a picked item is the one thing that lights up. */
 .igrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px }
-.icard { position: relative; display: flex; flex-direction: column; gap: 12px; padding: 14px 14px 14px 17px; overflow: hidden;
-  background: linear-gradient(165deg, #232834 0%, #171a22 62%);
-  border: 1px solid #ffffff1f; border-radius: 10px;
-  box-shadow: inset 0 1px 0 #ffffff12, 0 8px 20px #00000059;
-  transition: border-color .15s, box-shadow .15s, background .15s }
-.icard::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: linear-gradient(180deg, var(--accent), #e8b84b22) }
-.icard:hover { border-color: #e8b84b55 }
-.icard.has-qty { border-color: var(--accent); background: linear-gradient(165deg, #35301f 0%, #1c1b19 65%); box-shadow: inset 0 1px 0 #e8b84b33, 0 0 0 1px #e8b84b40, 0 10px 28px #e8b84b24 }
+.icard { position: relative; display: flex; flex-direction: column; gap: 12px; padding: 14px 14px 14px 16px; overflow: hidden;
+  background: linear-gradient(180deg, var(--bg3), var(--bg2));
+  border: 1px solid var(--border2); border-radius: 10px;
+  transition: border-color .15s, background .15s }
+.icard::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 2px; background: #e8b84b55 }
+.icard:hover { border-color: #ffffff30 }
+.icard.has-qty { border-color: #e8b84b99; background: linear-gradient(180deg, #221f17, var(--bg2)) }
+.icard.has-qty::before { background: var(--accent) }
 .icard-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; min-height: 28px }
-.iname { font-family: 'Rajdhani', sans-serif; font-size: 19px; font-weight: 700; letter-spacing: .02em; color: #fff; line-height: 1.2; overflow-wrap: anywhere }
+.iname { font-size: 15px; font-weight: 600; color: var(--text); line-height: 1.3; overflow-wrap: anywhere }
 .idesc { font-size: 12px; color: var(--text2); margin-top: 3px; line-height: 1.4 }
-.row-amt { flex-shrink: 0; font-family: 'Rajdhani', sans-serif; font-size: 14px; font-weight: 700; color: #0a0b0f; background: var(--accent); border-radius: 4px; padding: 1px 8px; white-space: nowrap }
+.row-amt { flex-shrink: 0; font-family: 'Rajdhani', sans-serif; font-size: 14px; font-weight: 700; color: var(--accent); background: #e8b84b14; border-radius: 4px; padding: 1px 7px; white-space: nowrap }
 .row-amt.zero { display: none }
 .icard-na { font-size: 13px; color: var(--text2); font-style: italic }
 
 .drows { display: flex; flex-direction: column; gap: 6px }
-.drow { display: flex; align-items: center; justify-content: space-between; gap: 8px; background: #0b0d12b3; border: 1px solid #ffffff14; border-radius: 8px; padding: 7px 8px 7px 11px; transition: border-color .15s, background .15s }
-.drow:has(.qty-num:not(.zero)) { border-color: #e8b84b66; background: #e8b84b14 }
+.drow { display: flex; align-items: center; justify-content: space-between; gap: 8px; background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; padding: 7px 8px 7px 11px; transition: border-color .15s, background .15s }
+.drow:has(.qty-num:not(.zero)) { border-color: #e8b84b55; background: #e8b84b0d }
 .drow-label { display: flex; flex-direction: column; min-width: 0 }
-.drow-days { font-family: 'Rajdhani', sans-serif; font-size: 12px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; color: var(--accent) }
-.unit-price { white-space: nowrap; font-family: 'Rajdhani', sans-serif; font-size: 18px; font-weight: 700; color: #fff; letter-spacing: .01em; line-height: 1.15 }
+.drow-days { font-family: 'Rajdhani', sans-serif; font-size: 12px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--text2) }
+.unit-price { white-space: nowrap; font-family: 'Rajdhani', sans-serif; font-size: 16px; font-weight: 600; color: var(--text); letter-spacing: .02em; line-height: 1.2 }
 
 .qty-wrap { display: flex; align-items: center; gap: 4px; flex-shrink: 0 }
 .qty-btn { width: 30px; height: 30px; border: 1px solid var(--border2); border-radius: 6px; background: var(--bg3); cursor: pointer; font-size: 16px; line-height: 1; color: var(--text2); display: flex; align-items: center; justify-content: center; transition: all .12s; font-family: 'Rajdhani', sans-serif; font-weight: 600; touch-action: manipulation }
-.qty-btn[data-delta="1"] { border-color: #e8b84b80; color: var(--accent); background: #e8b84b1a }
-.qty-btn:hover { border-color: var(--accent); color: var(--accent); background: #e8b84b26 }
-.qty-btn[data-delta="1"]:hover { background: var(--accent); color: #0a0b0f }
+.qty-btn:hover { border-color: var(--accent); color: var(--accent); background: #e8b84b10 }
 .qty-btn:disabled { opacity: .3; cursor: not-allowed; pointer-events: none }
 .qty-btn:focus-visible, .cart-line-rm:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px }
-.qty-num { font-family: 'Rajdhani', sans-serif; font-size: 16px; font-weight: 700; color: #fff; min-width: 22px; text-align: center }
-.qty-num.zero { color: var(--text2) }
+.qty-num { font-family: 'Rajdhani', sans-serif; font-size: 15px; font-weight: 700; color: var(--text); min-width: 22px; text-align: center }
+.qty-num.zero { color: var(--text3) }
 
 .items-empty { text-align: center; color: var(--text3); font-family: 'Rajdhani', sans-serif; font-size: 13px; letter-spacing: .05em; padding: 28px 0; display: block }
 .items-empty.hide { display: none }
@@ -89,7 +87,7 @@
   .card { padding: 1rem }
   .igrid { gap: 8px }
   .icard { padding: 10px 10px 10px 15px }
-  .unit-price { font-size: 17px }
+  .unit-price { font-size: 16px }
   .icard-head { min-height: 0 }
   .drows { gap: 5px }
   .qty-btn { width: 36px; height: 36px; font-size: 18px }
