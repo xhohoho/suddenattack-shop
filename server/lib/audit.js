@@ -2,13 +2,21 @@
  * Admin audit logger. Appends one row per admin action to the "AuditLog" tab:
  *   A timestamp | B admin_id | C action | D details (JSON) | E ip | F user_agent
  *
- * Create a tab named AuditLog in your Google Sheet (a header row is optional).
- * Logging never breaks the request: if the tab is missing the error is only logged.
+ * The tab is created automatically (with a header row) the first time it is needed.
+ * Logging never breaks the request: if anything goes wrong the error is only logged.
  */
-import { sheetsAppend, sanitizeSheetValue } from './sheets.js';
+import { sheetsAppend, sanitizeSheetValue, ensureSheetTab } from './sheets.js';
 import { getAuth } from './auth.js';
 
 const AUDIT_SHEET = 'AuditLog';
+
+// Create the "AuditLog" tab on first use (once per server instance).
+let auditTabReady = false;
+async function ensureAuditTab(auth) {
+  if (auditTabReady) return;
+  await ensureSheetTab(auth, AUDIT_SHEET, ['Time', 'Admin', 'Action', 'Details', 'IP', 'User agent']);
+  auditTabReady = true;
+}
 
 const clip = (s, n) => {
   const t = String(s ?? '');
@@ -18,6 +26,7 @@ const clip = (s, n) => {
 export async function auditLog(adminId, action, details = {}, ip = '', userAgent = '') {
   try {
     const auth = await getAuth().getClient();
+    await ensureAuditTab(auth);
     await sheetsAppend(auth, `${AUDIT_SHEET}!A1`, [[
       new Date().toISOString(),
       sanitizeSheetValue(String(adminId)),
