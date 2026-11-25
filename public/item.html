@@ -1,42 +1,59 @@
 <div id="view-items" class="view-section active">
   <div class="layout">
-    <div>
+    <div class="items-main">
       <div class="card">
         <div class="sec-label">Select items &amp; quantity</div>
-        <div style="margin-bottom:12px;position:relative">
-          <input type="text" id="item-search" placeholder="Search items..." data-action="filterTable"
-            style="width:100%;border:1px solid var(--border);border-radius:6px;padding:8px 11px 8px 32px;font-size:13px;font-family:'Inter',sans-serif;color:var(--text);background:var(--bg3);outline:none;transition:border-color .2s" />
-          <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text3);font-size:13px;pointer-events:none">⌕</span>
+        <div class="item-search-wrap">
+          <input type="text" id="item-search" class="item-search" placeholder="Search items..." data-action="filterTable"
+            aria-label="Search items" autocomplete="off" />
+          <span class="item-search-icon" aria-hidden="true">⌕</span>
         </div>
-        <table class="itbl">
-          <thead>
-            <tr>
-              <th style="width:35%">Item</th>
-              <th class="c" style="width:15%">7 days</th>
-              <th class="c" style="width:15%">15 days</th>
-              <th class="c" style="width:15%">30 days</th>
-              <th style="text-align:right;width:14%">Amount</th>
-            </tr>
-          </thead>
-          <tbody id="itbody"></tbody>
-        </table>
-        <div class="total-row">
-          <span class="total-lbl">Total</span>
-          <span class="total-num" id="gtotal">RM 0.00</span>
-        </div>
+        <div class="igrid" id="itgrid"></div>
+        <div class="items-empty" id="item-empty">Loading items…</div>
       </div>
     </div>
-    <div class="layout-sidebar">
-      <div class="card">
-        <div class="sec-label">Your details</div>
-        <div class="field"><label>In-game name</label><input id="fn" type="text" placeholder="Your in-game name" /></div>
-        <div class="field"><label>Note</label><textarea id="fno" placeholder="Special requests..."></textarea>
-          <small style="color:var(--text3);display:block;margin-top:4px;font-size:11px">⚠️ This note is visible to everyone in the public feed. Do not include phone numbers or private info.</small>
+
+    <!-- Sticky checkout card. Desktop: sticks beside the items.
+         Mobile: becomes a bottom bar (cart count + total) that opens into a sheet. -->
+    <aside class="layout-sidebar" id="checkout">
+      <div class="co-backdrop" data-action="toggleCheckout"></div>
+      <div class="card checkout-card">
+        <button type="button" class="co-bar" id="co-bar" data-action="toggleCheckout" aria-expanded="false" aria-controls="co-body">
+          <span class="co-bar-sum">
+            <span class="co-bar-count" id="co-bar-count">Your cart is empty</span>
+            <span class="co-bar-total" id="co-bar-total">RM 0.00</span>
+          </span>
+          <span class="co-bar-cta"><span id="co-cta-text">Checkout</span> <span class="co-chev" aria-hidden="true">▲</span></span>
+        </button>
+
+        <div class="co-body" id="co-body">
+          <div class="sec-label">Your details</div>
+          <div class="field"><label for="fn">In-game name</label><input id="fn" type="text" placeholder="Your in-game name" autocomplete="off" /></div>
+          <div class="field"><label for="fno">Note</label><textarea id="fno" rows="2" placeholder="Special requests..."></textarea>
+            <small class="co-note-warn">⚠️ This note is visible to everyone in the public feed. Do not include phone numbers or private info.</small>
+          </div>
+
+          <div class="cart">
+            <div class="cart-head"><span>Your cart</span><span class="cart-count" id="cart-count">0</span></div>
+            <ul class="cart-list" id="cart-list"></ul>
+            <div class="cart-empty" id="cart-empty">Nothing here yet. Tap + on an item to add it.</div>
+          </div>
+
+          <div class="co-totals">
+            <div class="co-line" id="co-sub-row"><span>Subtotal</span><span id="co-sub">RM 0.00</span></div>
+            <div class="co-line" id="co-fee-row"><span>Service charge</span><span id="co-fee">RM 0.00</span></div>
+            <div class="total-row">
+              <span class="total-lbl">Total</span>
+              <span class="total-num" id="gtotal">RM 0.00</span>
+            </div>
+          </div>
+
+          <div class="co-error" id="co-error" role="alert"></div>
+          <button class="sbtn" id="sbtn" data-action="submitOrder">Place order</button>
+          <div class="hint" id="sumhint">Add quantity to place an order.</div>
         </div>
-        <button class="sbtn" id="sbtn" data-action="submitOrder">Place order</button>
-        <div class="hint" id="sumhint">Add quantity to place an order.</div>
       </div>
-    </div>
+    </aside>
   </div>
 </div>
 

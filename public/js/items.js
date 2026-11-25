@@ -9,25 +9,32 @@ let currentOrderId = null;
 let currentOrderTimestamp = null;
 let currentOrderToken = null;
 
-// ── Table render ───────────────────────────
+// ── Item cards render ──────────────────────
+// (kept the name buildTable(): boot.js / admin.js call buildTable() + recalc() after loading items)
 
 function buildTable() {
-  document.getElementById('itbody').innerHTML = ITEMS.map(it => `
-    <tr>
-      <td><div class="iname">${escapeHtml(it.name)}</div><div class="idesc">${escapeHtml(it.desc)}</div></td>
-      ${DAYS.map(d => {
-        if (!it.p[d]) return `<td><div style="text-align:center;color:var(--text3);font-size:12px">—</div></td>`;
-        return `<td>
-          <div class="qty-wrap">
-            <button class="qty-btn" onclick="changeQty(${it.id},${d},-1)" disabled>−</button>
-            <span class="qty-num zero" id="q${it.id}_${d}">0</span>
-            <button class="qty-btn" onclick="changeQty(${it.id},${d},1)">+</button>
-          </div>
-          <div class="unit-price">${fmt(it.p[d])}/unit</div>
-        </td>`;
-      }).join('')}
-      <td class="row-amt zero" id="ra${it.id}">—</td>
-    </tr>`).join('');
+  document.getElementById('itgrid').innerHTML = ITEMS.map(it => {
+    const rows = DAYS.filter(d => it.p[d]).map(d => {
+      const q = qtys[`${it.id}_${d}`] || 0;
+      const who = escapeHtml(`${d} days, ${it.name}`);
+      return `<div class="drow">
+        <div class="drow-label"><span class="drow-days">${d} days</span><span class="unit-price">${fmt(it.p[d])} / unit</span></div>
+        <div class="qty-wrap">
+          <button type="button" class="qty-btn" data-action="qty" data-id="${it.id}" data-day="${d}" data-delta="-1" aria-label="Decrease ${who}"${q === 0 ? ' disabled' : ''}>−</button>
+          <span class="qty-num${q === 0 ? ' zero' : ''}" id="q${it.id}_${d}">${q}</span>
+          <button type="button" class="qty-btn" data-action="qty" data-id="${it.id}" data-day="${d}" data-delta="1" aria-label="Increase ${who}">+</button>
+        </div>
+      </div>`;
+    }).join('');
+    return `<article class="icard" id="ic${it.id}" data-search="${escapeHtml((it.name + ' ' + it.desc).toLowerCase())}">
+      <div class="icard-head">
+        <div><div class="iname">${escapeHtml(it.name)}</div>${it.desc ? `<div class="idesc">${escapeHtml(it.desc)}</div>` : ''}</div>
+        <span class="row-amt zero" id="ra${it.id}"></span>
+      </div>
+      ${rows ? `<div class="drows">${rows}</div>` : '<div class="icard-na">Currently unavailable</div>'}
+    </article>`;
+  }).join('');
+  filterTable();
 }
 
 function changeQty(id, day, delta) {
@@ -35,30 +42,71 @@ function changeQty(id, day, delta) {
   if (!item || !item.p[day]) return;
   const k = `${id}_${day}`;
   qtys[k] = Math.max(0, (qtys[k] || 0) + delta);
-  const el = document.getElementById(`q${id}_${day}`);
-  el.textContent = qtys[k];
-  el.className = 'qty-num' + (qtys[k] === 0 ? ' zero' : '');
-  const minusBtn = el.previousElementSibling;
-  if (minusBtn) minusBtn.disabled = qtys[k] === 0;
   recalc();
 }
 
+// Brings every part of the UI in line with `qtys`: the steppers on the cards, the cart preview,
+// the totals and the mobile checkout bar.
 function recalc() {
-  let tot = 0;
+  let tot = 0, units = 0;
+  const lines = [];
   ITEMS.forEach(it => {
     let r = 0;
-    DAYS.forEach(d => { r += qtys[`${it.id}_${d}`] * it.p[d]; });
+    DAYS.forEach(d => {
+      const q = qtys[`${it.id}_${d}`] || 0;
+      const num = document.getElementById(`q${it.id}_${d}`);
+      if (num) {
+        num.textContent = q;
+        num.className = 'qty-num' + (q === 0 ? ' zero' : '');
+        const minus = num.previousElementSibling;
+        if (minus) minus.disabled = q === 0;
+      }
+      if (q > 0) { r += q * it.p[d]; units += q; lines.push({ it, d, q, amt: q * it.p[d] }); }
+    });
     tot += r;
-    const el = document.getElementById('ra' + it.id);
-    if (r > 0) { el.textContent = fmt(r); el.className = 'row-amt'; }
-    else { el.textContent = '—'; el.className = 'row-amt zero'; }
+    const amtEl = document.getElementById('ra' + it.id);
+    if (amtEl) { amtEl.textContent = r > 0 ? fmt(r) : ''; amtEl.className = 'row-amt' + (r > 0 ? '' : ' zero'); }
+    const card = document.getElementById('ic' + it.id);
+    if (card) card.classList.toggle('has-qty', r > 0);
   });
-  const serviceText = tot > 0 ? ` + ${fmt(SERVICE_CHARGE)}(service charge)` : '';
-  const displayTotal = tot > 0 ? `${fmt(tot)}${serviceText}` : 'RM0.00';
-  document.getElementById('gtotal').textContent = displayTotal;
-  const has = Object.values(qtys).some(v => v > 0);
-  const hintTotal = tot > 0 ? `${fmt(tot)}${serviceText}` : 'RM0.00';
-  document.getElementById('sumhint').textContent = has ? `Total ${hintTotal}` : 'Add quantity to place an order.';
+
+  const has = lines.length > 0;
+  const grand = has ? tot + SERVICE_CHARGE : 0;
+
+  // cart preview
+  document.getElementById('cart-list').innerHTML = lines.map(l => `
+    <li class="cart-line">
+      <div><div class="cart-line-name">${escapeHtml(l.it.name)}</div><div class="cart-line-meta">${l.d} days × ${l.q}</div></div>
+      <div class="cart-line-amt">${fmt(l.amt)}</div>
+      <button type="button" class="cart-line-rm" data-action="removeLine" data-id="${l.it.id}" data-day="${l.d}" aria-label="Remove ${escapeHtml(`${l.it.name}, ${l.d} days`)} from cart">✕</button>
+    </li>`).join('');
+  document.getElementById('cart-list').style.display = has ? '' : 'none';
+  document.getElementById('cart-empty').style.display = has ? 'none' : '';
+  document.getElementById('cart-count').textContent = units;
+
+  // totals (sticky card) + mobile bar
+  document.getElementById('co-sub').textContent = fmt(tot);
+  document.getElementById('co-fee').textContent = fmt(SERVICE_CHARGE);
+  document.getElementById('co-sub-row').style.display = has ? '' : 'none';
+  document.getElementById('co-fee-row').style.display = has ? '' : 'none';
+  document.getElementById('gtotal').textContent = fmt(grand);
+  document.getElementById('co-bar-total').textContent = fmt(grand);
+  document.getElementById('co-bar-count').textContent = has ? `${units} item${units === 1 ? '' : 's'} in cart` : 'Your cart is empty';
+  document.getElementById('sumhint').textContent = has ? 'You will get a payment QR after placing your order.' : 'Add quantity to place an order.';
+  if (has) setCheckoutError('');
+}
+
+// ── Checkout card: mobile sheet + inline errors ──
+
+function setCheckoutOpen(open) {
+  const side = document.getElementById('checkout');
+  side.classList.toggle('open', open);
+  document.getElementById('co-bar').setAttribute('aria-expanded', String(open));
+  document.getElementById('co-cta-text').textContent = open ? 'Close' : 'Checkout';
+}
+
+function setCheckoutError(msg) {
+  document.getElementById('co-error').textContent = msg || '';
 }
 
 function getLines() {
@@ -81,20 +129,29 @@ function getTotal() {
 }
 
 function filterTable() {
-  const q = document.getElementById('item-search').value.toLowerCase();
-  document.querySelectorAll('#itbody tr').forEach(row => {
-    const name = row.querySelector('.iname')?.textContent.toLowerCase() || '';
-    const desc = row.querySelector('.idesc')?.textContent.toLowerCase() || '';
-    row.style.display = (name.includes(q) || desc.includes(q)) ? '' : 'none';
+  const q = document.getElementById('item-search').value.trim().toLowerCase();
+  let shown = 0;
+  document.querySelectorAll('#itgrid .icard').forEach(card => {
+    const match = !q || card.dataset.search.includes(q);
+    card.style.display = match ? '' : 'none';
+    if (match) shown++;
   });
+  const empty = document.getElementById('item-empty');
+  empty.classList.toggle('hide', shown > 0);
+  empty.textContent = !document.querySelector('#itgrid .icard') ? 'Loading items…' : 'No items match your search.';
 }
 
 // ── Order submit ───────────────────────────
 
 async function submitOrder() {
-  const name = document.getElementById('fn').value.trim();
-  if (!name) { showToast('Please enter your in-game name.'); return; }
-  if (!Object.values(qtys).some(v => v > 0)) { showToast('Add at least one item.'); return; }
+  const nameEl = document.getElementById('fn');
+  const name = nameEl.value.trim();
+  if (!Object.values(qtys).some(v => v > 0)) { setCheckoutError('Add at least one item.'); showToast('Add at least one item.'); return; }
+  if (!name) {
+    nameEl.classList.add('invalid'); nameEl.focus();
+    setCheckoutError('Please enter your in-game name.'); showToast('Please enter your in-game name.'); return;
+  }
+  setCheckoutError('');
   const items = getOrderItems();
   // The server prices the order itself from the shop sheet. `total` is only what the buyer
   // saw on screen: if prices changed meanwhile, the server refuses instead of charging a surprise.
@@ -110,8 +167,8 @@ async function submitOrder() {
     currentOrderToken = result.order_token;
     ['fn', 'fno'].forEach(id => document.getElementById(id).value = '');
     ITEMS.forEach(it => DAYS.forEach(d => { qtys[`${it.id}_${d}`] = 0; }));
-    document.querySelectorAll('.qty-num').forEach(el => { el.textContent = '0'; el.className = 'qty-num zero'; });
     recalc();
+    setCheckoutOpen(false);
     _lastFeedData = '';
     await fetchSheet();
     openModal(result.total, result.order_id, new Date().toISOString());
@@ -336,6 +393,16 @@ document.addEventListener('click', function (e) {
     case 'filterTable':
       filterTable();
       break;
+    case 'qty':
+      changeQty(+btn.dataset.id, +btn.dataset.day, +btn.dataset.delta);
+      break;
+    case 'removeLine':
+      qtys[`${btn.dataset.id}_${btn.dataset.day}`] = 0;
+      recalc();
+      break;
+    case 'toggleCheckout':
+      setCheckoutOpen(!document.getElementById('checkout').classList.contains('open'));
+      break;
     case 'submitOrder':
       submitOrder();
       break;
@@ -366,6 +433,10 @@ document.addEventListener('click', function (e) {
 // Filter the item list as the user types (the click handler above only fires on mouse click)
 document.addEventListener('input', function (e) {
   if (e.target.closest('[data-action="filterTable"]')) filterTable();
+  if (e.target.id === 'fn') { e.target.classList.remove('invalid'); setCheckoutError(''); }
+});
+document.addEventListener('keydown', function (e) {
+  if (e.key === 'Escape') setCheckoutOpen(false);
 });
 
 // Handle file input changes
