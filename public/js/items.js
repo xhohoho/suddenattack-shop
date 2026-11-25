@@ -18,7 +18,7 @@ function buildTable() {
       const q = qtys[`${it.id}_${d}`] || 0;
       const who = escapeHtml(`${d} days, ${it.name}`);
       return `<div class="drow">
-        <div class="drow-label"><span class="drow-days">${d} days</span><span class="unit-price">${fmt(it.p[d])} / unit</span></div>
+        <div class="drow-label"><span class="drow-days">${d} days</span><span class="unit-price">${fmt(it.p[d])}</span></div>
         <div class="qty-wrap">
           <button type="button" class="qty-btn" data-action="qty" data-id="${it.id}" data-day="${d}" data-delta="-1" aria-label="Decrease ${who}"${q === 0 ? ' disabled' : ''}>−</button>
           <span class="qty-num${q === 0 ? ' zero' : ''}" id="q${it.id}_${d}">${q}</span>
