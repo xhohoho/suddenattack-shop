@@ -160,7 +160,7 @@ export default async function handler(req, res) {
       if (!expected || !safeEqual(body.password || '', expected)) throw unauthorized();
 
       // Log successful admin login
-      auditLog('admin', 'login', { ip, userAgent: req.headers['user-agent'] });
+      await auditLog('admin', 'login', {}, ip, req.headers['user-agent'] || '');
 
       return res.json({ token: issueAdminToken() });
     }
@@ -172,7 +172,7 @@ export default async function handler(req, res) {
     if (route.limit) await rateLimit(`${action}:${ip}`, route.limit[0], route.limit[1]);
 
     const auth = await getAuth().getClient();
-    const ctx = { isAdmin: isValidAdminToken(body._token), ip };
+    const ctx = { isAdmin: isValidAdminToken(body._token), ip, ua: req.headers['user-agent'] || '' };
     // `await` matters: without it a rejected promise escapes this try/catch and crashes the function.
     return await route.run(auth, body, res, ctx);
   } catch (err) {
