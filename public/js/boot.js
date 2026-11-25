@@ -95,6 +95,7 @@ unifiedBoot();
     dismissStatsReview: () => { document.getElementById('stats-review-panel').style.display = 'none'; },
     saveAccount:        () => saveAccount(),
     previewLiveSlides:  () => previewLiveSlides(),
+    goSlide:            el => goSlide(parseInt(el.dataset.idx, 10)),
     saveTickerText:     () => saveTickerText(),
     resetTickerText:    () => resetTickerText(),
     loadOrderMgmt:      () => loadOrderMgmt(),

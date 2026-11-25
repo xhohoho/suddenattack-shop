@@ -852,11 +852,43 @@ let slideUrls = []; // Dynamic array - populated from settings
 let slideDragSrc = null; // For drag-to-reorder
 const MAX_SLIDES = 2; // must match SLIDE_COLS in server/handlers/settings.js
 
+// Page buttons (1, 2, ...) under the slideshow. Only shown when there is more than one slide.
+function renderSlideNav() {
+  const area = document.getElementById('slideshow-area');
+  if (!area) return;
+  area.querySelector('.ss-nav')?.remove();
+  const imgs = [...document.querySelectorAll('#slideshow img')];
+  const idxs = imgs.map((img, i) => (img.getAttribute('src') ? i : -1)).filter(i => i >= 0);
+  if (idxs.length < 2) return;
+  const nav = document.createElement('div');
+  nav.className = 'ss-nav';
+  nav.setAttribute('role', 'group');
+  nav.setAttribute('aria-label', 'Choose slide');
+  nav.innerHTML = idxs.map((i, n) => `<button type="button" class="ss-nav-btn" data-action="goSlide" data-idx="${i}" aria-label="Show slide ${n + 1}">${n + 1}</button>`).join('');
+  area.appendChild(nav);
+  updateSlideNav();
+}
+
+function updateSlideNav() {
+  document.querySelectorAll('#slideshow-area .ss-nav-btn').forEach(b => {
+    const on = parseInt(b.dataset.idx, 10) === slideshowIdx;
+    b.classList.toggle('active', on);
+    if (on) b.setAttribute('aria-current', 'true'); else b.removeAttribute('aria-current');
+  });
+}
+
+// Clicking a page button shows that slide and restarts the 4-second auto-advance from there.
+function goSlide(idx) {
+  slideshowIdx = idx;
+  startSlideshow();
+}
+
 function startSlideshow() {
   if (slideshowTimer) { clearInterval(slideshowTimer); slideshowTimer = null; }
   const slides = document.querySelectorAll('#slideshow img');
   const loaded = slideUrls.filter(u => u);
   slides.forEach(img => img.classList.remove('active'));
+  document.querySelector('#slideshow-area .ss-nav')?.remove();
   if (loaded.length === 0) {
     const area = document.getElementById('slideshow-area');
     if (area && !area.querySelector('.ss-placeholder')) {
@@ -878,11 +910,13 @@ function startSlideshow() {
   if (slideUrls[slideshowIdx]) {
     slides[slideshowIdx].classList.add('active');
   } else { slides[0].classList.add('active'); slideshowIdx = 0; }
+  renderSlideNav();
   slideshowTimer = setInterval(() => {
     const imgs = document.querySelectorAll('#slideshow img');
     imgs.forEach(img => img.classList.remove('active'));
     slideshowIdx = (slideshowIdx + 1) % imgs.length;
     imgs[slideshowIdx].classList.add('active');
+    updateSlideNav();
   }, 4000);
 
   // Pause slideshow when tab is hidden

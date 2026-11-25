@@ -13,7 +13,16 @@
 /* ── Item cards ── */
 /* Lifted panels with a gold spine (the look from the earlier push), but with calmer type:
    Inter at regular/medium weights for names, days and prices; Rajdhani only for the small RM pill and counts. */
-.igrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px }
+.igrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 12px }
+/* Wide screens: exactly 5 cards per row, with slightly tighter cards so the price and stepper still fit */
+@media(min-width:1440px) {
+  .igrid { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px }
+  .icard { padding: 12px 12px 12px 15px }
+  .drow { padding: 6px 6px 6px 9px }
+  .qty-btn { width: 28px; height: 28px }
+  .qty-num { min-width: 20px }
+  .iname { font-size: 15px }
+}
 .icard { position: relative; display: flex; flex-direction: column; gap: 12px; padding: 14px 14px 14px 17px; overflow: hidden;
   background: linear-gradient(165deg, #232834 0%, #171a22 62%);
   border: 1px solid #ffffff1f; border-radius: 10px;
