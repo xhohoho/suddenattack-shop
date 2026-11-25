@@ -12,12 +12,7 @@ async function unifiedBoot() {
 
     // 1. Load Slideshow
     if (d.slides) {
-      const slides = document.querySelectorAll('#slideshow img');
-      d.slides.forEach((url, i) => {
-        if (!url) return;
-        slideUrls[i] = url;
-        if (slides[i]) slides[i].src = url;
-      });
+      slideUrls = d.slides.slice(); // empty slots stay in place so slot numbers match the saved list
       startSlideshow();
     }
 
@@ -95,6 +90,7 @@ unifiedBoot();
     dismissStatsReview: () => { document.getElementById('stats-review-panel').style.display = 'none'; },
     saveAccount:        () => saveAccount(),
     previewLiveSlides:  () => previewLiveSlides(),
+    addShopSlot:        () => addShopSlot(),
     goSlide:            el => goSlide(parseInt(el.dataset.idx, 10)),
     saveTickerText:     () => saveTickerText(),
     resetTickerText:    () => resetTickerText(),

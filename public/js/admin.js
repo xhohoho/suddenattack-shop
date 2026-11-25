@@ -549,7 +549,40 @@ async function saveOrderComment(orderId) {
 
 // ── Shop extract (admin) ───────────────────────
 
+const MAX_SLIDES = 10; // must match MAX_SLIDES in server/lib/slides.js
+
 let shopExtractFiles = [null, null];
+
+// Photo slots for the extractor: start with 2, "+ Add photo" adds more (up to MAX_SLIDES, one slide per photo).
+function shopSlotHtml(i) {
+  return `<div class="img-slot" id="sslot-${i}"
+    style="aspect-ratio:1;border:1px dashed var(--border2);border-radius:6px;cursor:pointer;position:relative;overflow:hidden;background:var(--bg2);display:flex;align-items:center;justify-content:center;transition:border-color .2s">
+    <input type="file" accept="image/*" data-action="handleShopSlotFile" data-slot="${i}"
+      style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%" />
+    <img id="sslot-img-${i}" style="width:100%;height:100%;object-fit:cover;display:none;border-radius:5px" />
+    <span class="slot-lbl" id="sslot-lbl-${i}"
+      style="font-size:10px;color:var(--text3);font-family:'Rajdhani',sans-serif;letter-spacing:.05em;text-align:center;pointer-events:none">+ Photo ${i + 1}</span>
+    <button class="slot-rm" id="sslot-rm-${i}" data-action="removeShopSlot" data-slot="${i}"
+      style="position:absolute;top:3px;right:3px;background:rgba(0,0,0,.7);border:none;border-radius:3px;color:var(--text2);font-size:10px;cursor:pointer;padding:1px 5px;display:none;z-index:2">✕</button>
+  </div>`;
+}
+
+function renderShopSlots() {
+  const box = document.getElementById('shop-slots');
+  if (!box) return;
+  box.innerHTML = shopExtractFiles.map((_, i) => shopSlotHtml(i)).join('');
+  const add = document.getElementById('shop-slot-add');
+  if (add) add.style.display = shopExtractFiles.length >= MAX_SLIDES ? 'none' : '';
+}
+
+function addShopSlot() {
+  if (shopExtractFiles.length >= MAX_SLIDES) { showToast('Maximum ' + MAX_SLIDES + ' photos'); return; }
+  shopExtractFiles.push(null);
+  document.getElementById('shop-slots')?.insertAdjacentHTML('beforeend', shopSlotHtml(shopExtractFiles.length - 1));
+  const add = document.getElementById('shop-slot-add');
+  if (add && shopExtractFiles.length >= MAX_SLIDES) add.style.display = 'none';
+}
+renderShopSlots();
 
 function handleShopSlotFile(input, idx) {
   const file = input.files[0]; if (!file) return;
@@ -581,7 +614,7 @@ function removeShopSlot(e, idx) {
 }
 
 async function extractItems() {
-  if (!shopExtractFiles[0] && !shopExtractFiles[1]) { showToast('Please select at least one shop image.'); return; }
+  if (!shopExtractFiles.some(Boolean)) { showToast('Please select at least one shop image.'); return; }
   const btn = document.getElementById('extract-btn');
   const status = document.getElementById('extract-status');
   const progress = document.getElementById('extract-progress');
@@ -593,7 +626,6 @@ async function extractItems() {
   try {
     const filesToUpload = shopExtractFiles.filter(Boolean);
     const allItems = [];
-    const slides = document.querySelectorAll('#slideshow img');
     for (let i = 0; i < shopExtractFiles.length; i++) {
       const file = shopExtractFiles[i];
       if (!file) continue;
@@ -607,7 +639,7 @@ async function extractItems() {
       if (items.length) allItems.push(...items);
       if (result.url) {
         await adminFetch({ action: 'uploadSlideImg', slideIndex: i, url: result.url });
-        if (slides[i]) slides[i].src = result.url;
+        slideUrls[i] = result.url;
       }
     }
     setBar(90);
@@ -850,21 +882,37 @@ let slideshowTimer = null;
 let slideshowIdx = 0;
 let slideUrls = []; // Dynamic array - populated from settings
 let slideDragSrc = null; // For drag-to-reorder
-const MAX_SLIDES = 2; // must match SLIDE_COLS in server/handlers/settings.js
 
-// Page buttons (1, 2, ...) under the slideshow. Only shown when there is more than one slide.
+// The banner <img> tags are built from slideUrls (only the filled slots, in order), so any number of slides works.
+// Rebuilds the tags only when the list actually changed, so clicking a page button never reloads images.
+function syncBannerImgs() {
+  const box = document.getElementById('slideshow');
+  if (!box) return;
+  const urls = slideUrls.filter(u => u);
+  const cur = [...box.querySelectorAll('img')].map(img => img.getAttribute('src'));
+  if (cur.length === urls.length && cur.every((u, i) => u === urls[i])) return;
+  box.innerHTML = '';
+  urls.forEach((u, i) => {
+    const img = document.createElement('img');
+    img.src = u;
+    img.alt = 'In-game shop ' + (i + 1);
+    box.appendChild(img);
+  });
+  initImgFadeIn();
+}
+
+// Page buttons (1, 2, 3, ...) under the slideshow. Only shown when there is more than one slide.
 function renderSlideNav() {
   const area = document.getElementById('slideshow-area');
   if (!area) return;
   area.querySelector('.ss-nav')?.remove();
-  const imgs = [...document.querySelectorAll('#slideshow img')];
-  const idxs = imgs.map((img, i) => (img.getAttribute('src') ? i : -1)).filter(i => i >= 0);
-  if (idxs.length < 2) return;
+  const count = document.querySelectorAll('#slideshow img').length;
+  if (count < 2) return;
   const nav = document.createElement('div');
   nav.className = 'ss-nav';
   nav.setAttribute('role', 'group');
   nav.setAttribute('aria-label', 'Choose slide');
-  nav.innerHTML = idxs.map((i, n) => `<button type="button" class="ss-nav-btn" data-action="goSlide" data-idx="${i}" aria-label="Show slide ${n + 1}">${n + 1}</button>`).join('');
+  nav.innerHTML = Array.from({ length: count }, (_, i) => `<button type="button" class="ss-nav-btn" data-action="goSlide" data-idx="${i}" aria-label="Show slide ${i + 1}">${i + 1}</button>`).join('');
   area.appendChild(nav);
   updateSlideNav();
 }
@@ -885,11 +933,10 @@ function goSlide(idx) {
 
 function startSlideshow() {
   if (slideshowTimer) { clearInterval(slideshowTimer); slideshowTimer = null; }
+  syncBannerImgs();
   const slides = document.querySelectorAll('#slideshow img');
-  const loaded = slideUrls.filter(u => u);
-  slides.forEach(img => img.classList.remove('active'));
   document.querySelector('#slideshow-area .ss-nav')?.remove();
-  if (loaded.length === 0) {
+  if (slides.length === 0) {
     const area = document.getElementById('slideshow-area');
     if (area && !area.querySelector('.ss-placeholder')) {
       const ph = document.createElement('div');
@@ -901,15 +948,10 @@ function startSlideshow() {
     return;
   }
   document.querySelector('#slideshow-area .ss-placeholder')?.remove();
-  if (loaded.length === 1) {
-    const activeIdx = slideUrls.findIndex(u => u);
-    if (slides[activeIdx]) slides[activeIdx].classList.add('active');
-    slideshowIdx = activeIdx;
-    return;
-  }
-  if (slideUrls[slideshowIdx]) {
-    slides[slideshowIdx].classList.add('active');
-  } else { slides[0].classList.add('active'); slideshowIdx = 0; }
+  if (slideshowIdx >= slides.length) slideshowIdx = 0;
+  slides.forEach(img => img.classList.remove('active'));
+  slides[slideshowIdx].classList.add('active');
+  if (slides.length === 1) return;
   renderSlideNav();
   slideshowTimer = setInterval(() => {
     const imgs = document.querySelectorAll('#slideshow img');
@@ -937,19 +979,8 @@ async function fetchSlideUrls() {
     const r = await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'getSettings' }) });
     const d = await r.json();
     const row = d.slides || [];
-    const slides = document.querySelectorAll('#slideshow img');
-    // Reset slideUrls to match actual data
-    slideUrls = row.filter(u => u);
-    row.forEach((url, i) => {
-      if (!url) return;
-      if (slides[i]) slides[i].src = url;
-      if (adminUnlocked) {
-        const thumb = document.getElementById('ss-img-' + i);
-        const lbl = document.getElementById('ss-lbl-' + i);
-        if (thumb) { thumb.src = url; thumb.style.display = 'block'; }
-        if (lbl) lbl.style.display = 'none';
-      }
-    });
+    // Keep empty slots in place so slot numbers always match the saved list; the banner skips them
+    slideUrls = row.slice();
     // Rebuild admin slideshow tab with current slides
     if (adminUnlocked) rebuildSlideshowTab();
     document.getElementById('slideshow-area')?.classList.remove('loading');
@@ -974,8 +1005,8 @@ function rebuildSlideshowTab() {
         style="aspect-ratio:16/9;border:1px dashed var(--border2);border-radius:8px;cursor:pointer;position:relative;overflow:hidden;background:var(--bg2);display:flex;align-items:center;justify-content:center;transition:border-color .2s">
         <input type="file" accept="image/*" onchange="uploadSlide(this,${i})"
           style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;z-index:5" />
-        <img id="ss-img-${i}" src="${esc(url)}" style="width:100%;height:100%;object-fit:cover;display:block;border-radius:7px" />
-        <div id="ss-lbl-${i}" style="text-align:center;pointer-events:none;display:none">
+        <img id="ss-img-${i}" ${url ? `src="${esc(url)}"` : ''} style="width:100%;height:100%;object-fit:cover;display:${url ? 'block' : 'none'};border-radius:7px" />
+        <div id="ss-lbl-${i}" style="text-align:center;pointer-events:none;display:${url ? 'none' : 'block'}">
           <div style="font-size:22px;margin-bottom:4px">📷</div>
           <div style="font-size:11px;color:var(--text3);font-family:'Rajdhani',sans-serif;letter-spacing:.04em">Tap to upload</div>
         </div>
@@ -993,7 +1024,7 @@ function rebuildSlideshowTab() {
       <div style="font-size:11px;color:var(--text3);font-family:'Rajdhani',sans-serif;letter-spacing:.05em;text-transform:uppercase">Add Slide</div>
     </div>`;
 
-  // The sheet only has 2 slide cells (Settings!B2:C2), so no "Add Slide" button once both exist
+  // No "Add Slide" button once the maximum is reached
   if (slideUrls.length >= MAX_SLIDES) document.getElementById('slide-add-btn')?.remove();
 
   // Attach drag events
@@ -1071,8 +1102,6 @@ function handleSlideDrop(e) {
 
   // Rebuild UI + update the banner on the page to the new order right away
   rebuildSlideshowTab();
-  const bannerImgs = document.querySelectorAll('#slideshow img');
-  bannerImgs.forEach((img, i) => { img.src = slideUrls[i] || ''; });
   slideshowIdx = 0;
   startSlideshow();
 }
@@ -1148,8 +1177,7 @@ async function uploadSlide(input, idx) {
     if (result.error) throw new Error(result.error);
     const finalUrl = result.url;
     prog.style.width = '100%';
-    const slides = document.querySelectorAll('#slideshow img');
-    if (slides[idx]) { slides[idx].src = finalUrl; slideUrls[idx] = finalUrl; }
+    slideUrls[idx] = finalUrl;
     ssImg.src = finalUrl;
     showSlideStatus('Slide ' + (idx + 1) + ' updated ✓', true);
     slideshowIdx = 0;
@@ -1167,8 +1195,6 @@ async function clearSlideUpload(idx) {
     const result = await resp.json();
     if (result.error) throw new Error(result.error);
     slideUrls[idx] = '';
-    const slides = document.querySelectorAll('#slideshow img');
-    if (slides[idx]) { slides[idx].src = ''; slides[idx].classList.remove('active'); }
     const ssImg = document.getElementById('ss-img-' + idx); if (ssImg) { ssImg.src = ''; ssImg.style.display = 'none'; }
     const ssLbl = document.getElementById('ss-lbl-' + idx); if (ssLbl) ssLbl.style.display = '';
     const inp = document.getElementById('ss-slot-' + idx)?.querySelector('input'); if (inp) inp.value = '';
