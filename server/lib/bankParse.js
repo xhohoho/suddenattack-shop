@@ -1,12 +1,16 @@
 /**
- * Parses the Maybank "money received" push notification (sent as plain text by MacroDroid).
- * Real sample (name shortened):  You've received RM 1.00 from SOME NAME BINTI M. REF: 974380032Q.
+ * Parses the "money received" push notification (sent as plain text by MacroDroid).
+ * Supported formats:
+ *   Maybank:      You've received RM 23.60 from SYAHIR FARHAN BIN SHAMSUD. REF: 060911366Q.
+ *   Touch 'n Go:  You've just received RM 15.50 in your account ending ***0052. REF: 20261125TNGDMYNB010ORM08101733
+ * (apostrophe may be ' or ’; "just" is optional; "from SENDER" is optional)
  *
- * The pattern is ANCHORED to the start of the text, so anything else (debit alerts, OTPs, login alerts,
- * or a sender who types "RM 50" in their reference) can never be read as a payment.
- * The sender name and REF are untrusted display text: never use them to approve anything.
+ * ANCHORED to the start of the text, so debit alerts, OTPs, or a sender who types
+ * "RM 50" in their reference can never be read as a payment.
+ * Sender and REF are untrusted display text: never use them to approve anything.
+ * The Touch 'n Go format has no sender name, so sender is '' there.
  */
-const RECEIVED_RE = /^\s*You['’]ve received RM\s*(\d[\d,]*\.\d{2})\s+from\s+(.+?)\.?(?:\s+REF:\s*(.*?))?\.?\s*$/is;
+const RECEIVED_RE = /^\s*You['’]ve\s+(?:just\s+)?received RM\s*(\d[\d,]*\.\d{2})(?:\s+from\s+(.+?))?(?:\s+in your account(?:\s+ending\s*[*\w]+)?)?\s*\.?(?:\s*REF:\s*(.*?))?\.?\s*$/is;
 
 /** @returns {{amountCents:number, sender:string, ref:string}|null} */
 export function parseReceived(text) {
@@ -14,5 +18,5 @@ export function parseReceived(text) {
   if (!m) return null;
   const amountCents = Math.round(parseFloat(m[1].replace(/,/g, '')) * 100);
   if (!Number.isSafeInteger(amountCents) || amountCents <= 0) return null;
-  return { amountCents, sender: m[2].trim(), ref: (m[3] || '').trim() };
+  return { amountCents, sender: (m[2] || '').trim(), ref: (m[3] || '').trim() };
 }
