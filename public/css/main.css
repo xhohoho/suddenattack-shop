@@ -209,6 +209,17 @@
       border-color: var(--border2)
     }
 
+    .admin-toggle.on { color: var(--accent); border-color: #e8b84b60 }
+    .admin-toggle.visitor { color: #0a0b0f; background: var(--accent); border-color: var(--accent); font-weight: 600 }
+
+    .admin-viewbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; padding-bottom: 12px; border-bottom: 1px solid var(--border) }
+    .admin-viewbar-lbl { font-family: 'Rajdhani', sans-serif; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--text3) }
+    .admin-seg { display: inline-flex; border: 1px solid var(--border2); border-radius: 6px; overflow: hidden }
+    .admin-seg button { background: var(--bg3); border: none; color: var(--text2); font-family: 'Rajdhani', sans-serif; font-size: 13px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; padding: 6px 14px; cursor: pointer; min-height: 32px }
+    .admin-seg button.active { background: var(--accent); color: #0a0b0f }
+    .admin-logout { margin-left: auto }
+    #admin-content.visitor-mode > :not(.admin-viewbar) { display: none !important }
+
     .admin-panel {
       display: none;
       background: var(--bg2);

@@ -20,12 +20,12 @@ function renderFeed(orders) {
     // The Pay button only appears in the browser that placed the order (it holds the order_token).
     const canPay = isPayable(actualStatus) && hasOrderToken(o.order_id);
     const statusLabel = actualStatus === 'ProofSubmitted' ? 'Proof sent' : actualStatus;
-    const fp = `${oid}|${actualStatus}|${tot}|${o.comment || ''}|${adminUnlocked ? 1 : 0}|${canPay ? 1 : 0}`;
+    const fp = `${oid}|${actualStatus}|${tot}|${o.comment || ''}|${inAdminView() ? 1 : 0}|${canPay ? 1 : 0}`;
 
     let card = el.children[i];
     if (card && card.dataset.fp === fp) return; // unchanged, skip
 
-    const commentHtml = adminUnlocked
+    const commentHtml = inAdminView()
       ? `<div class="fi" style="margin-top:4px;display:flex;align-items:center;gap:6px">
           <input type="text" id="feedcm-${oid}" value="${escapeHtml(o.comment || '').replace(/"/g, '&quot;')}" placeholder="Add comment — visible to everyone"
             style="flex:1;min-width:0;border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:11px;font-family:'Inter',sans-serif;color:var(--text);background:var(--bg3);outline:none" />
@@ -81,8 +81,8 @@ async function fetchSheet() {
   try {
     // When unlocked, the admin gets fresh (uncached) data so a just-saved comment/status never looks lost.
     // Public requests get only the latest 20 orders to reduce payload size.
-    const payload = { action: 'getOrders', limit: adminUnlocked ? undefined : 20 };
-    if (adminUnlocked && adminToken) payload._token = adminToken;
+    const payload = { action: 'getOrders', limit: inAdminView() ? undefined : 20 };
+    if (inAdminView() && adminToken) payload._token = adminToken;
     let d;
     try { d = await apiPost(payload); }
     catch (err) {

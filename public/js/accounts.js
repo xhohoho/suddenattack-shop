@@ -69,7 +69,7 @@ async function fetchAccounts() {
   try {
     // When the admin is unlocked the server also returns pending listings + seller details.
     const payload = { action: 'getAccounts' };
-    if (adminUnlocked && adminToken) payload._token = adminToken;
+    if (inAdminView() && adminToken) payload._token = adminToken;
     let d;
     try { d = await apiPost(payload); }
     catch (err) {

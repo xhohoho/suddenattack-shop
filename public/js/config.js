@@ -60,5 +60,12 @@ let adminToken = (() => {
 })();
 if (adminToken) adminUnlocked = true; // will be validated on first adminFetch
 
+// Logged-in admins can switch the PUBLIC part of the site between "admin view" (comment boxes, pending
+// listings, seller details) and "visitor view" (exactly what a visitor sees). Admin tools stay logged in.
+let adminView = (() => {
+  try { return sessionStorage.getItem('adminView') !== 'visitor'; } catch { return true; }
+})();
+function inAdminView() { return adminUnlocked && adminView; }
+
 // Unpaid orders older than this show as "AFK" (the server marks them in the sheet once a day).
 const AFK_AFTER_HOURS = 24;

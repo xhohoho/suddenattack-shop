@@ -45,6 +45,14 @@
         <div class="admin-status" id="gate-status"></div>
       </div>
       <div id="admin-content" style="display:none">
+        <div class="admin-viewbar">
+          <span class="admin-viewbar-lbl">View site as</span>
+          <div class="admin-seg" role="group" aria-label="View site as">
+            <button type="button" class="active" data-action="setAdminView" data-view="admin" aria-pressed="true">Admin</button>
+            <button type="button" data-action="setAdminView" data-view="visitor" aria-pressed="false">Visitor</button>
+          </div>
+          <button type="button" class="admin-btn sec admin-logout" data-action="adminLogout">Log out</button>
+        </div>
         <div class="admin-title">Shop management</div>
         <div class="admin-tabs">
           <button class="admin-tab active" data-action="switchTab" data-tab="extract">Extract items</button>

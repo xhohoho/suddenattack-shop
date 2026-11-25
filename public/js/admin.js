@@ -13,6 +13,7 @@ async function adminFetch(payload) {
     try { const j = await resp.clone().json(); if (j && j.error) msg = j.error; } catch { /* non-JSON */ }
     if (resp.status === 401) {
       adminUnlocked = false; adminToken = null;
+      if (typeof updateAdminUi === 'function') updateAdminUi();
       // Clear sessionStorage on session expiry
       try { sessionStorage.removeItem('adminToken'); } catch { /* ignore */ }
       msg = 'Admin session expired. Please unlock again.';
@@ -85,6 +86,53 @@ function setTabLoading(tabId, loading) {
 
 let _lastAdminTab = 'extract';
 
+// Keeps the topbar button, the panel's view switch and the panel body in line with the current state.
+function updateAdminUi() {
+  const btn = document.querySelector('.admin-toggle');
+  if (btn) {
+    btn.textContent = !adminUnlocked ? 'Admin' : (adminView ? 'Admin ●' : 'Visitor view');
+    btn.classList.toggle('on', adminUnlocked && adminView);
+    btn.classList.toggle('visitor', adminUnlocked && !adminView);
+  }
+  document.querySelectorAll('.admin-seg button').forEach(b => {
+    const active = (b.dataset.view === 'admin') === adminView;
+    b.classList.toggle('active', active);
+    b.setAttribute('aria-pressed', String(active));
+  });
+  const content = document.getElementById('admin-content');
+  if (content) content.classList.toggle('visitor-mode', !adminView);
+}
+
+function refreshPublicData() {
+  _lastFeedData = ''; _lastAccountData = '';
+  fetchSheet();
+  if (typeof fetchAccounts === 'function') fetchAccounts();
+}
+
+function setAdminView(view) {
+  if (!adminUnlocked) return;
+  adminView = view !== 'visitor';
+  try { sessionStorage.setItem('adminView', adminView ? 'admin' : 'visitor'); } catch { /* ignore */ }
+  updateAdminUi();
+  // Visitor view: close the panel so the page is seen exactly as a visitor sees it.
+  if (!adminView) document.getElementById('admin-panel').classList.remove('open');
+  refreshPublicData();
+  showToast(adminView ? 'Admin view' : 'Visitor view: click "Visitor view" at the top to switch back');
+}
+
+function adminLogout() {
+  adminUnlocked = false; adminToken = null; adminView = true; _adminSessionReady = false;
+  try { sessionStorage.removeItem('adminToken'); sessionStorage.removeItem('adminView'); } catch { /* ignore */ }
+  document.getElementById('admin-panel').classList.remove('open');
+  document.getElementById('admin-gate').style.display = 'block';
+  document.getElementById('admin-content').style.display = 'none';
+  document.getElementById('admin-pw').value = '';
+  resetAdminTurnstile();
+  updateAdminUi();
+  refreshPublicData();
+  showToast('Logged out');
+}
+
 function toggleAdmin() {
   const p = document.getElementById('admin-panel');
   p.classList.toggle('open');
@@ -98,6 +146,7 @@ function toggleAdmin() {
     document.getElementById('admin-gate').style.display = 'none';
     document.getElementById('admin-content').style.display = 'block';
     initAdminSession();
+    updateAdminUi();
     const btn = document.querySelector(`.admin-tab[data-tab="${_lastAdminTab}"]`);
     if (btn) switchTab(_lastAdminTab, btn);
   }
@@ -170,6 +219,9 @@ async function checkPass() {
       document.getElementById('admin-gate').style.display = 'none';
       document.getElementById('admin-content').style.display = 'block';
       st.textContent = '';
+      adminView = true;
+      try { sessionStorage.setItem('adminView', 'admin'); } catch { /* ignore */ }
+      updateAdminUi();
 
       // Same setup as a restored session: slide thumbnails, shop editor, accounts (with pending listings), feed comment boxes
       initAdminSession();

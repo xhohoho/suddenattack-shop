@@ -66,6 +66,7 @@ async function unifiedBoot() {
   }
 }
 
+updateAdminUi();
 unifiedBoot();
 // ── Event delegation for admin / accounts UI (replaces the old inline onclick/onchange) ──
 // feed.js and items.js handle their own data-action values; everything else is routed here.
@@ -76,6 +77,8 @@ unifiedBoot();
   const CLICK = {
     // admin panel
     toggleAdmin:        () => toggleAdmin(),
+    setAdminView:       el => setAdminView(el.dataset.view),
+    adminLogout:        () => adminLogout(),
     checkPass:          () => checkPass(),
     switchTab:          el => switchTab(el.dataset.tab, el),
     extractItems:       () => extractItems(),
