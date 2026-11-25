@@ -45,11 +45,16 @@ function changeQty(id, day, delta) {
   recalc();
 }
 
+// Cart lines in the order they were first added (keys like "3_7"). recalc() keeps this in sync with `qtys`
+// whichever code path changed the quantities, so a new line always lands at the bottom and a quantity change keeps its place.
+let cartOrder = [];
+
 // Brings every part of the UI in line with `qtys`: the steppers on the cards, the cart preview,
 // the totals and the mobile checkout bar.
 function recalc() {
   let tot = 0, units = 0;
   const lines = [];
+  const byKey = {};
   ITEMS.forEach(it => {
     let r = 0;
     DAYS.forEach(d => {
@@ -61,7 +66,7 @@ function recalc() {
         const minus = num.previousElementSibling;
         if (minus) minus.disabled = q === 0;
       }
-      if (q > 0) { r += q * it.p[d]; units += q; lines.push({ it, d, q, amt: q * it.p[d] }); }
+      if (q > 0) { r += q * it.p[d]; units += q; byKey[`${it.id}_${d}`] = { it, d, q, amt: q * it.p[d] }; }
     });
     tot += r;
     const amtEl = document.getElementById('ra' + it.id);
@@ -69,6 +74,13 @@ function recalc() {
     const card = document.getElementById('ic' + it.id);
     if (card) card.classList.toggle('has-qty', r > 0);
   });
+
+  // drop lines that are gone, append newly added ones (several at once keep catalogue order)
+  const prevCount = cartOrder.length;
+  cartOrder = cartOrder.filter(k => byKey[k]);
+  Object.keys(byKey).forEach(k => { if (!cartOrder.includes(k)) cartOrder.push(k); });
+  cartOrder.forEach(k => lines.push(byKey[k]));
+  const added = cartOrder.length > prevCount;
 
   const has = lines.length > 0;
   const grand = has ? tot + SERVICE_CHARGE : 0;
@@ -81,6 +93,7 @@ function recalc() {
       <button type="button" class="cart-line-rm" data-action="removeLine" data-id="${l.it.id}" data-day="${l.d}" aria-label="Remove ${escapeHtml(`${l.it.name}, ${l.d} days`)} from cart">✕</button>
     </li>`).join('');
   document.getElementById('cart-list').style.display = has ? '' : 'none';
+  if (added) { const cl = document.getElementById('cart-list'); cl.scrollTop = cl.scrollHeight; } // show the new line
   document.getElementById('cart-empty').style.display = has ? 'none' : '';
   document.getElementById('cart-count').textContent = units;
 
