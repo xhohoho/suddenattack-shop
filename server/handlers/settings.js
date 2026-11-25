@@ -1,4 +1,4 @@
-import { sheetsRead, sheetsWrite, sheetsWriteBatch, sanitizeSheetValue } from '../lib/sheets.js';
+import { getSheetData, sheetsRead, sheetsWrite, sheetsWriteBatch, sanitizeSheetValue } from '../lib/sheets.js';
 import { MAX_SLIDES, SLIDE_RANGE, parseSlides, slideWrites } from '../lib/slides.js';
 import { uploadToDrive, driveUrl, decodeUpload, extForMime } from '../lib/drive.js';
 import { requireToken } from '../lib/auth.js';
